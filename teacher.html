@@ -84,6 +84,7 @@ import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, increment, writeBatch,
   ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast
 } from './js/fb.js';
+import { DEF_OX, DEF_MC } from './js/questions.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
 const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
@@ -252,7 +253,7 @@ function drawLive(cid) {
     liveOffs.push(onValue(rquery(ref(rt, base + '/chat'), limitToLast(40)), (s) => { L.chat = []; s.forEach((x) => { L.chat.push(x.val()); }); paintChat(); }));
     liveOffs.push(onValue(ref(rt, base + '/lastRun'), (s) => { const r = s.val(); if (r && r !== L.resFor && !(L.st.game && L.st.game.run)) watchResults(r); }));
     liveOffs.push(onSnapshot(collection(fs, 'classes', cid, 'students'), (s) => { L.students = s.docs.map((d) => Object.assign({ id: d.id }, d.data())); paintStudents(); }, () => {}));
-    Promise.all(['ox', 'mc'].map(async (k) => { try { const s = await getDoc(doc(fs, 'banks', k)); L.bank[k] = s.exists() ? s.data().list || [] : []; } catch (e) { L.bank[k] = []; } })).then(() => paintQuiz());
+    Promise.all(['ox', 'mc'].map(async (k) => { let l = []; try { const s = await getDoc(doc(fs, 'banks', k)); l = s.exists() ? s.data().list || [] : []; } catch (e) { l = []; } L.bank[k] = l.length ? l : (k === 'ox' ? DEF_OX : DEF_MC); })).then(() => paintQuiz());
   }
   $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">' + esc(c.name) + ' 진행판</h1><div class="row"><span class="badge">방번호 ' + esc(c.room) + '</span><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><a class="btn sm" href="#classes">◀ 우리 반</a></div></div>' +
     '<div class="live"><div class="stack">' +
