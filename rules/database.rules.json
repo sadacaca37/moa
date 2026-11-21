@@ -1,0 +1,38 @@
+{
+  "rules": {
+    ".read": "auth != null && auth.token.email === 'sadacaca37@gmail.com' && auth.provider === 'password'",
+    ".write": "auth != null && auth.token.email === 'sadacaca37@gmail.com' && auth.provider === 'password'",
+    "live": {
+      "$cid": {
+        "state": { ".read": "auth != null" },
+        "players": {
+          ".read": "auth != null",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['n', 'x', 'y']) && newData.child('n').isString() && newData.child('n').val().length <= 10"
+          }
+        },
+        "chat": {
+          ".read": "auth != null",
+          "$id": {
+            ".write": "auth != null && !data.exists() && newData.child('u').val() === auth.uid",
+            ".validate": "newData.hasChildren(['u', 'n', 'm', 't']) && newData.child('m').isString() && newData.child('m').val().length <= 40 && newData.child('n').isString() && newData.child('n').val().length <= 10"
+          }
+        },
+        "answers": {
+          "$qid": {
+            "$uid": {
+              ".read": "auth != null && auth.uid === $uid",
+              ".write": "auth != null && auth.uid === $uid && !data.exists()"
+            }
+          }
+        },
+        "results": {
+          "$run": {
+            "$uid": { ".write": "auth != null && auth.uid === $uid" }
+          }
+        }
+      }
+    }
+  }
+}
