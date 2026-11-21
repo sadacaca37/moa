@@ -2,34 +2,253 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>모아팡팡</title>
+<meta name="description" content="모아팡팡 — 우리 반 수업 홈페이지">
+<link rel="icon" href="assets/moa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/moa.css">
 <style>
-:root{--ink:#1B1F3B}
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;display:flex;flex-direction:column;color:var(--ink);font:16px/1.6 'Noto Sans KR',sans-serif;background:#2E9BEA url(assets/bg.webp) center top/cover no-repeat fixed}
-main{flex:1;display:grid;place-items:center;padding:24px 16px}
-.box{max-width:560px;width:100%;background:#FFF8E7;border:4px solid var(--ink);box-shadow:inset -4px -4px 0 #E2D6B8,inset 4px 4px 0 #fff,6px 6px 0 var(--ink);padding:28px 24px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
-h1{margin:0;font:400 clamp(40px,8vw,56px)/1.1 'Jua',sans-serif;color:#FFD23F;text-shadow:3px 0 0 var(--ink),-3px 0 0 var(--ink),0 3px 0 var(--ink),0 -3px 0 var(--ink),4px 4px 0 var(--ink)}
-p{margin:0;font-size:17px}
-.moa{width:120px;height:159px;background:url(assets/moa.png) 0 0/480px 159px no-repeat;image-rendering:pixelated;animation:hop 1.8s steps(1) infinite}
-@keyframes hop{0%,50%{background-position:0 0}58%{background-position:-120px 0}72%{background-position:-240px 0}86%{background-position:-360px 0}}
-@media (prefers-reduced-motion:reduce){.moa{animation:none}}
-footer{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 12px;padding:10px 20px 16px;font-size:13px;font-weight:700;color:#fff;text-shadow:2px 2px 0 var(--ink)}
+/* VOICE: 아이들이 매 시간 처음 보는 문 — 방번호만 누르면 바로 들어가는 게임 시작 화면
+   LAYOUT: 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 타자팡팡 + 링크 게시판, 오른쪽 아래 제작자 */
+main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:6px clamp(12px,3vw,24px) 110px;display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.left{flex:1 1 360px;max-width:440px;display:flex;flex-direction:column;gap:16px}
+.right{flex:999 1 520px;display:flex;flex-direction:column;gap:18px}
+.resume{display:flex;align-items:center;gap:12px;padding:10px 14px;text-decoration:none;cursor:pointer;width:100%;font:inherit;text-align:left}
+.resume canvas{width:52px;height:52px;image-rendering:pixelated;flex:none}
+.resume .tx{display:flex;flex-direction:column;gap:2px;flex:1}
+.resume small{font-size:12px;color:var(--sub)}
+.resume b{font-size:17px}
+.resume .go{font:400 15px/1 'Jua',sans-serif;color:#fff;background:var(--blue);border:3px solid var(--ink);padding:8px 10px;white-space:nowrap}
+.stage{font:400 17px/1.2 'Jua',sans-serif}
+#room{font:700 38px/1 'Noto Sans KR',monospace;letter-spacing:.4em;text-align:center;padding:10px 0 10px .4em;background:var(--ink);color:var(--grn);border:4px solid var(--ink)}
+#room::placeholder{color:#4a6b55}
+.keys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.key{min-height:50px;border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);background:#fff;font:400 24px/1 'Jua',sans-serif;color:var(--ink);cursor:pointer}
+.key.s{font-size:16px}
+.key:hover{background:var(--paper2)}.key:active{transform:translateY(3px);box-shadow:none}
+.cls{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFE3A3;border:3px solid var(--ink)}
+.cls i{width:14px;height:14px;border:3px solid var(--ink);flex:none;background:var(--red)}
+.cls b{font-size:16px}
+.cls button{margin-left:auto;border:0;background:transparent;color:var(--ink);font:500 13px/1 'Noto Sans KR',sans-serif;text-decoration:underline;cursor:pointer;min-height:40px}
+#nm{font:700 26px/1.2 'Noto Sans KR',sans-serif;text-align:center;padding:12px 10px}
+.msg{margin:0;font-size:14px;font-weight:700;color:#B3261E;min-height:1.4em}
+.typing{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:12px 14px;background:var(--yel);color:var(--ink);text-decoration:none;margin-top:86px}
+.typing .ic{width:48px;height:48px;background:#fff;border:4px solid var(--ink);display:grid;place-items:center;flex:none}
+.typing .tx{display:flex;flex-direction:column;gap:4px;flex:1;min-width:170px}
+.typing .tx b{font:400 26px/1.2 'Jua',sans-serif}
+.typing .tx span{font-size:14px}
+.typing .st{font:400 17px/1 'Jua',sans-serif;background:var(--red);color:#fff;border:3px solid var(--ink);padding:9px 14px;white-space:nowrap}
+.typing[aria-disabled=true] .st{background:var(--off);color:var(--sub)}
+.friends{position:absolute;left:16px;bottom:100%;display:flex;align-items:flex-end;gap:6px;pointer-events:none}
+.friends .msc.moa{height:78px}.friends .msc.pop{height:84px;animation-delay:-.6s}.friends .msc.star{height:74px;animation-delay:-1.2s}
+.bubble{position:absolute;left:250px;bottom:calc(100% + 40px);background:#fff;border:3px solid var(--ink);padding:6px 12px;font:400 17px/1.2 'Jua',sans-serif;white-space:nowrap}
+.bubble::after{content:'';position:absolute;left:-12px;bottom:8px;border:6px solid transparent;border-right-color:var(--ink)}
+.board h2{font-size:24px}
+.bhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+footer{position:fixed;right:20px;bottom:44px;z-index:2;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 12px;font-size:13px;font-weight:700;color:#fff;text-shadow:2px 2px 0 var(--ink)}
 footer a{color:#fff}
+.walkers{position:fixed;left:0;right:0;bottom:34px;height:72px;z-index:1;pointer-events:none;overflow:hidden}
+.walkers canvas{position:absolute;bottom:-6px;width:72px;height:72px;image-rendering:pixelated}
+@media (max-width:860px){.typing{margin-top:96px}footer{position:static;justify-content:center;padding:0 0 60px}.bubble{left:240px}}
+@media (max-width:420px){.bubble{display:none}}
 </style>
 </head>
 <body>
+<header class="top">
+  <a class="logo" href="./" aria-label="모아팡팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>모아팡팡</span></a>
+  <a class="btn sm" href="teacher.html" id="tBtn">선생님 로그인</a>
+</header>
+
 <main>
-  <section class="box">
-    <div class="moa" role="img" aria-label="햄스터 모아"></div>
-    <h1>모아팡팡</h1>
-    <p>우리 반 수업 홈페이지를 열심히 만들고 있어요.<br>곧 문을 열어요!</p>
+  <section class="left" aria-labelledby="enterH">
+    <h1 id="enterH" class="sr">반 들어가기</h1>
+    <button type="button" class="pf resume" id="resume" hidden>
+      <canvas width="52" height="52" id="resumeCv" aria-hidden="true"></canvas>
+      <span class="tx"><small>지난번에 들어간 반</small><b id="resumeT"></b></span>
+      <span class="go">이어하기 ▶</span>
+    </button>
+
+    <div class="pf pad">
+      <form id="codeF" class="stack" autocomplete="off">
+        <label for="room" class="stage">STAGE 1 · 방번호 5자리</label>
+        <input id="room" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="-----" aria-describedby="codeMsg">
+        <div class="keys" id="keys"></div>
+        <p class="msg" id="codeMsg" role="alert"></p>
+        <button type="submit" class="btn blue big" id="codeGo" disabled>다음 ▶</button>
+      </form>
+      <form id="nameF" class="stack" autocomplete="off" hidden>
+        <div class="cls"><i id="clsDot" aria-hidden="true"></i><b id="clsName"></b><button type="button" id="back">◀ 방번호 다시</button></div>
+        <label for="nm" class="stage">STAGE 2 · 내 이름</label>
+        <input id="nm" class="field" type="text" maxlength="10" placeholder="이름을 써 주세요" aria-describedby="nameMsg">
+        <p class="note">비밀번호는 없어요. 다음 시간에도 같은 이름을 쓰면 내 캐릭터와 기록이 이어져요.</p>
+        <p class="msg" id="nameMsg" role="alert"></p>
+        <button type="submit" class="btn blue big" id="nameGo" disabled>게임 시작 ▶</button>
+      </form>
+    </div>
+    <p class="note" style="background:rgba(255,255,255,.8);padding:8px 10px;border:3px solid var(--ink);color:var(--ink)">QR 코드나 선생님이 보낸 링크로 오면 방번호 없이 STAGE 2부터 시작해요.</p>
+  </section>
+
+  <section class="right" aria-labelledby="linksH">
+    <a class="btn typing" id="typing" href="#" target="_blank" rel="noopener" aria-disabled="true">
+      <span class="friends" aria-hidden="true"><span class="msc moa"></span><span class="msc pop"></span><span class="msc star"></span></span>
+      <span class="bubble" aria-hidden="true">어서 와, 친구들!</span>
+      <span class="ic" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 11 11" shape-rendering="crispEdges"><path fill="#1B1F3B" d="M0 2h11v7H0z"/><path fill="#fff" d="M1 3h1v1H1zM3 3h1v1H3zM5 3h1v1H5zM7 3h1v1H7zM9 3h1v1H9zM2 5h1v1H2zM4 5h1v1H4zM6 5h1v1H6zM8 5h1v1H8zM3 7h5v1H3z"/></svg></span>
+      <span class="tx"><b>타자팡팡</b><span id="typingSub">타자 연습하고 기록 올리기 · 반 랭킹 보기</span></span>
+      <span class="st">START ▶</span>
+    </a>
+    <div class="pf pad board stack">
+      <div class="bhead"><h2 id="linksH">링크 게시판</h2><span class="note">수업 보드는 바로 넘어가고, 다른 사이트는 새 창으로 열려요</span></div>
+      <div class="cards" id="links"><p class="empty">링크를 불러오는 중…</p></div>
+    </div>
   </section>
 </main>
+
+<div class="walkers" id="walkers" aria-hidden="true"></div>
+<div class="ground" aria-hidden="true"></div>
 <footer><span>제작자 김은경</span><a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a></footer>
+
+<script src="js/avatar.js"></script>
+<script type="module">
+import { fs, rt, auth, ensureUser, whenAuth, isTeacher, doc, getDoc, setDoc, serverTimestamp, ref, rget, nameKey, cleanName, getSession, setSession, esc, safeUrl, hostOf, errText } from './js/fb.js';
+const $ = (id) => document.getElementById(id);
+const A = window.MoaAvatar;
+let cls = null; // {cid, room, name, color}
+
+/* ---------- 숫자 버튼 ---------- */
+const room = $('room');
+['1', '2', '3', '4', '5', '6', '7', '8', '9', '지우기', '0', '처음부터'].forEach((l) => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'key' + (/\d/.test(l) ? '' : ' s'); b.textContent = l;
+  b.setAttribute('aria-label', /\d/.test(l) ? '숫자 ' + l : l);
+  b.addEventListener('click', () => { const v = room.value; room.value = l === '지우기' ? v.slice(0, -1) : l === '처음부터' ? '' : (v + l).slice(0, 5); codeChanged(); });
+  $('keys').append(b);
+});
+function codeChanged() { room.value = room.value.replace(/\D/g, '').slice(0, 5); $('codeGo').disabled = room.value.length !== 5; $('codeMsg').textContent = ''; }
+room.addEventListener('input', codeChanged);
+
+async function findRoom(code) {
+  await ensureUser();
+  const s = await getDoc(doc(fs, 'rooms', code));
+  if (!s.exists()) return null;
+  const d = s.data();
+  return { cid: d.cid, room: code, name: d.name || '우리 반', color: d.color || '#FF6B4A' };
+}
+function showName(c) {
+  cls = c;
+  $('clsName').textContent = c.name; $('clsDot').style.background = c.color;
+  $('codeF').hidden = true; $('nameF').hidden = false; $('nameMsg').textContent = '';
+  $('nm').focus();
+}
+$('codeF').addEventListener('submit', async (e) => {
+  e.preventDefault(); if (room.value.length !== 5) return;
+  $('codeGo').disabled = true; $('codeMsg').textContent = '';
+  try {
+    const c = await findRoom(room.value);
+    if (!c) { $('codeMsg').textContent = '그런 방번호가 없어요. 다시 확인해 주세요.'; return; }
+    showName(c);
+  } catch (err) { $('codeMsg').textContent = errText(err); } finally { codeChanged(); }
+});
+$('back').addEventListener('click', () => { cls = null; $('nameF').hidden = true; $('codeF').hidden = false; history.replaceState(null, '', './'); room.focus(); });
+$('nm').addEventListener('input', () => { $('nameGo').disabled = !cleanName($('nm').value); $('nameMsg').textContent = ''; });
+
+async function enter(c, name) {
+  const user = await ensureUser();
+  const key = nameKey(name);
+  // 지금 같은 이름으로 들어와 있는 사람이 있는지 (다른 기기)
+  try {
+    const ps = await rget(ref(rt, 'live/' + c.cid + '/players'));
+    let dup = false; ps.forEach((p) => { const v = p.val(); if (v && v.k === key && p.key !== user.uid && Date.now() - (v.t || 0) < 90000) dup = true; });
+    if (dup) return 'dup';
+  } catch (e) { /* 확인 못 해도 들어가기 */ }
+  const sref = doc(fs, 'classes', c.cid, 'students', key);
+  const s = await getDoc(sref);
+  let first = true;
+  if (s.exists()) { first = !s.data().outfit; await setDoc(sref, { name, uid: user.uid, seen: serverTimestamp() }, { merge: true }); }
+  else await setDoc(sref, { name, uid: user.uid, score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp() });
+  const outfit = s.exists() ? s.data().outfit || null : null;
+  setSession({ cid: c.cid, room: c.room, className: c.name, color: c.color, name, key, outfit });
+  location.href = first ? 'dress.html?first=1' : 'class.html';
+  return 'ok';
+}
+$('nameF').addEventListener('submit', async (e) => {
+  e.preventDefault(); const name = cleanName($('nm').value); if (!name || !cls) return;
+  $('nameGo').disabled = true;
+  try {
+    const r = await enter(cls, name);
+    if (r === 'dup') $('nameMsg').textContent = '이미 들어와 있는 이름이에요. 번호나 성을 붙여 써 주세요.';
+  } catch (err) { $('nameMsg').textContent = errText(err); }
+  finally { $('nameGo').disabled = !cleanName($('nm').value); }
+});
+
+/* ---------- 이어하기 ---------- */
+const ses = getSession();
+if (ses) {
+  $('resume').hidden = false; $('resumeT').textContent = ses.className + ' · ' + ses.name;
+  $('resume').addEventListener('click', () => { location.href = 'class.html'; });
+  A.ensure(ses.outfit || A.START).then(() => A.drawFrame($('resumeCv').getContext('2d'), A.sheet(ses.outfit || A.START), 'front', 0, false, 52));
+}
+
+/* ---------- QR·링크로 왔을 때 (?r=방번호) ---------- */
+const qr = new URLSearchParams(location.search).get('r');
+if (qr && /^\d{5}$/.test(qr)) {
+  room.value = qr; codeChanged();
+  findRoom(qr).then((c) => { if (c) showName(c); else $('codeMsg').textContent = '그런 방번호가 없어요. 다시 확인해 주세요.'; }).catch((err) => { $('codeMsg').textContent = errText(err); });
+}
+
+/* ---------- 첫 화면 링크 · 타자팡팡 ---------- */
+const COLORS = ['#7FE0E8', '#9BE07A', '#FF8F8F', '#9DB8FF', '#FFD23F', '#D7B5FF'];
+function card(l, i) {
+  const isBoard = !!l.bid, url = isBoard ? 'board.html?b=' + encodeURIComponent(l.bid) : safeUrl(l.u);
+  if (!url) return '';
+  const site = l.site || (isBoard ? '수업 보드' : hostOf(url)) || '링크';
+  return '<a class="lk" href="' + esc(url) + '"' + (isBoard ? '' : ' target="_blank" rel="noopener"') + '>' +
+    '<span class="band" style="background:' + esc(l.c || COLORS[i % COLORS.length]) + '"><b>' + esc(site) + '</b></span>' +
+    '<span class="body"><span class="t">' + esc(l.t || site) + '</span>' + (l.d ? '<span class="d">' + esc(l.d) + '</span>' : '') +
+    '<span class="h"><span>' + esc(isBoard ? '모아팡팡 보드' : hostOf(url)) + '</span><span>열기 ▶</span></span></span></a>';
+}
+async function loadHome() {
+  try {
+    const user = await ensureUser();
+    if (isTeacher(user)) { $('tBtn').textContent = '선생님 화면'; }
+    const s = await getDoc(doc(fs, 'config', 'home'));
+    const d = s.exists() ? s.data() : {};
+    const links = (d.links || []).filter((l) => !l.hide);
+    $('links').innerHTML = links.map(card).join('') || '<p class="empty">아직 올린 링크가 없어요.</p>';
+    if (isTeacher(user)) $('links').insertAdjacentHTML('afterbegin', '<a class="lk" href="teacher.html#home" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 링크 올리기</span></a>');
+    const tu = safeUrl(d.typingUrl);
+    if (tu) { $('typing').href = tu; $('typing').removeAttribute('aria-disabled'); }
+    else { $('typing').removeAttribute('href'); $('typingSub').textContent = '선생님이 주소를 넣으면 열려요'; }
+  } catch (err) {
+    $('links').innerHTML = '<p class="empty">' + esc(errText(err)) + '</p>';
+  }
+}
+loadHome();
+
+/* ---------- 땅 위를 걷는 친구들 (꾸미기 그림으로) ---------- */
+(async () => {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  await A.ready();
+  const box = $('walkers'), list = [];
+  for (let i = 0; i < 4; i++) {
+    const o = A.random(); await A.ensure(o);
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128; box.append(c);
+    list.push({ c, x: Math.random() * innerWidth, v: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 22), sheet: A.sheet(o), f: Math.floor(Math.random() * 4) });
+  }
+  let last = performance.now(), t = 0;
+  (function step(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
+    const W = innerWidth;
+    for (const a of list) {
+      a.x += a.v * dt;
+      if (a.x > W + 20) a.v = -Math.abs(a.v); if (a.x < -90) a.v = Math.abs(a.v);
+      a.c.style.transform = 'translateX(' + a.x.toFixed(1) + 'px)';
+      A.drawFrame(a.c.getContext('2d'), a.sheet, a.v < 0 ? 'left' : 'right', Math.floor(t / 0.16) + a.f, true);
+    }
+    requestAnimationFrame(step);
+  })(last);
+})();
+</script>
 </body>
 </html>

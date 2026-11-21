@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>내 패들렛 · 모아팡팡</title>
+<link rel="icon" href="assets/moa.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* VOICE: 밝은 도트 게임 화면 — 선생님 혼자 쓰는 수업 자료 창고
+   IDEA: 게임 대화창처럼 굵은 남색 테두리 상자, 제미나이 꽃밭 하늘 배경
+   PICTURE: 클래스 카드 벽 → 가로로 늘어선 패들렛 칸과 글 카드
+   COLOUR: 하늘 파랑 배경, 남색 #1B1F3B 테두리, 노랑 #FFD23F·파랑 #2F5FE0 버튼
+   TYPE: 제목·버튼 Jua, 본문 Noto Sans KR / LAYOUT: 위 띠, 카드 격자, 가로 스크롤 칸 */
+:root{color-scheme:light;--ink:#1B1F3B;--sub:#4B4F6B;--paper:#FFF8E7;--blue:#2F5FE0;--yel:#FFD23F;--off:#C9C3B0}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:90px}
+body{margin:0;color:var(--ink);font:16px/1.55 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#2E9BEA url(assets/bg.webp) center top/cover no-repeat fixed;min-height:100vh;overflow-x:clip}
+h1,h2,h3,button,.hd{font-family:'Jua','Noto Sans KR',sans-serif;font-weight:400;letter-spacing:0}
+a{color:var(--ink)}
+button{color:var(--ink)}
+.pf{border:4px solid var(--ink);box-shadow:inset -4px -4px 0 #E2D6B8,inset 4px 4px 0 #fff,6px 6px 0 var(--ink)}
+.btn{min-height:44px;padding:0 14px;border:4px solid var(--ink);background:#fff;font-size:17px;cursor:pointer;box-shadow:inset -4px -4px 0 rgba(0,0,0,.18),inset 4px 4px 0 rgba(255,255,255,.4),0 4px 0 var(--ink);display:inline-flex;align-items:center;gap:8px;position:relative}
+.btn:hover{filter:brightness(1.06)}
+.btn:active{transform:translateY(4px);box-shadow:inset -4px -4px 0 rgba(0,0,0,.18),inset 4px 4px 0 rgba(255,255,255,.4),0 0 0 var(--ink)}
+.btn.blue{background:var(--blue);color:#fff}.btn.yel{background:var(--yel)}.btn.red{background:#FF6B4A;color:#fff}
+.btn:disabled{background:var(--off);color:var(--sub);cursor:not-allowed;filter:none}
+.mini{min-height:36px;padding:0 8px;border:2px solid var(--ink);background:#fff;font:700 13px 'Noto Sans KR',sans-serif;cursor:pointer}
+.mini:hover{background:#FFF1B8}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:4px solid #FF8A3D;outline-offset:3px}
+.field{width:100%;min-height:44px;padding:0 12px;border:3px solid var(--ink);background:#fff;color:var(--ink);font:16px 'Noto Sans KR',sans-serif}
+textarea.field{padding:10px 12px;line-height:1.6;resize:vertical}
+
+header{position:sticky;top:0;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px max(3vw,16px);background:rgba(255,248,231,.96);border-bottom:4px solid var(--ink)}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.logo i{width:36px;height:36px;background:#FF6B4A;border:4px solid var(--ink);display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px}
+.logo i b{background:#fff}.logo i b:nth-child(1),.logo i b:nth-child(4){background:var(--yel)}
+.logo span{font-size:26px;color:var(--yel);text-shadow:2px 0 0 var(--ink),-2px 0 0 var(--ink),0 2px 0 var(--ink),0 -2px 0 var(--ink),3px 3px 0 var(--ink)}
+.bar{width:4px;height:32px;background:var(--ink)}
+.htxt{flex:1;min-width:200px;display:flex;flex-direction:column;gap:2px}
+.htxt h1{margin:0;font-size:clamp(22px,3vw,28px);line-height:1.15;text-wrap:balance}
+.htxt small{font-size:13px;color:var(--sub)}
+.hbtns{display:flex;flex-wrap:wrap;gap:8px}
+.save{font:700 13px 'Noto Sans KR',sans-serif;padding:4px 10px;border:3px solid var(--ink);background:#1B1F3B;color:#7CFF8A;white-space:nowrap}
+.save.busy{color:var(--yel)}.save.bad{background:#FF6B4A;color:#fff}.save.mem{background:#fff;color:#B3261E}
+
+main{max-width:1240px;margin:0 auto;padding:22px max(3vw,16px) 28px;display:flex;flex-direction:column;gap:18px}
+main.wide{max-width:none;padding-inline:0}
+.note{align-self:flex-start;margin:0;padding:8px 12px;background:rgba(255,255,255,.94);border:3px solid var(--ink);font-size:14px;font-weight:700;line-height:1.6}
+.toast{align-self:flex-start;margin:0;padding:10px 14px;background:var(--ink);color:#7CFF8A;font-size:14px;font-weight:700}
+.toast.bad{color:#FFB4A6}
+.tools{background:var(--paper);padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:44px;padding:0 14px;border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);background:#fff;font-size:16px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);color:#fff}
+.find{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700}
+.find input{width:210px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,262px),1fr));gap:22px}
+.card{position:relative;display:flex;flex-direction:column;min-height:300px;background:#fff}
+.card .open{all:unset;cursor:pointer;display:flex;flex-direction:column;flex:1}
+.card .open:focus-visible{outline:4px solid #FF8A3D;outline-offset:3px}
+.card:hover{transform:translate(-3px,-3px);box-shadow:inset -4px -4px 0 #E2D6B8,inset 4px 4px 0 #fff,10px 10px 0 var(--ink)}
+.band{height:84px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:4px solid var(--ink);background-image:conic-gradient(rgba(255,255,255,.3) 25%,transparent 0 50%,rgba(255,255,255,.3) 0 75%,transparent 0);background-size:16px 16px}
+.kind{font:700 13px 'Noto Sans KR',sans-serif;padding:3px 8px;border:3px solid var(--ink);background:#fff}
+.kind.sp{background:var(--ink);color:#fff}
+.cbody{flex:1;padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px}
+.cname{font:400 23px/1.25 'Jua',sans-serif;overflow-wrap:anywhere}
+.cmeta{font-size:13px;color:var(--sub)}
+.recent{display:flex;flex-direction:column;gap:6px}
+.recent span{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#F4F0E4;border:2px solid var(--ink);font-size:13px;font-weight:700;line-height:1.4;overflow-wrap:anywhere}
+.recent span::before{content:"";width:8px;height:8px;flex:none;background:var(--c);border:2px solid var(--ink)}
+.empty{padding:10px;border:2px dashed var(--ink);font-size:13px;line-height:1.6;color:var(--sub)}
+.cfoot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--sub)}
+.go{font:400 15px 'Jua',sans-serif;color:#fff;background:var(--blue);border:3px solid var(--ink);padding:5px 10px;white-space:nowrap}
+.card .edit{position:absolute;top:24px;left:80px}
+.addcard{min-height:300px;border:4px dashed var(--ink);background:rgba(255,255,255,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font-size:21px;cursor:pointer}
+.addcard:disabled{cursor:not-allowed;opacity:.7}
+.addcard small{font:700 13px 'Noto Sans KR',sans-serif;color:var(--sub)}
+.welcome{background:var(--paper);padding:24px;display:flex;flex-wrap:wrap;align-items:center;gap:20px;max-width:760px}
+.welcome h2{margin:0 0 6px;font-size:26px}
+.welcome p{margin:0;font-size:15px;line-height:1.7}
+.moa{width:96px;height:127px;flex:none;background:url(assets/moa.png) 0 0/384px 127px no-repeat;image-rendering:pixelated;animation:hop 1.8s steps(1) infinite}
+@keyframes hop{0%,50%{background-position:0 0}58%{background-position:-96px 0}72%{background-position:-192px 0}86%{background-position:-288px 0}}
+
+.tabs{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:16px max(3vw,16px) 0}
+.tabs .lbl{font-size:13px;font-weight:700;color:#fff;background:var(--ink);padding:6px 10px}
+.tab{min-height:44px;padding:0 14px;border:4px solid var(--ink);box-shadow:0 4px 0 var(--ink);background:#fff;font-size:16px;cursor:pointer;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tab[aria-pressed=true]{box-shadow:none;background:var(--c)}
+.meta{margin:12px max(3vw,16px) 0;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.meta p{margin:0;padding:4px 10px;background:rgba(255,248,231,.95);border:3px solid var(--ink);font-size:13px;font-weight:700}
+.cols{overflow-x:auto;padding:16px max(3vw,16px) 28px}
+.cols>div{display:flex;gap:18px;align-items:flex-start;min-width:min-content}
+.sec{width:290px;flex:none;display:flex;flex-direction:column;gap:12px}
+.sech{margin:0;padding:8px 10px 8px 12px;font-size:19px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sech span{overflow-wrap:anywhere}
+.sech em{font-style:normal;font-size:14px;background:#fff;border:3px solid var(--ink);padding:0 8px}
+.post{background:#fff;border:4px solid var(--ink);box-shadow:3px 3px 0 var(--ink);display:flex;flex-direction:column}
+.pin{padding:10px 12px 4px;display:flex;flex-direction:column;gap:6px}
+.pin h3{margin:0;font:700 16px/1.4 'Noto Sans KR',sans-serif;overflow-wrap:anywhere}
+.pin p{margin:0;font-size:14px;line-height:1.6;color:#333A55;white-space:pre-line;overflow-wrap:anywhere}
+.lnk{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 10px;background:#EAF3FF;border:3px solid var(--ink);text-decoration:none;font-size:13px;font-weight:700;overflow-wrap:anywhere}
+.lnk svg{flex:none}
+.pfoot{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 6px 0 12px;font-size:12px;color:var(--sub);flex-wrap:wrap}
+.who{display:flex;align-items:center;gap:6px;font-weight:700}
+.who i{width:20px;height:20px;flex:none;border:2px solid var(--ink);display:grid;place-items:center;font:700 11px 'Noto Sans KR',sans-serif;font-style:normal;color:var(--ink)}
+.acts{display:flex;align-items:center;gap:2px}
+.like{min-height:44px;min-width:44px;padding:0 6px;border:0;background:transparent;display:inline-flex;align-items:center;gap:4px;font:400 14px 'Noto Sans KR',sans-serif;cursor:pointer}
+.tiny{min-height:44px;padding:0 6px;border:0;background:transparent;font:700 12px 'Noto Sans KR',sans-serif;color:var(--sub);cursor:pointer;text-decoration:underline}
+.addpost{min-height:44px;border:3px dashed var(--ink);background:rgba(255,255,255,.86);font-size:15px;cursor:pointer}
+.addsec{width:220px;flex:none;min-height:120px;border:4px dashed var(--ink);background:rgba(255,255,255,.8);font-size:18px;cursor:pointer}
+.nob{margin:24px max(3vw,16px);max-width:600px;background:var(--paper);padding:24px;display:flex;flex-direction:column;gap:14px}
+.nob h2{margin:0;font-size:24px}.nob p{margin:0;font-size:14px;line-height:1.7;color:#333A55}
+
+.ov{position:fixed;inset:0;z-index:10;background:rgba(27,31,59,.55);display:flex;align-items:flex-start;justify-content:center;padding:clamp(16px,8vh,90px) 16px 16px;overflow-y:auto}
+.dlg{width:100%;max-width:520px;background:var(--paper);padding:22px;display:flex;flex-direction:column;gap:10px}
+.dlg .top{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.dlg h2{margin:0;font-size:24px}
+.dlg label{font-size:14px;font-weight:700}
+.dlg p{margin:0;font-size:14px;line-height:1.7}
+.sw{display:flex;flex-wrap:wrap;gap:8px}
+.sw button{width:44px;height:44px;border:3px solid var(--ink);cursor:pointer}
+.sw button[aria-pressed=true]{outline:4px solid var(--ink);outline-offset:2px}
+.seg{display:flex;gap:8px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+footer{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 12px;padding:10px max(3vw,16px) 16px;font-size:13px;font-weight:700;color:#fff;text-shadow:2px 2px 0 var(--ink)}
+footer a{color:#fff}
+@media (max-width:600px){header{position:static}.find{margin-left:0;width:100%}.find input{flex:1;width:auto}.htxt{min-width:100%}.sec{width:82vw}}
+@media (prefers-reduced-motion:reduce){.moa{animation:none}.card:hover{transform:none}}
+</style>
+</head>
+<body>
+<header id="hdr"></header>
+<main id="main"><p class="note">불러오는 중…</p></main>
+<div id="dlg"></div>
+<input type="file" id="fileIn" accept=".csv,.xlsx,.xls,text/csv" hidden>
+<footer><span>제작자 김은경</span><a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a></footer>
+<script type="module">
+import { fs, whenAuth, isTeacher, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot } from './js/fb.js';
+{
+const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
+const SEC_COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
+const AV = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF'];
+const MAX_CLASSES = 20, PART_BYTES = 200000;
+const S = { db: null, mode: 'wait', classes: [], boards: [], parts: [], view: 'home', cid: null, bid: null, filter: '전체', q: '', msg: '', bad: false, saving: 0, saveErr: '', loaded: { classes: false, boards: false }, slow: false };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const bytes = (o) => new TextEncoder().encode(JSON.stringify(o)).length;
+const uid = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+const md = (iso) => { const m = /^(\d+)-(\d+)-(\d+)/.exec(iso || ''); return m ? (+m[2]) + '월 ' + (+m[3]) + '일' : ''; };
+const safeUrl = (u) => /^https?:\/\//i.test((u || '').trim()) ? u.trim() : '';
+const byCreated = (a, b) => String(a.created || '').localeCompare(String(b.created || '')) || a.id.localeCompare(b.id);
+
+/* ---------- 저장소 ---------- */
+const mem = new Map();
+let memSubs = [];
+function memEmit() { memSubs.forEach((f) => f()); draw(); }
+function memList(col, filter) {
+  const out = [];
+  for (const [p, d] of mem) { const [c, id] = p.split('/'); if (c === col && (!filter || filter(d))) out.push(Object.assign({ id }, d)); }
+  return out;
+}
+const chains = new Map();
+function errText(e) {
+  const c = e && e.code;
+  if (c === 'quota_exceeded') return '저장 공간이 다 찼어요. 안 쓰는 패들렛을 지워 주세요.';
+  if (c === 'revoked' || c === 'not_granted') return '저장소를 쓸 수 없게 되었어요. 페이지를 다시 열어 주세요.';
+  if (c === 'invalid_argument' || c === 'invalid-argument') return '저장하지 못했어요(글이 너무 커요).';
+  if (c === 'permission-denied') return '저장할 권한이 없어요. 선생님 계정으로 다시 로그인해 주세요.';
+  return '저장하지 못했어요. 인터넷 연결을 확인해 주세요.';
+}
+function queued(path, fn) {
+  S.saving++; drawStatus();
+  const run = () => fn().catch((e) => { if (e && e.code === 'unavailable') return new Promise((r) => setTimeout(r, 600 + Math.random() * 800)).then(fn); throw e; });
+  const p = (chains.get(path) || Promise.resolve()).catch(() => {}).then(run)
+    .then(() => { if (S.saving <= 1) S.saveErr = ''; }, (e) => { S.saveErr = errText(e); throw e; })
+    .finally(() => { S.saving--; drawStatus(); });
+  chains.set(path, p);
+  return p;
+}
+function put(path, data) {
+  if (S.db) return queued(path, () => S.db.doc(path).set(data));
+  mem.set(path, JSON.parse(JSON.stringify(data))); memEmit(); return Promise.resolve();
+}
+function del(path) {
+  if (S.db) return queued(path, () => S.db.doc(path).delete());
+  mem.delete(path); memEmit(); return Promise.resolve();
+}
+const docs = (snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+let partsOff = null, partsFor = null;
+function watchParts() {
+  if (partsFor === S.bid) return;
+  if (partsOff) partsOff();
+  partsOff = null; partsFor = S.bid; S.parts = [];
+  if (!S.bid) return;
+  const bid = S.bid;
+  if (S.db) {
+    partsOff = S.db.collection('parts').where('bid', '==', bid).onSnapshot((snap) => { if (partsFor !== bid) return; S.parts = docs(snap); draw(); }, (e) => toast(errText(e), true));
+  } else {
+    const f = () => { if (partsFor === bid) { S.parts = memList('parts', (d) => d.bid === bid); } };
+    memSubs.push(f); f(); partsOff = () => { memSubs = memSubs.filter((x) => x !== f); };
+  }
+}
+// Firestore를 claude.ai 저장소와 같은 모양으로 감싼다
+const FDB = {
+  doc: (path) => ({
+    set: (data) => setDoc(doc(fs, path), data, path.startsWith('classes/') ? { merge: true } : {}),
+    delete: () => deleteDoc(doc(fs, path))
+  }),
+  collection: (name) => ({
+    onSnapshot: (ok, bad) => onSnapshot(collection(fs, name), { includeMetadataChanges: true }, ok, bad),
+    where: (f, op, v) => ({ onSnapshot: (ok, bad) => onSnapshot(query(collection(fs, name), where(f, op, v)), ok, bad) })
+  })
+};
+async function connect() {
+  const u = await whenAuth();
+  if (!isTeacher(u)) {
+    S.mode = 'nologin'; S.loaded = { classes: true, boards: true };
+    $('hdr').innerHTML = logo + '<div class="htxt"><h1>내 패들렛</h1></div>';
+    $('main').innerHTML = '<section class="nob pf"><h2>선생님만 쓰는 곳이에요</h2><p>선생님 계정으로 로그인하면 클래스와 패들렛을 고치고 저장할 수 있어요.</p><div class="row"><a class="btn blue" href="teacher.html?next=padlet.html">선생님 로그인 ▶</a><a class="btn" href="./">첫 화면</a></div></section>';
+    return;
+  }
+  const db = FDB;
+  S.db = db; S.mode = 'db';
+  const timer = setTimeout(() => { S.slow = true; draw(); }, 10000);
+  const done = (k) => { S.loaded[k] = true; if (S.loaded.classes && S.loaded.boards) { clearTimeout(timer); S.slow = false; route(); } };
+  db.collection('classes').onSnapshot((snap) => { S.classes = docs(snap); if (!snap.metadata.fromCache) done('classes'); draw(); }, (e) => { clearTimeout(timer); toast(errText(e), true); });
+  db.collection('boards').onSnapshot((snap) => { S.boards = docs(snap); if (!snap.metadata.fromCache) done('boards'); draw(); }, (e) => { clearTimeout(timer); toast(errText(e), true); });
+}
+
+/* ---------- 데이터 도우미 ---------- */
+const classes = () => S.classes.slice().sort(byCreated);
+const boardsOf = (cid) => S.boards.filter((b) => b.cid === cid).sort(byCreated);
+const curClass = () => S.classes.find((c) => c.id === S.cid) || null;
+const curBoard = () => S.boards.find((b) => b.id === S.bid) || null;
+function postsOfBoard() {
+  const out = [];
+  S.parts.slice().sort((a, b) => a.n - b.n).forEach((p) => (p.posts || []).forEach((x) => out.push(Object.assign({ part: p.id }, x))));
+  return out;
+}
+function newRoom() {
+  const used = new Set(S.classes.map((c) => c.room));
+  let r; do { r = String(Math.floor(10000 + Math.random() * 90000)); } while (used.has(r));
+  return r;
+}
+const pubOf = (bid) => !!(S.boards.find((b) => b.id === bid) || {}).public;
+function savePart(partId, posts) { const p = S.parts.find((x) => x.id === partId); return put('parts/' + partId, { bid: p.bid, n: p.n, posts, pub: pubOf(p.bid) }); }
+function saveBoard(b, patch) { const d = Object.assign({}, b, patch); delete d.id; return put('boards/' + b.id, d); }
+function chunk(posts) {
+  const parts = []; let cur = [], size = 2;
+  for (const p of posts) { const s = bytes(p) + 1; if (cur.length && size + s > PART_BYTES) { parts.push(cur); cur = []; size = 2; } cur.push(p); size += s; }
+  parts.push(cur); return parts;
+}
+function cleanPost(p) {
+  return { id: p.id || uid('p'), sec: p.sec || 0, title: String(p.title || '').slice(0, 200), body: String(p.body || '').slice(0, 20000), link: String(p.link || '').slice(0, 2000), author: String(p.author || '').slice(0, 60), likes: Math.max(0, +p.likes || 0), comments: Math.max(0, +p.comments || 0), liked: !!p.liked, at: p.at || todayISO() };
+}
+async function writeBoard(meta, posts) {
+  const parts = chunk(posts.map(cleanPost));
+  const d = Object.assign({}, meta, { parts: parts.length, postCount: posts.length }); delete d.id;
+  await put('boards/' + meta.id, d);
+  for (let i = 0; i < parts.length; i++) await put('parts/' + meta.id + '-' + i, { bid: meta.id, n: i, posts: parts[i], pub: !!meta.public });
+}
+async function deleteBoard(b) {
+  for (let i = 0; i < (b.parts || 1); i++) await del('parts/' + b.id + '-' + i);
+  await del('boards/' + b.id);
+}
+
+/* ---------- CSV · 엑셀 가져오기 ---------- */
+function parseCSV(text) {
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
+    else if (ch === '"') q = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += ch;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter((r) => r.some((c) => String(c).trim() !== ''));
+}
+function pick(head, words) {
+  const h = head.map((x) => String(x).trim().toLowerCase());
+  for (const w of words) { const i = h.indexOf(w); if (i >= 0) return i; }
+  for (const w of words) { const i = h.findIndex((x) => x.includes(w)); if (i >= 0) return i; }
+  return -1;
+}
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = () => ok(window.XLSX); s.onerror = no; document.head.appendChild(s); });
+}
+async function readRows(file) {
+  const buf = await file.arrayBuffer();
+  if (/\.xlsx?$/i.test(file.name)) {
+    const X = await loadXLSX(); const wb = X.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    return X.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' }).filter((r) => r.some((c) => String(c).trim() !== ''));
+  }
+  let text;
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { text = new TextDecoder('euc-kr').decode(buf); }
+  return parseCSV(text.replace(/^﻿/, ''));
+}
+function rowsToBoard(rows) {
+  const head = rows[0];
+  const iT = pick(head, ['subject', 'title', '제목']), iB = pick(head, ['body', 'content', '내용', '본문']);
+  const iL = pick(head, ['attachment', 'link', 'url', '첨부', '링크']), iA = pick(head, ['author', 'name', '작성자', '이름']);
+  const iS = pick(head, ['section', 'column', '섹션', '칸', '열']), iK = pick(head, ['reactions', 'likes', 'like', '좋아요', '반응']);
+  const iC = pick(head, ['comments', 'comment', '댓글']), iD = pick(head, ['created', '작성일', '날짜']);
+  const secs = [], posts = [];
+  rows.slice(1).forEach((r) => {
+    const name = (iS >= 0 && String(r[iS] || '').trim()) || '글 모음';
+    let s = secs.indexOf(name); if (s < 0) { secs.push(name); s = secs.length - 1; }
+    const g = (i) => (i >= 0 ? String(r[i] == null ? '' : r[i]) : '');
+    const title = g(iT).trim(), body = g(iB).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+    const link = g(iL).trim();
+    if (!title && !body && !link) return;
+    const dm = /(\d{4})-(\d{2})-(\d{2})/.exec(g(iD));
+    posts.push({ sec: s, title, body, link, author: g(iA).trim(), likes: parseInt(g(iK), 10) || 0, comments: parseInt(g(iC), 10) || 0, at: dm ? dm[0] : todayISO() });
+  });
+  return { secs, posts };
+}
+async function importFile(file) {
+  const c = curClass(); if (!c || !file) return;
+  toast('읽는 중… ' + file.name);
+  let rows;
+  try { rows = await readRows(file); } catch (e) { toast('파일을 읽지 못했어요. 패들렛에서 내보낸 CSV나 엑셀 파일인지 확인해 주세요.', true); return; }
+  if (!rows || rows.length < 2) { toast('읽을 글이 없어요. 패들렛에서 내보낸 파일인지 확인해 주세요.', true); return; }
+  const { secs, posts } = rowsToBoard(rows);
+  if (!posts.length) { toast('제목·내용·링크가 있는 줄을 찾지 못했어요.', true); return; }
+  const meta = { id: uid('b'), cid: c.id, title: file.name.replace(/\.(csv|xlsx?)$/i, '').slice(0, 60) || '패들렛 보드', from: '패들렛에서 가져옴', date: todayISO(), created: new Date().toISOString(), sections: secs };
+  try { await writeBoard(meta, posts); } catch (e) { toast(S.saveErr || '저장하지 못했어요.', true); return; }
+  S.bid = meta.id; S.wantBid = meta.id; watchParts();
+  toast(c.name + '에 \'' + meta.title + '\'을 저장했어요 · 칸 ' + secs.length + '개, 글 ' + posts.length + '개');
+}
+
+/* ---------- 화면 ---------- */
+let toastTimer = null;
+function toast(m, bad) { S.msg = m; S.bad = !!bad; draw(); clearTimeout(toastTimer); if (!bad) toastTimer = setTimeout(() => { S.msg = ''; draw(); }, 6000); }
+function drawStatus() {
+  const el = document.querySelector('.save'); if (!el) return;
+  const [cls, txt] = S.mode === 'mem' ? ['save mem', '저장소 없음 · 새로 고치면 사라져요'] : S.saveErr ? ['save bad', '저장 안 됨'] : S.saving ? ['save busy', '저장 중…'] : S.mode === 'db' ? ['save', '모두 저장됨 ✓'] : ['save busy', '연결 중…'];
+  el.className = cls; el.textContent = txt;
+}
+const logo = '<a class="logo" href="#home" aria-label="내 패들렛 처음으로"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span class="hd">모아팡팡</span></a><span class="bar" aria-hidden="true"></span>';
+const fileBtn = (label, cls) => '<button type="button" class="btn ' + cls + '" data-act="pickfile"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B1F3B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>' + label + '</button>';
+function msgHTML() {
+  let h = '';
+  if (S.msg) h += '<p class="toast' + (S.bad ? ' bad' : '') + '" role="status">' + esc(S.msg) + '</p>';
+  if (S.saveErr) h += '<p class="toast bad" role="alert">' + esc(S.saveErr) + '</p>';
+  if (S.slow) h += '<p class="toast bad" role="status">저장소에 아직 연결되지 않았어요. 인터넷이 연결되면 저절로 불러와요.</p>';
+  if (S.mode === 'mem') h += '<p class="note">이 화면에서는 저장소를 쓸 수 없어요. claude.ai에서 이 페이지를 열면 저장돼요. 지금 만든 것은 새로 고치면 사라져요.</p>';
+  return h;
+}
+function draw() {
+  if (S.mode === 'nologin' || S.mode === 'wait') { if (S.mode === 'wait') { $('main').innerHTML = '<p class="note" style="padding:16px">불러오는 중…</p>'; } return; }
+  const ae = document.activeElement, keep = ae && ae.id === 'q' ? [ae.selectionStart, ae.selectionEnd] : null;
+  const ready = S.mode === 'mem' || (S.loaded.classes && S.loaded.boards) || S.slow;
+  if (S.view === 'board' && !curClass() && ready) { S.view = 'home'; S.cid = null; S.bid = null; }
+  if (S.view === 'board') drawBoard(); else drawHome(ready);
+  drawStatus();
+  if (keep && $('q')) { $('q').focus(); try { $('q').setSelectionRange(keep[0], keep[1]); } catch (e) {} }
+}
+function drawHome(ready) {
+  const cs = classes(), full = cs.length >= MAX_CLASSES;
+  const total = S.boards.length;
+  $('hdr').innerHTML = logo + '<div class="htxt"><h1>내 패들렛</h1><small>클래스 ' + cs.length + ' / ' + MAX_CLASSES + ' · 저장된 패들렛 ' + total + '개</small></div><span class="save"></span><div class="hbtns"><a class="btn" href="teacher.html">선생님 화면</a><button class="btn blue" data-act="newclass"' + (full ? ' disabled' : '') + '>+ 클래스 만들기</button></div>';
+  let h = msgHTML();
+  if (!ready) { $('main').className = ''; $('main').innerHTML = h + '<p class="note">저장된 클래스를 불러오는 중…</p>'; return; }
+  if (!cs.length) {
+    h += '<section class="welcome pf"><div class="moa" role="img" aria-label="햄스터 모아"></div><div style="flex:1;min-width:220px"><h2>첫 클래스를 만들어 보세요</h2><p>클래스를 만들고 그 안에 패들렛에서 내보낸 CSV(또는 엑셀) 파일을 넣으면, 여기에 저장되어 다음에 열어도 그대로 있어요.</p><div class="row"><button class="btn blue" data-act="newclass">+ 클래스 만들기</button></div></div></section>';
+    $('main').className = ''; $('main').innerHTML = h; return;
+  }
+  const counts = { '전체': cs.length, '정규반': cs.filter((c) => c.kind === '정규반').length, '특강반': cs.filter((c) => c.kind === '특강반').length };
+  h += '<div class="tools pf"><div class="chips" role="group" aria-label="반 종류로 거르기">' + ['전체', '정규반', '특강반'].map((f) => '<button class="chip" data-act="filter" data-v="' + f + '" aria-pressed="' + (S.filter === f) + '">' + f + ' · ' + counts[f] + '</button>').join('') + '</div><label class="find" for="q"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B1F3B" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>찾기<input id="q" class="field" type="search" autocomplete="off" placeholder="클래스 이름" value="' + esc(S.q) + '"></label></div>';
+  h += '<div class="grid" id="grid">' + gridHTML(cs, full) + '</div>';
+  h += '<p class="note">클래스를 누르면 그 반에 저장된 패들렛이 열려요. 패들렛 → 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 파일을 클래스 안의 \'패들렛에서 가져오기\'로 넣어요.</p>';
+  $('main').className = ''; $('main').innerHTML = h;
+}
+function gridHTML(cs, full) {
+  const q = S.q.trim();
+  const list = cs.filter((c) => (S.filter === '전체' || c.kind === S.filter) && (!q || (c.name || '').includes(q)));
+  let h = list.map((c) => {
+    const bs = boardsOf(c.id), posts = bs.reduce((n, b) => n + (b.postCount || 0), 0), last = bs[bs.length - 1];
+    const recent = bs.slice(-3).reverse();
+    return '<article class="card pf" style="--c:' + esc(c.color) + '"><button class="open" data-act="open" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 패들렛 열기"><span class="band" style="background-color:' + esc(c.color) + '"><span aria-hidden="true" style="width:54px;height:46px;background:#1B1F3B;display:flex;align-items:flex-start;gap:3px;padding:3px"><span style="flex:1;height:30px;background:#fff"></span><span style="flex:1;height:20px;background:#fff"></span><span style="flex:1;height:25px;background:#fff"></span></span><span class="kind' + (c.kind === '특강반' ? ' sp' : '') + '">' + esc(c.kind) + '</span></span><span class="cbody"><span class="cname">' + esc(c.name) + '</span><span class="cmeta">방번호 ' + esc(c.room) + ' · 패들렛 ' + bs.length + '개 · 글 ' + posts + '개</span>' +
+      (bs.length ? '<span class="recent">' + recent.map((b) => '<span>' + esc(b.title) + '</span>').join('') + (bs.length > 3 ? '<small style="font-size:12px;font-weight:700;color:#4B4F6B">+ ' + (bs.length - 3) + '개 더</small>' : '') + '</span>' : '<span class="empty">아직 가져온 패들렛이 없어요. 눌러서 패들렛 CSV를 넣어 보세요.</span>') +
+      '<span class="cfoot"><span>' + (last ? '최근 ' + md(last.date) : '새로 만든 클래스') + '</span><span class="go">패들렛 열기 ▶</span></span></span></button><button class="mini edit" data-act="editclass" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 고치기">고치기</button></article>';
+  }).join('');
+  h += '<button class="addcard hd" data-act="newclass"' + (full ? ' disabled' : '') + '><svg aria-hidden="true" width="32" height="32" viewBox="0 0 7 7" shape-rendering="crispEdges"><path fill="#1B1F3B" d="M3 0h1v3h3v1H4v3H3V4H0V3h3z"/></svg>새 클래스 만들기<small>' + (full ? '20개가 다 찼어요' : cs.length + ' / ' + MAX_CLASSES + '개') + '</small></button>';
+  if (!list.length) h = '<p class="note" style="grid-column:1/-1">찾는 클래스가 없어요. 이름을 다시 확인해 주세요.</p>' + h;
+  return h;
+}
+const svgLink = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1B1F3B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>';
+const svgVid = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" fill="#FF6B4A" stroke="#1B1F3B" stroke-width="2"/><path d="M10 9l5 3-5 3z" fill="#fff"/></svg>';
+function drawBoard() {
+  const c = curClass(); if (!c) return;
+  const bs = boardsOf(c.id);
+  if (S.bid && S.bid === S.wantBid && !bs.find((b) => b.id === S.bid)) { /* 방금 만든 패들렛: 저장소에서 돌아오기를 기다림 */ }
+  else if (!S.bid || !bs.find((b) => b.id === S.bid)) S.bid = bs.length ? bs[bs.length - 1].id : null;
+  if (S.wantBid && bs.find((b) => b.id === S.wantBid)) S.wantBid = null;
+  watchParts();
+  const b = curBoard();
+  $('hdr').innerHTML = logo + '<button class="btn" data-act="home">◀ 내 패들렛</button><div class="htxt"><small style="font-weight:700;display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:14px;height:14px;flex:none;background:' + esc(c.color) + ';border:3px solid #1B1F3B"></span>' + esc(c.name) + ' · ' + esc(c.kind) + ' · 방번호 ' + esc(c.room) + '</small><h1>' + esc(b ? b.title : c.name) + '</h1></div><span class="save"></span><div class="hbtns">' + fileBtn('패들렛에서 가져오기', 'yel') + '<button class="btn blue" data-act="write" data-s="0"' + (b ? '' : ' disabled') + '>+ 글 쓰기</button></div>';
+  let h = '<div class="tabs" style="--c:' + esc(c.color) + '"><span class="lbl">이 클래스의 패들렛 ' + bs.length + '개</span>' + bs.map((x) => '<button class="tab" data-act="tab" data-id="' + esc(x.id) + '" aria-pressed="' + (b && x.id === b.id) + '" style="--c:' + esc(c.color) + '">' + esc(x.title) + '</button>').join('') + '<button class="mini" data-act="newboard">+ 빈 패들렛</button></div>';
+  h += '<div style="padding:12px max(3vw,16px) 0;display:flex;flex-direction:column;gap:8px">' + msgHTML() + '</div>';
+  if (!b) {
+    h += '<section class="nob pf"><h2>아직 가져온 패들렛이 없어요</h2><p>패들렛 보드에서 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 뒤 아래 버튼으로 넣으면 이 클래스에 저장돼요. 여러 개를 넣으면 위에 탭으로 쌓여요.</p><div class="row">' + fileBtn('패들렛 파일 넣기', 'yel') + '<button class="btn" data-act="newboard">+ 빈 패들렛 만들기</button></div></section>';
+    $('main').className = 'wide'; $('main').innerHTML = h; return;
+  }
+  const loading = S.mode === 'db' && !S.parts.length && (b.postCount || 0) > 0;
+  const posts = postsOfBoard();
+  h += '<div class="meta"><p>' + esc(b.from || '') + ' · ' + md(b.date) + ' · 칸 ' + (b.sections || []).length + '개 · 글 ' + (b.postCount || 0) + '개</p><button class="mini" data-act="pubboard" aria-pressed="' + !!b.public + '" style="' + (b.public ? 'background:#7CFF8A' : '') + '">' + (b.public ? '✓ 학생에게 보여요' : '학생에게 보이기') + '</button><button class="mini" data-act="pinhome">첫 화면 링크에 올리기</button><button class="mini" data-act="renameboard">이름 바꾸기</button><button class="mini" data-act="delboard">이 패들렛 지우기</button></div>';
+  if (loading) { h += '<p class="note" style="margin:16px max(3vw,16px)">글을 불러오는 중…</p>'; $('main').className = 'wide'; $('main').innerHTML = h; return; }
+  h += '<div class="cols"><div>' + (b.sections || []).map((name, i) => {
+    const ps = posts.filter((p) => (p.sec || 0) === i);
+    return '<section class="sec"><h2 class="sech pf" style="background:' + SEC_COLORS[i % SEC_COLORS.length] + '"><span>' + esc(name) + '</span><span style="display:flex;gap:6px;align-items:center"><em>' + ps.length + '</em><button class="mini" data-act="renamesec" data-s="' + i + '" aria-label="' + esc(name) + ' 칸 이름 바꾸기">이름</button></span></h2>' + ps.map(postHTML).join('') + '<button class="addpost hd" data-act="write" data-s="' + i + '">+ 이 칸에 글 쓰기</button>' + (ps.length ? '' : '<button class="tiny" data-act="delsec" data-s="' + i + '">빈 칸 지우기</button>') + '</section>';
+  }).join('') + '<button class="addsec hd" data-act="addsec">+ 칸 만들기</button></div></div>';
+  $('main').className = 'wide'; $('main').innerHTML = h;
+}
+function postHTML(p) {
+  const link = safeUrl(p.link);
+  const video = /youtube\.com|youtu\.be/i.test(link), pic = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(link);
+  let host = link; try { host = new URL(link).hostname.replace(/^www\./, ''); } catch (e) {}
+  const author = p.author || '선생님';
+  return '<article class="post"><div class="pin">' + (p.title ? '<h3>' + esc(p.title) + '</h3>' : '') + (p.body ? '<p>' + esc(p.body) + '</p>' : '') +
+    (link ? '<a class="lnk" href="' + esc(link) + '" target="_blank" rel="noopener">' + (video ? svgVid : svgLink) + esc((video ? '영상 · ' : pic ? '그림 · ' : '') + host) + '</a>' : '') + '</div>' +
+    '<div class="pfoot"><span class="who"><i aria-hidden="true" style="background:' + AV[author.length % AV.length] + '">' + esc(author.charAt(0)) + '</i>' + esc(author) + '</span><span class="acts">' +
+    '<button class="like" data-act="like" data-id="' + esc(p.id) + '" aria-pressed="' + !!p.liked + '" aria-label="좋아요 ' + (p.likes || 0) + '개"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="' + (p.liked ? '#FF6B4A' : 'none') + '" stroke="#1B1F3B" stroke-width="2.4" stroke-linejoin="round"><path d="M12 20.5S3.5 15.4 3.5 9.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 8.5 2.2c0 6.2-8.5 11.3-8.5 11.3z"/></svg>' + (p.likes || 0) + '</button>' +
+    (p.comments ? '<span style="font-size:13px;font-weight:700;color:#1B1F3B;padding:0 4px">댓글 ' + p.comments + '</span>' : '') +
+    '<button class="tiny" data-act="editpost" data-id="' + esc(p.id) + '">고치기</button><button class="tiny" data-act="delpost" data-id="' + esc(p.id) + '">지우기</button></span></div></article>';
+}
+
+/* ---------- 창(대화 상자) ---------- */
+let lastFocus = null;
+function openDlg(html, focusSel) {
+  lastFocus = document.activeElement;
+  $('dlg').innerHTML = '<div class="ov" data-act="ovclose"><form class="dlg pf" role="dialog" aria-modal="true" aria-labelledby="dlgt" novalidate>' + html + '</form></div>';
+  const f = $('dlg').querySelector(focusSel || 'input,select,textarea,button'); if (f) f.focus();
+}
+function closeDlg() { $('dlg').innerHTML = ''; if (lastFocus && document.contains(lastFocus)) lastFocus.focus(); }
+const dlgTop = (t) => '<div class="top"><h2 id="dlgt">' + t + '</h2><button type="button" class="btn" data-act="close" style="margin-left:auto">닫기 ✕</button></div>';
+let pending = null;
+function confirmDlg(title, text, okLabel, fn) {
+  pending = fn;
+  openDlg(dlgTop(title) + '<p>' + esc(text) + '</p><div class="row"><button type="submit" class="btn red" data-form="confirm">' + esc(okLabel) + '</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '[data-act=close]');
+}
+function classDlg(c) {
+  const isNew = !c;
+  const d = c || { name: '', kind: '정규반', color: COLORS[S.classes.length % COLORS.length], room: newRoom() };
+  pending = { id: c ? c.id : null, color: d.color, kind: d.kind, room: d.room };
+  openDlg(dlgTop(isNew ? '새 클래스' : '클래스 고치기') +
+    '<label for="cn">반 이름</label><input id="cn" class="field" maxlength="24" autocomplete="off" value="' + esc(d.name) + '" placeholder="예: 4학년 캔바반">' +
+    '<label>반 종류</label><div class="seg" role="group" aria-label="반 종류">' + ['정규반', '특강반'].map((k) => '<button type="button" class="chip" data-act="kind" data-v="' + k + '" aria-pressed="' + (d.kind === k) + '">' + k + '</button>').join('') + '</div>' +
+    '<label>색</label><div class="sw" role="group" aria-label="반 색">' + COLORS.map((col) => '<button type="button" data-act="color" data-v="' + col + '" style="background:' + col + '" aria-label="색 ' + col + '" aria-pressed="' + (d.color === col) + '"></button>').join('') + '</div>' +
+    '<p>방번호 <b>' + esc(d.room) + '</b> (모아팡팡 반 입장 때 쓰는 5자리)</p>' +
+    '<div class="row"><button type="submit" class="btn blue" data-form="class">' + (isNew ? '만들기 ▶' : '저장하기 ▶') + '</button>' + (isNew ? '' : '<button type="button" class="btn red" data-act="delclass" data-id="' + esc(c.id) + '">이 클래스 지우기</button>') + '</div>', '#cn');
+}
+function textDlg(title, label, value, max, fn) {
+  pending = fn;
+  openDlg(dlgTop(title) + '<label for="tv">' + label + '</label><input id="tv" class="field" maxlength="' + max + '" autocomplete="off" value="' + esc(value) + '"><div class="row"><button type="submit" class="btn blue" data-form="text">저장하기 ▶</button></div>', '#tv');
+}
+function postDlg(si, post) {
+  const b = curBoard(); if (!b) return;
+  pending = { id: post ? post.id : null };
+  openDlg(dlgTop(post ? '글 고치기' : '글 쓰기') +
+    '<label for="ds">올릴 칸</label><select id="ds" class="field">' + (b.sections || []).map((n, i) => '<option value="' + i + '"' + (i === si ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' +
+    '<label for="dt">제목</label><input id="dt" class="field" maxlength="80" autocomplete="off" value="' + esc(post ? post.title : '') + '">' +
+    '<label for="db">내용</label><textarea id="db" class="field" rows="5">' + esc(post ? post.body : '') + '</textarea>' +
+    '<label for="dl">링크 (있으면)</label><input id="dl" class="field" type="url" autocomplete="off" placeholder="https://" value="' + esc(post ? post.link : '') + '">' +
+    '<label for="da">쓴 사람</label><input id="da" class="field" maxlength="30" autocomplete="off" value="' + esc(post ? post.author : '선생님') + '">' +
+    '<div class="row"><button type="submit" class="btn blue" data-form="post">' + (post ? '저장하기 ▶' : '올리기 ▶') + '</button></div>', '#dt');
+}
+
+/* ---------- 고치기 동작 ---------- */
+async function saveClass() {
+  const name = $('cn').value.trim();
+  if (!name) { $('cn').focus(); $('cn').setAttribute('aria-invalid', 'true'); return; }
+  const p = pending, old = p.id ? S.classes.find((x) => x.id === p.id) : null;
+  if (!old && S.classes.length >= MAX_CLASSES) { closeDlg(); toast('클래스는 20개까지 만들 수 있어요.', true); return; }
+  const id = p.id || uid('c');
+  const data = { name, kind: p.kind, color: p.color, room: p.room, created: old ? old.created : new Date().toISOString() };
+  closeDlg();
+  try {
+    await put('classes/' + id, Object.assign(data, old ? {} : { map: 'classroom' }));
+    await setDoc(doc(fs, 'rooms', p.room), { cid: id, name, color: p.color });
+    if (old && old.room && old.room !== p.room) await deleteDoc(doc(fs, 'rooms', old.room));
+    toast(old ? '\'' + name + '\'을 고쳤어요.' : '\'' + name + '\'을 만들었어요. 눌러서 패들렛을 가져와 보세요.');
+  } catch (e) { toast(S.saveErr || errText(e), true); }
+}
+async function savePost() {
+  const b = curBoard(); if (!b) return;
+  const si = +$('ds').value, title = $('dt').value.trim(), body = $('db').value.trim(), link = $('dl').value.trim(), author = $('da').value.trim() || '선생님';
+  if (!title && !body && !link) { $('dt').focus(); return; }
+  const id = pending.id; closeDlg();
+  try {
+    if (id) {
+      const part = S.parts.find((x) => (x.posts || []).some((p) => p.id === id)); if (!part) return;
+      await savePart(part.id, part.posts.map((p) => (p.id === id ? cleanPost(Object.assign({}, p, { sec: si, title, body, link, author })) : p)));
+      toast('글을 고쳤어요.');
+    } else {
+      const post = cleanPost({ sec: si, title, body, link, author });
+      const parts = S.parts.slice().sort((a, b2) => a.n - b2.n), last = parts[parts.length - 1];
+      if (last && bytes(last.posts) + bytes(post) < PART_BYTES) await savePart(last.id, (last.posts || []).concat([post]));
+      else { const n = last ? last.n + 1 : 0; await put('parts/' + b.id + '-' + n, { bid: b.id, n, posts: [post], pub: !!b.public }); await saveBoard(b, { parts: n + 1, postCount: (b.postCount || 0) + 1 }); toast('글을 올렸어요.'); return; }
+      await saveBoard(b, { postCount: (b.postCount || 0) + 1 });
+      toast('글을 올렸어요.');
+    }
+  } catch (e) { toast(S.saveErr || '저장하지 못했어요.', true); }
+}
+async function likePost(id) {
+  const part = S.parts.find((x) => (x.posts || []).some((p) => p.id === id)); if (!part) return;
+  try { await savePart(part.id, part.posts.map((p) => (p.id === id ? Object.assign({}, p, { liked: !p.liked, likes: Math.max(0, (p.likes || 0) + (p.liked ? -1 : 1)) }) : p))); } catch (e) { toast(S.saveErr, true); }
+}
+async function deletePost(id) {
+  const b = curBoard(), part = S.parts.find((x) => (x.posts || []).some((p) => p.id === id)); if (!part || !b) return;
+  try { await savePart(part.id, part.posts.filter((p) => p.id !== id)); await saveBoard(b, { postCount: Math.max(0, (b.postCount || 1) - 1) }); toast('글을 지웠어요.'); } catch (e) { toast(S.saveErr, true); }
+}
+async function newBoard() {
+  const c = curClass(); if (!c) return;
+  const meta = { id: uid('b'), cid: c.id, title: '새 패들렛 ' + (boardsOf(c.id).length + 1), from: '직접 만듦', date: todayISO(), created: new Date().toISOString(), sections: ['첫 칸'] };
+  S.wantBid = meta.id;
+  try { await writeBoard(meta, []); S.bid = meta.id; draw(); toast('빈 패들렛을 만들었어요. \'이름 바꾸기\'로 제목을 정해 보세요.'); } catch (e) { toast(S.saveErr, true); }
+}
+
+async function setPublic(b, v) {
+  try {
+    await saveBoard(b, { public: v });
+    for (const p of S.parts.filter((x) => x.bid === b.id)) await put('parts/' + p.id, { bid: p.bid, n: p.n, posts: p.posts || [], pub: v });
+    toast(v ? '\'' + b.title + '\'을 이 반 학생들이 볼 수 있어요. (반 화면 → 게시판)' : '학생 화면에서 숨겼어요.');
+  } catch (e) { toast(S.saveErr || errText(e), true); }
+}
+async function pinHome(b) {
+  try {
+    if (!b.public) await setPublic(b, true);
+    const s = await getDoc(doc(fs, 'config', 'home')); const d = s.exists() ? s.data() : {};
+    const links = (d.links || []).filter((l) => l.bid !== b.id);
+    links.unshift({ bid: b.id, t: b.title, d: (curClass() || {}).name || '', site: '수업 보드', c: '#D7B5FF' });
+    await setDoc(doc(fs, 'config', 'home'), { links }, { merge: true });
+    toast('첫 화면 링크 게시판에 올렸어요.');
+  } catch (e) { toast(errText(e), true); }
+}
+
+/* ---------- 이동 ---------- */
+function openClass(id) { S.view = 'board'; S.cid = id; S.bid = null; S.msg = ''; if (location.hash !== '#class-' + id) history.replaceState(null, '', '#class-' + id); draw(); window.scrollTo(0, 0); }
+function goHome() { S.view = 'home'; S.cid = null; S.bid = null; S.msg = ''; watchParts(); if (location.hash && location.hash !== '#home') history.replaceState(null, '', '#home'); draw(); }
+function route() {
+  const m = /^#class-([A-Za-z0-9]+)$/.exec(location.hash);
+  if (m && S.classes.find((c) => c.id === m[1])) { if (S.cid !== m[1]) openClass(m[1]); }
+  else if (S.view !== 'home') goHome(); else draw();
+}
+window.addEventListener('hashchange', route);
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-act]'); if (!t) return;
+  const a = t.dataset.act, id = t.dataset.id, si = +t.dataset.s || 0;
+  if (a === 'ovclose') { if (e.target === t) closeDlg(); return; }
+  if (t.tagName === 'A' && a !== 'home') return;
+  e.preventDefault();
+  if (a === 'close') closeDlg();
+  else if (a === 'home') goHome();
+  else if (a === 'pickfile') $('fileIn').click();
+  else if (a === 'filter') { S.filter = t.dataset.v; draw(); }
+  else if (a === 'open') openClass(id);
+  else if (a === 'newclass') { if (S.classes.length < MAX_CLASSES) classDlg(null); }
+  else if (a === 'editclass') classDlg(S.classes.find((c) => c.id === id));
+  else if (a === 'kind' || a === 'color') { pending[a] = t.dataset.v; t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t))); }
+  else if (a === 'delclass') {
+    const c = S.classes.find((x) => x.id === id), bs = boardsOf(id);
+    confirmDlg('클래스 지우기', '\'' + c.name + '\' 클래스와 그 안의 패들렛 ' + bs.length + '개를 모두 지워요. 지운 것은 되돌릴 수 없어요.', '모두 지우기', async () => {
+      try { for (const b of bs) await deleteBoard(b); await del('classes/' + id); if (c.room) await deleteDoc(doc(fs, 'rooms', c.room)); toast('\'' + c.name + '\'을 지웠어요.'); } catch (err) { toast(S.saveErr, true); }
+    });
+  }
+  else if (a === 'tab') { S.bid = id; S.msg = ''; draw(); }
+  else if (a === 'newboard') newBoard();
+  else if (a === 'pubboard') { const b = curBoard(); if (b) setPublic(b, !b.public); }
+  else if (a === 'pinhome') { const b = curBoard(); if (b) pinHome(b); }
+  else if (a === 'renameboard') { const b = curBoard(); textDlg('패들렛 이름 바꾸기', '패들렛 이름', b.title, 60, (v) => saveBoard(b, { title: v })); }
+  else if (a === 'delboard') { const b = curBoard(); confirmDlg('패들렛 지우기', '\'' + b.title + '\'과 글 ' + (b.postCount || 0) + '개를 지워요. 지운 것은 되돌릴 수 없어요.', '지우기', async () => { try { await deleteBoard(b); S.bid = null; toast('패들렛을 지웠어요.'); } catch (err) { toast(S.saveErr, true); } }); }
+  else if (a === 'renamesec') { const b = curBoard(); textDlg('칸 이름 바꾸기', '칸 이름', b.sections[si], 40, (v) => saveBoard(b, { sections: b.sections.map((n, i) => (i === si ? v : n)) })); }
+  else if (a === 'addsec') { const b = curBoard(); textDlg('칸 만들기', '새 칸 이름', '', 40, (v) => saveBoard(b, { sections: (b.sections || []).concat([v]) })); }
+  else if (a === 'delsec') {
+    const b = curBoard(); if (postsOfBoard().some((p) => (p.sec || 0) === si)) return;
+    if ((b.sections || []).length <= 1) { toast('칸이 하나뿐이라 지울 수 없어요.', true); return; }
+    const moves = S.parts.filter((p) => (p.posts || []).some((x) => x.sec > si));
+    (async () => { try { for (const p of moves) await savePart(p.id, p.posts.map((x) => (x.sec > si ? Object.assign({}, x, { sec: x.sec - 1 }) : x))); await saveBoard(b, { sections: b.sections.filter((_, i) => i !== si) }); toast('빈 칸을 지웠어요.'); } catch (err) { toast(S.saveErr, true); } })();
+  }
+  else if (a === 'write') { if (curBoard()) postDlg(si, null); }
+  else if (a === 'editpost') { const p = postsOfBoard().find((x) => x.id === id); if (p) postDlg(p.sec || 0, p); }
+  else if (a === 'delpost') { const p = postsOfBoard().find((x) => x.id === id); confirmDlg('글 지우기', '\'' + (p.title || (p.body || '').slice(0, 20) || '이 글') + '\'을 지워요. 지운 것은 되돌릴 수 없어요.', '지우기', () => deletePost(id)); }
+  else if (a === 'like') likePost(id);
+});
+document.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = (e.submitter && e.submitter.dataset.form) ? e.submitter : e.target.querySelector('[data-form]');
+  const f = btn && btn.dataset.form;
+  if (f === 'class') saveClass();
+  else if (f === 'post') savePost();
+  else if (f === 'text') { const v = $('tv').value.trim(); if (!v) { $('tv').focus(); return; } const fn = pending; closeDlg(); try { await fn(v); toast('저장했어요.'); } catch (err) { toast(S.saveErr || '저장하지 못했어요.', true); } }
+  else if (f === 'confirm') { const fn = pending; closeDlg(); fn(); }
+});
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'fileIn') { const file = e.target.files && e.target.files[0]; e.target.value = ''; importFile(file); }
+});
+document.addEventListener('input', (e) => {
+  if (e.target.id === 'q') { S.q = e.target.value; const g = $('grid'); if (g) g.innerHTML = gridHTML(classes(), S.classes.length >= MAX_CLASSES); }
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('dlg').innerHTML) closeDlg(); });
+
+draw();
+connect();
+}
+</script>
+</body>
+</html>

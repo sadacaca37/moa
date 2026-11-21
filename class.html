@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>우리 반 · 모아팡팡</title>
+<link rel="icon" href="assets/moa.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/moa.css">
+<style>
+/* VOICE: 반에 들어온 아이들의 놀이터 겸 교실 — 친구들이 보이고, 선생님 안내가 바로 뜬다
+   LAYOUT: 위 반 정보 띠, 탭 [가상 교실 | 게시판], 가상 교실은 지도 + 오른쪽 채팅·친구 목록 */
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;padding:10px clamp(12px,3vw,24px)}
+.binfo{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.binfo h1{font-size:24px;color:#fff;text-shadow:3px 3px 0 var(--ink);margin-right:4px}
+.who{background:var(--paper);border:4px solid var(--ink);padding:4px 10px 4px 4px}
+.tabs{display:flex;gap:8px;margin:0 0 14px}
+.tabs .btn{min-width:130px}
+.notice{display:flex;gap:12px;align-items:center;padding:12px 16px;margin-bottom:14px;background:var(--yel);font:400 20px/1.35 'Jua',sans-serif}
+.notice .msc{height:54px}
+.strip{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;margin-bottom:14px;background:var(--ink);color:var(--grn);border:4px solid var(--ink);font:400 18px/1.3 'Jua',sans-serif}
+.room{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.mapbox{padding:0;overflow:hidden}
+.maphead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:4px solid var(--ink);background:#fff}
+.maphead b{font:400 19px/1.2 'Jua',sans-serif}
+.screen{position:relative;background:#1B1F3B}
+#cv{display:block;width:100%;height:auto;touch-action:none;cursor:pointer}
+.hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(27,31,59,.85);color:#fff;font:700 14px/1.3 'Noto Sans KR',sans-serif;padding:6px 12px;border:2px solid #fff;pointer-events:none;white-space:nowrap}
+.pad{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border-top:4px solid var(--ink);background:var(--paper)}
+.keys{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,44px);gap:4px}
+.keys .btn{min-height:44px;padding:0;font-size:18px}
+.keys [data-k=up]{grid-column:2}.keys [data-k=left]{grid-column:1;grid-row:2}.keys [data-k=down]{grid-column:2;grid-row:2}.keys [data-k=right]{grid-column:3;grid-row:2}
+.side{display:flex;flex-direction:column;gap:14px}
+.chat{display:flex;flex-direction:column;height:430px}
+.chat h2,.people h2{font-size:19px;padding:10px 12px;border-bottom:4px solid var(--ink);background:#fff}
+#log{flex:1;overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:15px}
+#log p{margin:0;overflow-wrap:anywhere}#log b{margin-right:6px}#log .sys{color:var(--sub);font-size:13px}#log .mine b{color:var(--blue)}
+.chatf{display:flex;gap:6px;padding:8px;border-top:4px solid var(--ink);background:#fff}
+.chatf .field{padding:8px 10px;font-size:15px;border-width:3px}
+.people ul{list-style:none;margin:0;padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow:auto}
+.people li{border:2px solid var(--ink);background:#fff;padding:2px 8px;font-size:14px}
+.people li.me{background:var(--yel)}
+.meter{height:12px;margin:0 12px 12px;border:3px solid var(--ink);background:#fff}
+.meter i{display:block;height:100%;background:var(--grn)}
+.boardTab h2{font-size:22px}
+.quiz{position:fixed;inset:0;z-index:60;background:rgba(27,31,59,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.quiz .pf{width:min(640px,100%);padding:22px;display:flex;flex-direction:column;gap:14px}
+.quiz h2{font-size:18px;color:var(--sub)}
+.quiz .q{font:400 26px/1.4 'Jua',sans-serif;overflow-wrap:anywhere}
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.opts .btn{min-height:72px;font-size:22px;white-space:normal;line-height:1.25}
+.opts.ox .btn{min-height:110px;font-size:54px}
+.opts .btn.right{background:var(--grn);color:var(--ink)}
+.opts .btn.wrong{background:#ffb4a8}
+.res{font:400 22px/1.4 'Jua',sans-serif;text-align:center;padding:10px;border:4px solid var(--ink);background:#fff}
+@media (max-width:900px){.room{grid-template-columns:minmax(0,1fr)}.chat{height:340px}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="binfo">
+    <a class="logo" href="./" aria-label="모아팡팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i></a>
+    <h1 id="clsT">우리 반</h1>
+    <span class="tag" id="mapT">맵</span>
+    <span class="tag" id="cntT">접속 0명</span>
+  </div>
+  <div class="row">
+    <div class="who"><canvas id="meCv" width="56" height="56" aria-hidden="true"></canvas><div><b id="meT"></b><small id="scoreT">점수 0</small></div></div>
+    <a class="btn sm" href="dress.html">꾸미기</a>
+    <button class="btn sm" type="button" id="out">나가기</button>
+  </div>
+</div>
+<main class="wrap">
+  <div class="tabs" role="tablist" aria-label="반 화면">
+    <button class="btn" type="button" role="tab" id="tabRoom" aria-selected="true" aria-controls="roomTab">가상 교실</button>
+    <button class="btn" type="button" role="tab" id="tabBoard" aria-selected="false" aria-controls="boardTab">게시판</button>
+  </div>
+  <div class="pf notice" id="notice" role="status" hidden><span class="msc moa" aria-hidden="true"></span><span id="noticeT"></span></div>
+  <div class="strip" id="gameStrip" hidden><span id="gameT"></span><a class="btn sm yel" id="gameGo" href="#">들어가기 ▶</a></div>
+  <div class="strip" id="quizStrip" hidden><span>선생님이 퀴즈를 냈어요!</span><button class="btn sm yel" type="button" id="quizOpen">지금 참여하기 ▶</button></div>
+
+  <section id="roomTab" role="tabpanel" aria-labelledby="tabRoom">
+    <div class="room">
+      <div class="pf mapbox">
+        <div class="maphead"><b id="mapH">대기실</b><span class="note" id="mapSub"></span></div>
+        <div class="screen">
+          <canvas id="cv" width="1280" height="715" tabindex="0" aria-label="가상 교실 지도. 방향키나 W·A·S·D로 움직이고, 지도를 누르면 그쪽으로 걸어가요."></canvas>
+          <div class="hint" id="hint" hidden></div>
+        </div>
+        <div class="pad">
+          <div class="keys" aria-label="움직이기 버튼">
+            <button class="btn" type="button" data-k="up" aria-label="위로">▲</button><button class="btn" type="button" data-k="left" aria-label="왼쪽으로">◀</button><button class="btn" type="button" data-k="down" aria-label="아래로">▼</button><button class="btn" type="button" data-k="right" aria-label="오른쪽으로">▶</button>
+          </div>
+          <p class="note" style="flex:1;min-width:180px">방향키나 W·A·S·D로 움직여요. 지도를 누르면 그쪽으로 걸어가요. 칠판 앞에서 스페이스를 누르면 게시판이 열려요.</p>
+        </div>
+      </div>
+      <div class="side">
+        <div class="pf chat">
+          <h2>채팅</h2>
+          <div id="log" aria-live="polite"></div>
+          <form class="chatf" id="chatF" autocomplete="off"><input class="field" id="chatI" maxlength="40" placeholder="한 번에 40자까지" aria-label="채팅 글"><button class="btn sm blue" type="submit">보내기</button></form>
+        </div>
+        <div class="pf people">
+          <h2 id="pplH">들어온 친구 0명</h2>
+          <div class="meter" aria-hidden="true"><i id="meter" style="width:0"></i></div>
+          <ul id="ppl"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="boardTab" class="boardTab stack" role="tabpanel" aria-labelledby="tabBoard" hidden>
+    <div class="pf pad stack">
+      <h2>링크</h2>
+      <div class="cards" id="clsLinks"><p class="empty">불러오는 중…</p></div>
+    </div>
+    <div class="pf pad stack">
+      <h2>수업 보드</h2>
+      <div class="cards" id="clsBoards"><p class="empty">불러오는 중…</p></div>
+    </div>
+  </section>
+</main>
+
+<div class="quiz" id="quiz" hidden>
+  <div class="pf" role="dialog" aria-modal="true" aria-labelledby="quizH">
+    <h2 id="quizH">선생님 퀴즈</h2>
+    <p class="q" id="quizQ"></p>
+    <div class="opts" id="quizO"></div>
+    <p class="res" id="quizR" hidden></p>
+    <button class="btn" type="button" id="quizX">닫기</button>
+  </div>
+</div>
+<div class="ground" aria-hidden="true"></div>
+
+<script src="js/avatar.js"></script>
+<script type="module">
+import {
+  fs, rt, ensureUser, doc, getDoc, onSnapshot, setDoc, updateDoc, increment, serverTimestamp, collection, query, where,
+  ref, set, update, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, rquery, limitToLast, rnow, rget,
+  getSession, setSession, clearSession, mapName, WAIT_MAP, esc, safeUrl, hostOf, errText, toast
+} from './js/fb.js';
+const $ = (id) => document.getElementById(id);
+const A = window.MoaAvatar;
+const ses = getSession();
+if (!ses) location.replace('./');
+const T = 32, CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const hyp = Math.hypot, rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+$('clsT').textContent = ses.className; $('meT').textContent = ses.name;
+document.title = ses.className + ' · 모아팡팡';
+
+let user = null, cls = {}, st = {}, M = null, mapId = null, loadingMap = null, first = true;
+const MAPC = {}, actors = new Map();
+const myOutfit = A.clean(ses.outfit || A.START);
+const me = { uid: '', name: ses.name, key: ses.key, o: myOutfit, sheet: null, x: 0, y: 0, dir: 'down', moving: false, step: 0, speed: 175, isMe: true, bubble: '', bubbleT: 0, path: null };
+
+/* ---------- 탭 ---------- */
+function tab(which) {
+  const room = which === 'room';
+  $('tabRoom').setAttribute('aria-selected', String(room)); $('tabBoard').setAttribute('aria-selected', String(!room));
+  $('roomTab').hidden = !room; $('boardTab').hidden = room;
+  if (room) $('cv').focus({ preventScroll: true });
+}
+$('tabRoom').addEventListener('click', () => tab('room'));
+$('tabBoard').addEventListener('click', () => tab('board'));
+$('out').addEventListener('click', () => { if (myRef) set(myRef, null).catch(() => {}); clearSession(); location.href = './'; });
+
+/* ---------- 지도 ---------- */
+const loadImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
+async function loadMap(id) {
+  if (MAPC[id]) return MAPC[id];
+  const [d, im] = await Promise.all([fetch('assets/data/' + id + '.json').then((r) => r.json()), loadImg('assets/maps/' + id + '.webp')]);
+  d.img = im; MAPC[id] = d; return d;
+}
+const tileWalk = (x, y) => { const r = M.walk[Math.floor(y / T)]; return !!r && r[Math.floor(x / T)] === '.'; };
+const stand = (x, y) => tileWalk(x - 7, y) && tileWalk(x + 7, y) && tileWalk(x, y - 3);
+function spotIn(rect) {
+  if (rect) for (let i = 0; i < 200; i++) { const x = (rand(rect[0], rect[2] + 1)) * T, y = (rand(rect[1], rect[3] + 1)) * T; if (stand(x, y)) return [x, y]; }
+  for (let i = 0; i < 2000; i++) { const x = rand(0, M.size[0]), y = rand(0, M.size[1]); if (stand(x, y)) return [x, y]; }
+  return [M.size[0] / 2, M.size[1] / 2];
+}
+function wantMap() { return st.phase === 'class' ? (st.map || cls.map || 'classroom') : WAIT_MAP; }
+async function goMap(id, announce) {
+  if (mapId === id && M) return;
+  const my = (loadingMap = id);
+  const d = await loadMap(id);
+  if (loadingMap !== my) return;
+  M = d; mapId = id;
+  const cv = $('cv'); cv.width = M.size[0]; cv.height = M.size[1];
+  const [x, y] = spotIn(M.spawn || M.start); me.x = x; me.y = y; me.path = null; me.dir = 'down';
+  $('mapT').textContent = '맵 · ' + (st.phase === 'class' ? mapName(id) : '대기실');
+  $('mapH').textContent = st.phase === 'class' ? mapName(id) : '대기실';
+  $('mapSub').textContent = st.phase === 'class' ? '친구들과 함께 있어요' : '선생님이 수업을 시작하면 ' + mapName(st.map || cls.map || 'classroom') + '(으)로 이동해요';
+  if (announce) toast(st.phase === 'class' ? mapName(id) + '(으)로 이동했어요' : '대기실로 왔어요');
+  sendAll();
+}
+
+/* ---------- 실시간: 내 자리 ---------- */
+let myRef = null, lastSend = 0, sentMoving = false, online = false;
+function rec() { return { n: me.name, k: me.key, o: me.o, x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 0, mp: mapId || '', t: rnow() }; }
+function sendAll() { if (myRef && online && mapId) set(myRef, rec()).catch(() => {}); }
+function syncMove(now) {
+  if (!myRef || !online || !mapId) return;
+  if (me.moving && now - lastSend > 180) { lastSend = now; sentMoving = true; update(myRef, { x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 1, t: rnow() }).catch(() => {}); }
+  else if (!me.moving && sentMoving) { lastSend = now; sentMoving = false; update(myRef, { x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 0, t: rnow() }).catch(() => {}); }
+}
+setInterval(() => { if (myRef && online) update(myRef, { t: rnow() }).catch(() => {}); }, 40000);
+
+/* ---------- 친구들 ---------- */
+function upsert(uid, v) {
+  if (!v || uid === user.uid) return;
+  let a = actors.get(uid);
+  if (!a) { a = { uid, x: v.x, y: v.y, tx: v.x, ty: v.y, dir: 'down', moving: false, step: Math.random() * 4, bubble: '', bubbleT: 0, sheet: null, okey: '' }; actors.set(uid, a); }
+  a.name = String(v.n || '친구').slice(0, 10); a.key = v.k; a.mp = v.mp; a.tx = +v.x || 0; a.ty = +v.y || 0; a.dir = v.d || 'down'; a.remoteMoving = !!v.m;
+  if (Math.abs(a.x - a.tx) > 300 || Math.abs(a.y - a.ty) > 300) { a.x = a.tx; a.y = a.ty; }
+  const ok = JSON.stringify(v.o || {});
+  if (ok !== a.okey) { a.okey = ok; const o = A.clean(v.o); a.sheet = null; A.ensure(o).then(() => { a.sheet = A.sheet(o); }); }
+  people();
+}
+function people() {
+  const list = [...actors.values()].filter((a) => a.mp === mapId);
+  const n = list.length + 1;
+  $('cntT').textContent = '접속 ' + (actors.size + 1) + '명';
+  $('pplH').textContent = '들어온 친구 ' + n + '명';
+  $('meter').style.width = Math.min(100, n / 30 * 100) + '%';
+  $('ppl').innerHTML = '<li class="me">' + esc(me.name) + '</li>' + list.map((a) => '<li>' + esc(a.name) + '</li>').join('');
+}
+
+/* ---------- 채팅 ---------- */
+function logLine(html, cls2) { const p = document.createElement('p'); if (cls2) p.className = cls2; p.innerHTML = html; const log = $('log'); log.append(p); while (log.children.length > 60) log.firstChild.remove(); log.scrollTop = log.scrollHeight; }
+$('chatF').addEventListener('submit', async (e) => {
+  e.preventDefault(); const m = $('chatI').value.replace(/\s+/g, ' ').trim().slice(0, 40); if (!m || !user) return;
+  if (st.chatOff) { toast('지금은 선생님이 채팅을 껐어요', true); return; }
+  $('chatI').value = '';
+  try { await push(ref(rt, 'live/' + ses.cid + '/chat'), { u: user.uid, n: me.name, m, t: rnow() }); } catch (err) { toast(errText(err), true); }
+});
+function say(a, text) { a.bubble = String(text).length > 22 ? String(text).slice(0, 21) + '…' : String(text); a.bubbleT = 5; }
+
+/* ---------- 선생님 진행 ---------- */
+let lastCall = null, quizState = null;
+function applyState(prevPhase, prevMap) {
+  const n = st.notice && st.notice.m;
+  $('notice').hidden = !n; $('noticeT').textContent = n || '';
+  const g = st.game;
+  const done = JSON.parse(sessionStorage.getItem('moa_runs') || '[]');
+  if (g && g.run && g.id) {
+    $('gameStrip').hidden = false; $('gameT').textContent = '지금 미니 게임 중이에요: ' + (g.name || '게임');
+    $('gameGo').href = 'games.html?g=' + encodeURIComponent(g.id) + '&run=' + encodeURIComponent(g.run);
+    if (!done.includes(g.run) && Date.now() - (g.t || 0) < 20 * 60000) location.href = $('gameGo').href;
+  } else $('gameStrip').hidden = true;
+  const call = st.call || null;
+  if (lastCall !== null && call && call !== lastCall && M) { const [x, y] = spotIn(M.gather || M.spawn || M.start); me.x = x; me.y = y; me.path = null; me.dir = 'up'; sendAll(); toast('선생님이 모두 불렀어요!'); }
+  lastCall = call || 0;
+  const want = wantMap();
+  if (want !== mapId) goMap(want, !first);
+  else if (prevPhase !== st.phase) goMap(want, false);
+  $('mapSub').textContent = st.phase === 'class' ? (st.freeze ? '선생님이 잠깐 멈추게 했어요' : '친구들과 함께 있어요') : '선생님이 수업을 시작하면 ' + mapName(st.map || cls.map || 'classroom') + '(으)로 이동해요';
+  quizUpdate();
+  first = false;
+}
+
+/* ---------- 퀴즈 (동시 풀이) ---------- */
+let answered = null, quizSeen = null, scored = new Set(JSON.parse(sessionStorage.getItem('moa_scored') || '[]'));
+async function quizUpdate() {
+  const q = st.quiz;
+  if (!q || !q.qid) { $('quiz').hidden = true; $('quizStrip').hidden = true; quizState = null; return; }
+  if (!quizState || quizState.qid !== q.qid) {
+    quizState = { qid: q.qid }; answered = null;
+    try { const s = await rget(ref(rt, 'live/' + ses.cid + '/answers/' + q.qid + '/' + user.uid)); if (s.exists()) answered = s.val().a; } catch (e) { /* 무시 */ }
+    if (quizSeen !== q.qid) { quizSeen = q.qid; $('quiz').hidden = false; }
+  }
+  drawQuiz();
+}
+function drawQuiz() {
+  const q = st.quiz; if (!q) return;
+  const ox = q.k === 'ox', opts = ox ? ['O', 'X'] : (q.o || []);
+  $('quizH').textContent = ox ? '선생님 OX 퀴즈' : '선생님 퀴즈';
+  $('quizQ').textContent = q.q || '';
+  const rev = q.ans !== undefined && q.ans !== null;
+  $('quizO').className = 'opts' + (ox ? ' ox' : '');
+  $('quizO').innerHTML = opts.map((o, i) => {
+    const v = ox ? o : i;
+    let c = 'btn';
+    if (rev && String(v) === String(q.ans)) c += ' right'; else if (rev && answered !== null && String(v) === String(answered)) c += ' wrong'; else if (!rev && answered !== null && String(v) === String(answered)) c += ' blue';
+    return '<button type="button" class="' + c + '" data-v="' + esc(v) + '"' + (answered !== null || rev ? ' disabled' : '') + '>' + (ox ? '' : (i + 1) + '. ') + esc(o) + '</button>';
+  }).join('');
+  const R = $('quizR');
+  if (rev) {
+    const ok = answered !== null && String(answered) === String(q.ans);
+    R.hidden = false; R.textContent = answered === null ? '정답은 ' + (ox ? q.ans : (+q.ans + 1) + '번 ' + (opts[q.ans] || '')) + ' 이에요.' : ok ? '정답! +1점 🎉' : '아쉬워요! 정답은 ' + (ox ? q.ans : (+q.ans + 1) + '번') + ' 이에요.' + (q.why ? ' ' + q.why : '');
+    if (ok && !scored.has(q.qid)) { scored.add(q.qid); sessionStorage.setItem('moa_scored', JSON.stringify([...scored])); updateDoc(doc(fs, 'classes', ses.cid, 'students', ses.key), { score: increment(1) }).catch(() => {}); }
+  } else { R.hidden = answered === null; R.textContent = '제출했어요! 선생님이 정답을 공개하면 알려 줄게요.'; }
+  $('quizStrip').hidden = !$('quiz').hidden || (answered !== null && !rev);
+}
+$('quizO').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-v]'); if (!b || answered !== null || !st.quiz) return;
+  const q = st.quiz, v = q.k === 'ox' ? b.dataset.v : +b.dataset.v;
+  answered = v; drawQuiz();
+  try { await set(ref(rt, 'live/' + ses.cid + '/answers/' + q.qid + '/' + user.uid), { n: me.name, k: me.key, a: v, t: rnow() }); }
+  catch (err) { answered = null; drawQuiz(); toast(errText(err), true); }
+});
+$('quizX').addEventListener('click', () => { $('quiz').hidden = true; drawQuiz(); $('cv').focus({ preventScroll: true }); });
+$('quizOpen').addEventListener('click', () => { $('quiz').hidden = false; drawQuiz(); });
+
+/* ---------- 게시판 ---------- */
+const COLORS = ['#7FE0E8', '#9BE07A', '#FF8F8F', '#9DB8FF', '#FFD23F', '#D7B5FF'];
+function card(l, i) {
+  const isBoard = !!l.bid, url = isBoard ? 'board.html?b=' + encodeURIComponent(l.bid) : safeUrl(l.u);
+  if (!url) return '';
+  const site = l.site || (isBoard ? '수업 보드' : hostOf(url)) || '링크';
+  return '<a class="lk" href="' + esc(url) + '"' + (isBoard ? '' : ' target="_blank" rel="noopener"') + '><span class="band" style="background:' + esc(l.c || COLORS[i % COLORS.length]) + '"><b>' + esc(site) + '</b></span><span class="body"><span class="t">' + esc(l.t || site) + '</span>' + (l.d ? '<span class="d">' + esc(l.d) + '</span>' : '') + '<span class="h"><span>' + esc(isBoard ? '모아팡팡 보드' : hostOf(url)) + '</span><span>열기 ▶</span></span></span></a>';
+}
+function drawLinks() { $('clsLinks').innerHTML = (cls.links || []).filter((l) => !l.hide).map(card).join('') || '<p class="empty">아직 선생님이 올린 링크가 없어요.</p>'; }
+
+/* ---------- 움직이기 ---------- */
+const keys = new Set(), KEY = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', a: 'left', d: 'right', w: 'up', s: 'down', A: 'left', D: 'right', W: 'up', S: 'down' };
+addEventListener('keydown', (e) => {
+  if (e.target.closest('input,textarea,select') || !$('quiz').hidden || $('roomTab').hidden) return;
+  if (KEY[e.key]) { keys.add(KEY[e.key]); me.path = null; e.preventDefault(); }
+  if (e.key === ' ' && document.activeElement === $('cv')) { e.preventDefault(); if (nearBoard()) tab('board'); }
+});
+addEventListener('keyup', (e) => { if (KEY[e.key]) keys.delete(KEY[e.key]); });
+addEventListener('blur', () => keys.clear());
+for (const b of document.querySelectorAll('.keys .btn')) {
+  const k = b.dataset.k;
+  b.addEventListener('pointerdown', (e) => { keys.add(k); me.path = null; b.setPointerCapture(e.pointerId); e.preventDefault(); });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, () => keys.delete(k));
+}
+function findPath(tx, ty) {
+  const C = M.cols, R = M.rows, ok = (x, y) => x >= 0 && y >= 0 && x < C && y < R && stand(x * T + 16, y * T + 16);
+  const sx = Math.floor(me.x / T), sy = Math.floor(me.y / T); let ex = Math.floor(tx / T), ey = Math.floor(ty / T);
+  if (!ok(ex, ey)) { let best = null; for (let y = 0; y < R; y++) for (let x = 0; x < C; x++) if (ok(x, y)) { const d = (x - ex) ** 2 + (y - ey) ** 2; if (!best || d < best[0]) best = [d, x, y]; } if (!best) return null; ex = best[1]; ey = best[2]; tx = ex * T + 16; ty = ey * T + 16; }
+  const prev = new Int32Array(C * R).fill(-2), q = [sy * C + sx]; prev[sy * C + sx] = -1;
+  const D = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+  while (q.length) {
+    const cur = q.shift(); if (cur === ey * C + ex) break;
+    const cx = cur % C, cy = (cur / C) | 0;
+    for (const [dx, dy] of D) {
+      const nx = cx + dx, ny = cy + dy, ni = ny * C + nx;
+      if (nx < 0 || ny < 0 || nx >= C || ny >= R || prev[ni] !== -2 || !ok(nx, ny)) continue;
+      if (dx && dy && (!ok(cx + dx, cy) || !ok(cx, cy + dy))) continue;
+      prev[ni] = cur; q.push(ni);
+    }
+  }
+  if (prev[ey * C + ex] === -2) return null;
+  const pts = []; for (let i = ey * C + ex; i !== -1 && i !== sy * C + sx; i = prev[i]) pts.push([(i % C) * T + 16, ((i / C) | 0) * T + 16]);
+  pts.reverse(); if (pts.length && stand(tx, ty)) pts[pts.length - 1] = [tx, ty];
+  return pts;
+}
+function followPath() {
+  while (me.path && me.path.length) { const p = me.path[0]; if (hyp(p[0] - me.x, p[1] - me.y) < 5) me.path.shift(); else return [p[0] - me.x, p[1] - me.y]; }
+  me.path = null; return [0, 0];
+}
+function moveMe(dx, dy, dt) {
+  const len = hyp(dx, dy); if (len < 0.01 || st.freeze) { me.moving = false; return; }
+  dx /= len; dy /= len; const sp = me.speed * dt, ox = me.x, oy = me.y;
+  if (stand(me.x + dx * sp, me.y)) me.x += dx * sp;
+  if (stand(me.x, me.y + dy * sp)) me.y += dy * sp;
+  me.moving = hyp(me.x - ox, me.y - oy) > sp * 0.2;
+  if (!me.moving) me.path = null;
+  if (me.moving) { me.step += dt * 8.5; me.dir = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'up' : 'down'); }
+}
+$('cv').addEventListener('pointerdown', (e) => {
+  if (!M) return; const cv = $('cv'), r = cv.getBoundingClientRect();
+  const x = (e.clientX - r.left) * cv.width / r.width, y = (e.clientY - r.top) * cv.height / r.height;
+  if (M.board && x >= M.board[0] && x <= M.board[2] && y >= M.board[1] && y <= M.board[3] && nearBoard(140)) { tab('board'); return; }
+  me.path = findPath(x, y); cv.focus({ preventScroll: true });
+});
+function nearBoard(R = 70) {
+  if (!M || !M.boardUse) return false;
+  const b = M.boardUse, cx = (b[0] + b[2] + 1) / 2 * T, cy = (b[1] + b[3] + 1) / 2 * T;
+  return hyp(me.x - cx, me.y - cy) < R + (b[2] - b[0]) * T / 2;
+}
+
+/* ---------- 그리기 ---------- */
+const cv = $('cv'), g = cv.getContext('2d');
+let ui = 1;
+const WALK = [1, 0, 1, 2], ROWS = { down: 0, front: 0, up: 1, back: 1, left: 2, right: 3 };
+function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function drawActor(a) {
+  if (!a.sheet) return;
+  const col = a.moving ? WALK[Math.floor(a.step) % 4] : 1;
+  g.imageSmoothingEnabled = false;
+  g.drawImage(a.sheet, col * 128, (ROWS[a.dir] || 0) * 128, 128, 128, Math.round(a.x - 48), Math.round(a.y - 93), 96, 96);
+}
+function drawTag(a) {
+  const fs2 = 13 * ui; g.font = `700 ${fs2}px "Noto Sans KR", sans-serif`;
+  const w = g.measureText(a.name).width + fs2 * 0.9, h = fs2 * 1.55, x = a.x - w / 2, y = a.y - 98 - h;
+  g.fillStyle = a.isMe ? '#ffd23f' : 'rgba(23,24,28,.78)'; rr(x, y, w, h, h / 2); g.fill();
+  if (a.isMe) { g.lineWidth = 2 * ui; g.strokeStyle = '#111'; g.stroke(); }
+  g.fillStyle = a.isMe ? '#17181c' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(a.name, a.x, y + h / 2 + 1);
+  if (a.bubbleT > 0 && a.bubble) {
+    const bf = 15 * ui; g.font = `700 ${bf}px "Noto Sans KR", sans-serif`;
+    const bw = g.measureText(a.bubble).width + bf * 1.2, bh = bf * 1.7, bx = clamp(a.x - bw / 2, 4, cv.width - bw - 4), by = y - bh - 8 * ui;
+    g.globalAlpha = Math.min(1, a.bubbleT * 2);
+    g.fillStyle = '#fff'; g.strokeStyle = '#111'; g.lineWidth = 2.5 * ui; rr(bx, by, bw, bh, 10 * ui); g.fill(); g.stroke();
+    g.beginPath(); g.moveTo(a.x - 6 * ui, by + bh - 1); g.lineTo(a.x, by + bh + 7 * ui); g.lineTo(a.x + 6 * ui, by + bh - 1); g.fill();
+    g.fillStyle = '#17181c'; g.fillText(a.bubble, bx + bw / 2, by + bh / 2 + 1); g.globalAlpha = 1;
+  }
+}
+function wrapText(text, maxW) {
+  const out = []; let line = '';
+  for (const ch of String(text)) { if (g.measureText(line + ch).width > maxW && line) { out.push(line); line = ch; } else line += ch; }
+  if (line) out.push(line); return out;
+}
+function screenText() {
+  const r = M.screen; if (!r) return;
+  const txt = st.quiz && st.quiz.q ? 'Q. ' + st.quiz.q : st.notice && st.notice.m ? st.notice.m : st.phase === 'class' ? '' : '곧 수업을 시작해요!';
+  if (!txt) return;
+  const [x0, y0, x1, y1] = r, w = x1 - x0 - 24, h = y1 - y0;
+  let size = Math.min(34, h / 2.6);
+  g.font = `${size}px Jua, sans-serif`; let lines = wrapText(txt, w);
+  while (lines.length * size * 1.25 > h - 16 && size > 12) { size -= 2; g.font = `${size}px Jua, sans-serif`; lines = wrapText(txt, w); }
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const top = (y0 + y1) / 2 - (lines.length - 1) * size * 1.25 / 2;
+  lines.forEach((ln, i) => g.fillText(ln, (x0 + x1) / 2, top + i * size * 1.25));
+}
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (!M || !M.img) return;
+  if ($('roomTab').hidden && document.visibilityState === 'visible') { /* 게시판 탭: 그리지 않아도 됨 */ }
+  let dx = 0, dy = 0;
+  if ($('quiz').hidden) { if (keys.has('left')) dx--; if (keys.has('right')) dx++; if (keys.has('up')) dy--; if (keys.has('down')) dy++; }
+  if (!dx && !dy && me.path) [dx, dy] = followPath();
+  moveMe(dx, dy, dt);
+  syncMove(now);
+  me.bubbleT -= dt;
+  for (const a of actors.values()) {
+    a.bubbleT -= dt;
+    const ddx = a.tx - a.x, ddy = a.ty - a.y, d = hyp(ddx, ddy);
+    if (d > 0.5) { const sp = Math.min(d, Math.max(175, d * 4) * dt); a.x += ddx / d * sp; a.y += ddy / d * sp; a.moving = true; a.step += dt * 8.5; }
+    else a.moving = a.remoteMoving && d > 0.1;
+  }
+  const near = nearBoard();
+  $('hint').hidden = !near; if (near) $('hint').textContent = '스페이스를 누르거나 칠판을 누르면 게시판이 열려요';
+  if ($('roomTab').hidden) return;
+  ui = clamp(cv.width / Math.max(320, cv.clientWidth), 1, 3);
+  g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = true;
+  g.drawImage(M.img, 0, 0, M.size[0], M.size[1]);
+  screenText();
+  const list = [me, ...[...actors.values()].filter((a) => a.mp === mapId)];
+  list.sort((p, q) => p.y - q.y).forEach(drawActor);
+  list.forEach(drawTag);
+}
+
+/* ---------- 시작 ---------- */
+(async () => {
+  try {
+    user = await ensureUser();
+  } catch (err) { toast(errText(err), true); return; }
+  me.uid = user.uid;
+  await A.ensure(me.o); me.sheet = A.sheet(me.o);
+  A.drawFrame($('meCv').getContext('2d'), me.sheet, 'front', 0, false, 56);
+
+  // 반 정보 (기본 맵, 링크)
+  onSnapshot(doc(fs, 'classes', ses.cid), (s) => {
+    if (!s.exists()) { toast('이 반이 없어졌어요. 첫 화면으로 가요.', true); clearSession(); setTimeout(() => { location.href = './'; }, 1500); return; }
+    cls = s.data(); if (cls.name && cls.name !== ses.className) { ses.className = cls.name; setSession(ses); $('clsT').textContent = cls.name; }
+    drawLinks();
+  }, (err) => toast(errText(err), true));
+  // 학생 기록 (점수, 다른 기기에서 바꾼 옷)
+  onSnapshot(doc(fs, 'classes', ses.cid, 'students', ses.key), (s) => {
+    if (!s.exists()) return;
+    const d = s.data(); $('scoreT').textContent = '점수 ' + (d.score || 0);
+    if (d.outfit && JSON.stringify(A.clean(d.outfit)) !== JSON.stringify(me.o)) {
+      me.o = A.clean(d.outfit); ses.outfit = me.o; setSession(ses);
+      A.ensure(me.o).then(() => { me.sheet = A.sheet(me.o); A.drawFrame($('meCv').getContext('2d'), me.sheet, 'front', 0, false, 56); sendAll(); });
+    }
+  }, () => {});
+  // 수업 보드 (학생에게 보이기로 한 것)
+  onSnapshot(query(collection(fs, 'boards'), where('cid', '==', ses.cid), where('public', '==', true)), (snap) => {
+    const bs = snap.docs.map((d) => Object.assign({ id: d.id }, d.data())).sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
+    $('clsBoards').innerHTML = bs.map((b, i) => card({ bid: b.id, t: b.title, d: (b.postCount || 0) + '개의 글', c: b.color }, i)).join('') || '<p class="empty">아직 열린 수업 보드가 없어요.</p>';
+  }, () => { $('clsBoards').innerHTML = '<p class="empty">수업 보드를 불러오지 못했어요.</p>'; });
+
+  // 실시간
+  const base = 'live/' + ses.cid;
+  myRef = ref(rt, base + '/players/' + user.uid);
+  onValue(ref(rt, '.info/connected'), async (s) => {
+    online = !!s.val();
+    if (online) { try { await onDisconnect(myRef).remove(); sendAll(); } catch (e) { /* 무시 */ } }
+  });
+  let stReady = false;
+  onValue(ref(rt, base + '/state'), (s) => {
+    const prevPhase = st.phase, prevMap = st.map;
+    st = s.val() || {}; if (!st.phase) st.phase = 'wait';
+    stReady = true; applyState(prevPhase, prevMap);
+  }, (err) => { toast(errText(err), true); if (!stReady) { st = { phase: 'wait' }; applyState(); } });
+  let joined = false; setTimeout(() => { joined = true; }, 2500);
+  onChildAdded(ref(rt, base + '/players'), (s) => { const had = actors.has(s.key); upsert(s.key, s.val()); if (joined && !had && s.key !== user.uid) logLine(esc((s.val() || {}).n || '친구') + ' 님이 들어왔어요', 'sys'); });
+  onChildChanged(ref(rt, base + '/players'), (s) => upsert(s.key, s.val()));
+  onChildRemoved(ref(rt, base + '/players'), (s) => { actors.delete(s.key); people(); });
+  onChildAdded(rquery(ref(rt, base + '/chat'), limitToLast(30)), (s) => {
+    const v = s.val() || {}; const mine = v.u === user.uid;
+    logLine('<b>' + esc(v.n || '?') + '</b>' + esc(v.m || ''), mine ? 'mine' : '');
+    if (joined || Date.now() - (v.t || 0) < 8000) { const a = mine ? me : actors.get(v.u); if (a) say(a, v.m || ''); }
+  });
+  onChildRemoved(ref(rt, base + '/chat'), () => { if (!$('log').querySelector('.cleared')) { $('log').innerHTML = ''; logLine('선생님이 채팅을 지웠어요', 'sys cleared'); } });
+  people();
+  requestAnimationFrame(frame);
+  $('cv').focus({ preventScroll: true });
+})();
+</script>
+</body>
+</html>

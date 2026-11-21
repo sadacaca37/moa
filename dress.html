@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>캐릭터 꾸미기 · 모아팡팡</title>
+<link rel="icon" href="assets/moa.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="css/moa.css">
+<style>
+/* VOICE: 옷장 앞 거울 — 고르는 재미가 먼저 / LAYOUT: 왼쪽 거울(내 캐릭터), 오른쪽 옷장 칸 */
+.info{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.info .tag{font-size:14px}
+.dress{display:grid;grid-template-columns:minmax(0,360px) minmax(0,1fr);gap:20px;align-items:start}
+.mirror{display:flex;flex-direction:column}
+.stage{height:330px;display:grid;place-items:center;background:#CFEFFF;border-bottom:4px solid var(--ink);position:relative}
+#big{width:300px;height:300px;image-rendering:pixelated}
+.me{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--yel);border:3px solid var(--ink);padding:4px 12px;font:400 18px/1.1 'Jua',sans-serif;white-space:nowrap}
+.bar{padding:12px 14px 14px;display:flex;flex-direction:column;gap:10px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;padding:12px 12px 0}
+.items{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;padding:12px;min-height:200px;align-content:start;max-height:56vh;overflow:auto}
+.item{border:3px solid var(--ink);background:#fff;padding:6px 4px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;color:var(--ink);font:500 13px/1.25 'Noto Sans KR',sans-serif}
+.item[aria-checked=true]{background:var(--paper2);box-shadow:0 0 0 3px var(--blue)}
+.item canvas{width:80px;height:80px;image-rendering:pixelated}
+.item .none{width:80px;height:80px;display:grid;place-items:center;color:var(--sub);font-size:28px}
+.colors{border-top:4px solid var(--ink);padding:12px;display:flex;flex-direction:column;gap:8px}
+.sws{display:flex;gap:8px;flex-wrap:wrap}
+.sw{width:40px;height:40px;border:3px solid var(--ink);cursor:pointer;padding:0}
+.sw[aria-checked=true]{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--blue)}
+.sw.orig{background:conic-gradient(#d24b4b,#e6c34a,#4caf6e,#3f7fd1,#9a5bd0,#d24b4b)}
+.load{padding:40px;text-align:center;font:400 20px 'Jua',sans-serif}
+@media (max-width:820px){.dress{grid-template-columns:minmax(0,1fr)}.stage{height:280px}#big{width:250px;height:250px}.items{max-height:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="logo" href="./" aria-label="모아팡팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>모아팡팡</span></a>
+  <div class="info"><span class="tag" id="clsT">반</span><span class="tag" id="mapT">맵 · 교실</span></div>
+</header>
+<main class="wrap stack">
+  <h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">캐릭터 꾸미기</h1>
+  <p class="load pf" id="load">옷장을 여는 중…</p>
+  <section class="dress" id="dressBox" hidden>
+    <div class="pf mirror">
+      <div class="stage"><span class="me" id="meName"></span><canvas id="big" width="128" height="128" aria-label="내 캐릭터"></canvas></div>
+      <div class="bar">
+        <div class="row" id="dirs"></div>
+        <div class="row"><button class="btn sm" type="button" id="rand">아무거나 입기</button><button class="btn sm" type="button" id="reset">처음으로</button></div>
+        <button class="btn blue big" type="button" id="done">다 꾸몄어요! ▶</button>
+        <p class="note" id="saveMsg" role="status"></p>
+      </div>
+    </div>
+    <div class="pf">
+      <div class="tabs" id="tabs" role="tablist" aria-label="옷 종류"></div>
+      <div class="items" id="items" role="radiogroup"></div>
+      <div class="colors" id="colors"><b class="hd">색 고르기</b><div class="sws" id="sws" role="radiogroup" aria-label="색 고르기"></div></div>
+    </div>
+  </section>
+</main>
+<div class="ground" aria-hidden="true"></div>
+<script src="js/avatar.js"></script>
+<script type="module">
+import { fs, ensureUser, doc, getDoc, setDoc, serverTimestamp, getSession, setSession, mapName, errText, toast } from './js/fb.js';
+const $ = (id) => document.getElementById(id);
+const A = window.MoaAvatar;
+const ses = getSession();
+if (!ses) location.replace('./');
+const first = new URLSearchParams(location.search).has('first');
+$('clsT').textContent = ses.className; $('meName').textContent = ses.name;
+$('done').textContent = first ? '다 꾸몄어요! 대기실로 ▶' : '다 꾸몄어요! 반으로 ▶';
+
+let me = A.clean(ses.outfit || A.START), dir = 'front', cur = 'hair';
+const big = $('big').getContext('2d');
+[['front', '앞'], ['back', '뒤'], ['left', '왼쪽'], ['right', '오른쪽']].forEach(([d, label]) => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'btn sm'; b.textContent = label; b.setAttribute('aria-pressed', String(d === dir));
+  b.addEventListener('click', () => { dir = d; $('dirs').querySelectorAll('.btn').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); });
+  $('dirs').append(b);
+});
+A.CATS.forEach((c) => {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'btn sm'; b.textContent = c.name; b.setAttribute('role', 'tab'); b.dataset.cat = c.id;
+  b.addEventListener('click', () => { cur = c.id; renderCloset(); });
+  $('tabs').append(b);
+});
+const have = (id) => A.raw[id];
+function renderCloset() {
+  $('tabs').querySelectorAll('.btn').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.cat === cur)));
+  const cat = A.CATS.find((c) => c.id === cur), items = $('items');
+  items.innerHTML = ''; items.setAttribute('aria-label', cat.name + ' 고르기');
+  const add = (label, value, o) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'item'; b.setAttribute('role', 'radio');
+    b.setAttribute('aria-checked', String(cat.skin ? me.skin === value : me[cat.id] === value));
+    if (o) b.append(A.thumb(o)); else { const n = document.createElement('div'); n.className = 'none'; n.textContent = '✕'; b.append(n); }
+    const s = document.createElement('span'); s.textContent = label; b.append(s);
+    b.addEventListener('click', () => { if (cat.skin) me.skin = value; else { me[cat.id] = value; if (value && ['hair', 'hat', 'top', 'bottom', 'outer', 'shoes'].includes(cat.id)) me.suit = null; } changed(); });
+    items.append(b);
+  };
+  if (cat.skin) A.SKIN.forEach((sk) => add(sk.name, sk.k, Object.assign({}, me, { skin: sk.k, hat: null, face: null, hand: null, back: null })));
+  else {
+    if (!['top', 'hair', 'shoes'].includes(cat.id)) add('없음', null, null);
+    const bare = { skin: me.skin }; A.PARTS.forEach((p) => { bare[p] = null; });
+    if (cat.id === 'hat') bare.hair = 'hair_short';
+    cat.items.forEach(([id, label]) => { if (have(id)) add(label, id, Object.assign({}, bare, { [cat.id]: id, [cat.id + 'Color']: me[cat.id + 'Color'] })); });
+  }
+  const list = cat.skin ? null : cat.colors;
+  $('colors').hidden = !list || !me[cat.id];
+  $('sws').innerHTML = '';
+  if (list) list.forEach((cl) => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'sw' + (cl.k === 'orig' && cat.id !== 'hair' ? ' orig' : ''); b.setAttribute('role', 'radio'); b.setAttribute('aria-label', cl.name); b.title = cl.name;
+    if (!(cl.k === 'orig' && cat.id !== 'hair')) b.style.background = cl.c;
+    b.setAttribute('aria-checked', String(me[cat.id + 'Color'] === cl.k));
+    b.addEventListener('click', () => { me[cat.id + 'Color'] = cl.k; changed(); });
+    $('sws').append(b);
+  });
+}
+let sheet = null;
+function changed() { me = A.clean(me); sheet = A.sheet(me); renderCloset(); }
+$('rand').addEventListener('click', () => { me = A.random(); changed(); });
+$('reset').addEventListener('click', () => { me = A.clean(A.START); changed(); });
+$('done').addEventListener('click', async () => {
+  $('done').disabled = true; $('saveMsg').textContent = '저장하는 중…';
+  try {
+    await ensureUser();
+    await setDoc(doc(fs, 'classes', ses.cid, 'students', ses.key), { name: ses.name, outfit: me, seen: serverTimestamp() }, { merge: true });
+    ses.outfit = me; setSession(ses);
+    location.href = 'class.html';
+  } catch (err) { $('saveMsg').textContent = errText(err); $('done').disabled = false; toast(errText(err), true); }
+});
+let frame = 0, t = 0, last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; if (t > 0.16) { t = 0; frame++; }
+  if (sheet) A.drawFrame(big, sheet, dir, frame, true);
+  requestAnimationFrame(loop);
+}
+(async () => {
+  try {
+    await ensureUser();
+    getDoc(doc(fs, 'classes', ses.cid)).then((s) => { if (s.exists()) $('mapT').textContent = '맵 · ' + mapName(s.data().map || 'classroom'); }).catch(() => {});
+    getDoc(doc(fs, 'classes', ses.cid, 'students', ses.key)).then((s) => { if (s.exists() && s.data().outfit && !ses.outfit) { me = A.clean(s.data().outfit); changed(); } }).catch(() => {});
+  } catch (e) { /* 저장은 끝에 다시 시도 */ }
+  await A.loadAll();
+  $('load').hidden = true; $('dressBox').hidden = false;
+  changed(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
