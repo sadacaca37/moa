@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>우리 반 · 모아팡팡</title>
+<title>우리 반 · 모아팡</title>
 <link rel="icon" href="assets/moa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -62,7 +62,7 @@
 <body>
 <div class="bar">
   <div class="binfo">
-    <a class="logo" href="./" aria-label="모아팡팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i></a>
+    <a class="logo" href="./" aria-label="모아팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i></a>
     <h1 id="clsT">우리 반</h1>
     <span class="tag" id="mapT">맵</span>
     <span class="tag" id="cntT">접속 0명</span>
@@ -149,7 +149,7 @@ if (!ses) location.replace('./');
 const T = 32, CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const hyp = Math.hypot, rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 $('clsT').textContent = ses.className; $('meT').textContent = ses.name;
-document.title = ses.className + ' · 모아팡팡';
+document.title = ses.className + ' · 모아팡';
 
 let user = null, cls = {}, st = {}, M = null, mapId = null, loadingMap = null, first = true;
 const MAPC = {}, actors = new Map();
@@ -312,7 +312,7 @@ function card(l, i) {
   const isBoard = !!l.bid, url = isBoard ? 'board.html?b=' + encodeURIComponent(l.bid) : safeUrl(l.u);
   if (!url) return '';
   const site = l.site || (isBoard ? '수업 보드' : hostOf(url)) || '링크';
-  return '<a class="lk" href="' + esc(url) + '"' + (isBoard ? '' : ' target="_blank" rel="noopener"') + '><span class="band" style="background:' + esc(l.c || COLORS[i % COLORS.length]) + '"><b>' + esc(site) + '</b></span><span class="body"><span class="t">' + esc(l.t || site) + '</span>' + (l.d ? '<span class="d">' + esc(l.d) + '</span>' : '') + '<span class="h"><span>' + esc(isBoard ? '모아팡팡 보드' : hostOf(url)) + '</span><span>열기 ▶</span></span></span></a>';
+  return '<a class="lk" href="' + esc(url) + '"' + (isBoard ? '' : ' target="_blank" rel="noopener"') + '><span class="band" style="background:' + esc(l.c || COLORS[i % COLORS.length]) + '"><b>' + esc(site) + '</b></span><span class="body"><span class="t">' + esc(l.t || site) + '</span>' + (l.d ? '<span class="d">' + esc(l.d) + '</span>' : '') + '<span class="h"><span>' + esc(isBoard ? '모아팡 보드' : hostOf(url)) + '</span><span>열기 ▶</span></span></span></a>';
 }
 function drawLinks() { $('clsLinks').innerHTML = (cls.links || []).filter((l) => !l.hide).map(card).join('') || '<p class="empty">아직 선생님이 올린 링크가 없어요.</p>'; }
 

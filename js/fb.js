@@ -1,4 +1,4 @@
-// 모아팡팡 Firebase 연결 (모든 화면이 함께 씀)
+// 모아팡 Firebase 연결 (모든 화면이 함께 씀)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
@@ -16,7 +16,7 @@ const app = initializeApp({
 export const auth = getAuth(app);
 export const fs = getFirestore(app);
 export const rt = getDatabase(app);
-// 지금 열린 모아팡팡 주소 (moapang.kr 이든 예전 github.io/moa 든 그대로 따라감) — QR·반 링크에 씀
+// 지금 열린 모아팡 주소 (moapang.kr 이든 예전 github.io/moa 든 그대로 따라감) — QR·반 링크에 씀
 export const SITE = new URL('../', import.meta.url).href;
 
 // 선생님 = 이메일·비밀번호로 로그인한 계정. 진짜 선생님인지는 Firebase 보안 규칙(콘솔에만 있는 선생님 이메일)이 막는다.

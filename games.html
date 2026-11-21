@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>미니 게임 · 모아팡팡</title>
+<title>미니 게임 · 모아팡</title>
 <link rel="icon" href="assets/moa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
@@ -181,7 +181,7 @@ ol.rank li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
 <header class="top">
   <div class="wrap head">
     <div>
-      <h1>모아팡팡 미니 게임</h1>
+      <h1>모아팡 미니 게임</h1>
       <p class="sub" id="subT">우리 반 맵에서 하는 미니 게임 10가지. 같이 노는 친구들은 컴퓨터가 움직여요.</p>
       <p class="sub" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><a class="btn xs" href="class.html" id="backCls" hidden>◀ 반으로 돌아가기</a><a class="btn xs" href="teacher.html" id="backT" hidden>◀ 선생님 화면</a><a class="btn xs" href="./" id="backHome">첫 화면</a></p>
     </div>
@@ -319,7 +319,7 @@ async function loadMap(id) {
 }
 
 
-/* ---------- 소리 (모아팡팡 소리 상자의 효과음·배경음악) ---------- */
+/* ---------- 소리 (모아팡 소리 상자의 효과음·배경음악) ---------- */
 const SFX = ['count_beep', 'count_go', 'game_start', 'whistle', 'jump', 'hit', 'tag', 'paint', 'correct', 'wrong', 'chest_open', 'score_up', 'bingo', 'bingo_mark', 'updown_up', 'updown_down', 'chat_pop', 'time_up', 'game_over', 'fanfare_win', 'rank_show', 'ui_click', 'key_get', 'mascot_pang', 'quiz_start', 'ui_error'];
 const SND = {}, sndLast = {};
 let AC = null, sfxGain = null, bgmGain = null, bgmSrc = null;
@@ -1696,8 +1696,8 @@ $('#qbSave').addEventListener('click', () => {
   if (state !== 'play' && state !== 'count') { renderPanel(); readSettings(); resetGame(); } else renderPanel();
 });
 // 엑셀
-$('#xlTpl').addEventListener('click', async () => { const C = QK[qbK]; $('#xlMsg').textContent = await offerFile(`모아팡팡_${C.name.split(' ')[0]}_양식.xlsx`, makeXlsx(C.head, C.sample, C.widths)); });
-$('#xlOut').addEventListener('click', async () => { const C = QK[qbK]; $('#xlMsg').textContent = await offerFile(`모아팡팡_${C.name.split(' ')[0]}_문제.xlsx`, makeXlsx(C.head, qbList.filter(C.ok).map(C.toRow), C.widths)); });
+$('#xlTpl').addEventListener('click', async () => { const C = QK[qbK]; $('#xlMsg').textContent = await offerFile(`모아팡_${C.name.split(' ')[0]}_양식.xlsx`, makeXlsx(C.head, C.sample, C.widths)); });
+$('#xlOut').addEventListener('click', async () => { const C = QK[qbK]; $('#xlMsg').textContent = await offerFile(`모아팡_${C.name.split(' ')[0]}_문제.xlsx`, makeXlsx(C.head, qbList.filter(C.ok).map(C.toRow), C.widths)); });
 $('#xlFile').addEventListener('change', async e => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
   const C = QK[qbK], msg = $('#xlMsg');

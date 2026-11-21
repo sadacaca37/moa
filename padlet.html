@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>내 패들렛 · 모아팡팡</title>
+<title>내 패들렛 · 모아팡</title>
 <link rel="icon" href="assets/moa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -344,7 +344,7 @@ function drawStatus() {
   const [cls, txt] = S.mode === 'mem' ? ['save mem', '저장소 없음 · 새로 고치면 사라져요'] : S.saveErr ? ['save bad', '저장 안 됨'] : S.saving ? ['save busy', '저장 중…'] : S.mode === 'db' ? ['save', '모두 저장됨 ✓'] : ['save busy', '연결 중…'];
   el.className = cls; el.textContent = txt;
 }
-const logo = '<a class="logo" href="#home" aria-label="내 패들렛 처음으로"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span class="hd">모아팡팡</span></a><span class="bar" aria-hidden="true"></span>';
+const logo = '<a class="logo" href="#home" aria-label="내 패들렛 처음으로"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span class="hd">모아팡</span></a><span class="bar" aria-hidden="true"></span>';
 const fileBtn = (label, cls) => '<button type="button" class="btn ' + cls + '" data-act="pickfile"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B1F3B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3M7 8l5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg>' + label + '</button>';
 function msgHTML() {
   let h = '';
@@ -455,7 +455,7 @@ function classDlg(c) {
     '<label for="cn">반 이름</label><input id="cn" class="field" maxlength="24" autocomplete="off" value="' + esc(d.name) + '" placeholder="예: 4학년 캔바반">' +
     '<label>반 종류</label><div class="seg" role="group" aria-label="반 종류">' + ['정규반', '특강반'].map((k) => '<button type="button" class="chip" data-act="kind" data-v="' + k + '" aria-pressed="' + (d.kind === k) + '">' + k + '</button>').join('') + '</div>' +
     '<label>색</label><div class="sw" role="group" aria-label="반 색">' + COLORS.map((col) => '<button type="button" data-act="color" data-v="' + col + '" style="background:' + col + '" aria-label="색 ' + col + '" aria-pressed="' + (d.color === col) + '"></button>').join('') + '</div>' +
-    '<p>방번호 <b>' + esc(d.room) + '</b> (모아팡팡 반 입장 때 쓰는 5자리)</p>' +
+    '<p>방번호 <b>' + esc(d.room) + '</b> (모아팡 반 입장 때 쓰는 5자리)</p>' +
     '<div class="row"><button type="submit" class="btn blue" data-form="class">' + (isNew ? '만들기 ▶' : '저장하기 ▶') + '</button>' + (isNew ? '' : '<button type="button" class="btn red" data-act="delclass" data-id="' + esc(c.id) + '">이 클래스 지우기</button>') + '</div>', '#cn');
 }
 function textDlg(title, label, value, max, fn) {

@@ -14,7 +14,7 @@ service cloud.firestore {
         && d.score is int
         && (!('taja' in d) || (d.taja is map && d.taja.size() <= 12));
     }
-    // 이 학생 기록을 지금 쓰는 기기(모아팡팡·타자팡팡에 마지막으로 들어온 기기)인지
+    // 이 학생 기록을 지금 쓰는 기기(모아팡·타자팡에 마지막으로 들어온 기기)인지
     function owner(cid, key) {
       return signedIn() && get(/databases/$(database)/documents/classes/$(cid)/students/$(key)).data.uid == request.auth.uid;
     }
@@ -31,7 +31,7 @@ service cloud.firestore {
         allow create: if signedIn() && okStudent(request.resource.data) && request.resource.data.score == 0;
         allow update: if signedIn() && okStudent(request.resource.data)
           && (request.resource.data.score == resource.data.score || request.resource.data.score == resource.data.score + 1);
-        // 타자팡팡 학습 자료 (포인트·연습 기록·진도) — 본인 기기만
+        // 타자팡 학습 자료 (포인트·연습 기록·진도) — 본인 기기만
         match /taja/{d} {
           allow get: if d == 'progress' && owner(cid, key);
           allow create, update: if d == 'progress' && owner(cid, key)
@@ -41,7 +41,7 @@ service cloud.firestore {
         }
       }
     }
-    // 타자팡팡: 선생님께 보내는 오늘의 연습 보고 (확인 표시는 선생님만)
+    // 타자팡: 선생님께 보내는 오늘의 연습 보고 (확인 표시는 선생님만)
     match /taja_reports/{rid} {
       allow get: if signedIn() && (resource == null || owner(resource.data.cid, resource.data.key));
       allow create, update: if signedIn()

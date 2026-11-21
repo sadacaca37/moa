@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>모아팡팡</title>
-<meta name="description" content="모아팡팡 — 우리 반 수업 홈페이지">
+<title>모아팡</title>
+<meta name="description" content="모아팡 — 우리 반 수업 홈페이지">
 <link rel="icon" href="assets/moa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="css/moa.css">
 <style>
 /* VOICE: 아이들이 매 시간 처음 보는 문 — 방번호만 누르면 바로 들어가는 게임 시작 화면
-   LAYOUT: 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 타자팡팡 + 링크 게시판, 오른쪽 아래 제작자 */
+   LAYOUT: 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 타자팡 + 링크 게시판, 오른쪽 아래 제작자 */
 @font-face{font-family:'Galmuri11';src:url(assets/fonts/Galmuri11-Bold.woff2) format('woff2');font-weight:400 700;font-display:swap}
 body{background:#1897FA url(assets/bg-low.webp) center top/cover no-repeat fixed}
 .dot,.dot *,.dot #room,.dot #nm{font-family:'Galmuri11','Noto Sans KR',monospace!important;font-weight:700!important}
@@ -65,7 +65,7 @@ footer a{color:#fff}
 </head>
 <body>
 <header class="top">
-  <a class="logo" href="./" aria-label="모아팡팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>모아팡팡</span></a>
+  <a class="logo" href="./" aria-label="모아팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>모아팡</span></a>
   <a class="btn sm" href="teacher.html" id="tBtn">선생님 로그인</a>
 </header>
 
@@ -101,7 +101,7 @@ footer a{color:#fff}
   <section class="right" aria-labelledby="linksH">
     <a class="btn typing" id="typing" href="#" target="_blank" rel="noopener" aria-disabled="true">
       <span class="ic" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 11 11" shape-rendering="crispEdges"><path fill="#1B1F3B" d="M0 2h11v7H0z"/><path fill="#fff" d="M1 3h1v1H1zM3 3h1v1H3zM5 3h1v1H5zM7 3h1v1H7zM9 3h1v1H9zM2 5h1v1H2zM4 5h1v1H4zM6 5h1v1H6zM8 5h1v1H8zM3 7h5v1H3z"/></svg></span>
-      <span class="tx"><b>타자팡팡</b><span id="typingSub">타자 연습하고 기록 올리기 · 반 랭킹 보기</span></span>
+      <span class="tx"><b>타자팡</b><span id="typingSub">타자 연습하고 기록 올리기 · 반 랭킹 보기</span></span>
       <span class="st">START ▶</span>
     </a>
     <div class="pf pad board stack">
@@ -203,7 +203,7 @@ if (qr && /^\d{5}$/.test(qr)) {
   findRoom(qr).then((c) => { if (c) showName(c); else $('codeMsg').textContent = '그런 방번호가 없어요. 다시 확인해 주세요.'; }).catch((err) => { $('codeMsg').textContent = errText(err); });
 }
 
-/* ---------- 첫 화면 링크 · 타자팡팡 ---------- */
+/* ---------- 첫 화면 링크 · 타자팡 ---------- */
 const COLORS = ['#7FE0E8', '#9BE07A', '#FF8F8F', '#9DB8FF', '#FFD23F', '#D7B5FF'];
 function card(l, i) {
   const isBoard = !!l.bid, url = isBoard ? 'board.html?b=' + encodeURIComponent(l.bid) : safeUrl(l.u);
@@ -212,7 +212,7 @@ function card(l, i) {
   return '<a class="lk" href="' + esc(url) + '"' + (isBoard ? '' : ' target="_blank" rel="noopener"') + '>' +
     '<span class="band" style="background:' + esc(l.c || COLORS[i % COLORS.length]) + '"><b>' + esc(site) + '</b></span>' +
     '<span class="body"><span class="t">' + esc(l.t || site) + '</span>' + (l.d ? '<span class="d">' + esc(l.d) + '</span>' : '') +
-    '<span class="h"><span>' + esc(isBoard ? '모아팡팡 보드' : hostOf(url)) + '</span><span>열기 ▶</span></span></span></a>';
+    '<span class="h"><span>' + esc(isBoard ? '모아팡 보드' : hostOf(url)) + '</span><span>열기 ▶</span></span></span></a>';
 }
 async function loadHome() {
   try {
@@ -223,7 +223,7 @@ async function loadHome() {
     const links = (d.links || []).filter((l) => !l.hide);
     $('links').innerHTML = links.map(card).join('') || '<p class="empty">아직 올린 링크가 없어요.</p>';
     if (isTeacher(user)) $('links').insertAdjacentHTML('afterbegin', '<a class="lk" href="teacher.html#home" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 링크 올리기</span></a>');
-    // 타자팡팡은 모아팡팡 안(taja/)에 있음 — 같은 방번호·이름으로 저절로 들어가짐
+    // 타자팡은 모아팡 안(taja/)에 있음 — 같은 방번호·이름으로 저절로 들어가짐
     $('typing').href = 'taja/'; $('typing').removeAttribute('aria-disabled');
   } catch (err) {
     $('links').innerHTML = '<p class="empty">' + esc(errText(err)) + '</p>';

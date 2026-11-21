@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>선생님 화면 · 모아팡팡</title>
+<title>선생님 화면 · 모아팡</title>
 <link rel="icon" href="assets/moa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -62,7 +62,7 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
 </head>
 <body>
 <header class="top">
-  <a class="logo" href="./" aria-label="모아팡팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>모아팡팡</span></a>
+  <a class="logo" href="./" aria-label="모아팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>모아팡</span></a>
   <nav class="menu" id="menu" hidden>
     <a class="btn sm" href="#classes" data-nav="classes">우리 반</a>
     <a class="btn sm" href="#home" data-nav="home">첫 화면 꾸미기</a>
@@ -242,7 +242,7 @@ function bindForm(id, getList, saveList) {
 /* ---------- 첫 화면 꾸미기 ---------- */
 function drawHome() {
   $('view').innerHTML = '<div class="stack"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">첫 화면 꾸미기</h1>' +
-    '<div class="pf card"><h2>타자팡팡</h2><p class="note">타자팡팡은 이제 모아팡팡 안에 있어요. 학생은 첫 화면 START를 누르면 같은 방번호·이름으로 저절로 들어가고, 기록은 모아팡팡과 같은 곳에 저장돼요.</p><div><a class="btn blue" href="taja/" target="_blank" rel="noopener">타자팡팡 열기 ▶</a></div></div>' +
+    '<div class="pf card"><h2>타자팡</h2><p class="note">타자팡은 이제 모아팡 안에 있어요. 학생은 첫 화면 START를 누르면 같은 방번호·이름으로 저절로 들어가고, 기록은 모아팡과 같은 곳에 저장돼요.</p><div><a class="btn blue" href="taja/" target="_blank" rel="noopener">타자팡 열기 ▶</a></div></div>' +
     '<div class="pf card"><h2>첫 화면 링크 게시판</h2><p class="note">누구나 보는 링크예요. 수업 보드는 내 패들렛에서 \'첫 화면 링크에 올리기\'를 누르면 여기에 생겨요.</p>' + linksHTML(home.links || [], 'homeL') + '</div></div>';
   bindLinks('homeL', () => home.links || [], (list) => setDoc(doc(fs, 'config', 'home'), { links: list }, { merge: true }));
 }

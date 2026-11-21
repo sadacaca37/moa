@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>수업 보드 · 모아팡팡</title>
+<title>수업 보드 · 모아팡</title>
 <link rel="icon" href="assets/moa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,7 +29,7 @@
 </head>
 <body>
 <div class="head">
-  <a class="logo" href="./" aria-label="모아팡팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i></a>
+  <a class="logo" href="./" aria-label="모아팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i></a>
   <button class="btn sm" type="button" id="back">◀ 돌아가기</button>
   <div><small id="sub">수업 보드</small><h1 id="title">불러오는 중…</h1></div>
 </div>
@@ -49,7 +49,7 @@ function fail(m) { $('title').textContent = '보드를 열 수 없어요'; $('co
     const bs = await getDoc(doc(fs, 'boards', bid));
     if (!bs.exists()) return fail('지워진 보드예요.');
     const b = bs.data();
-    $('title').textContent = b.title || '수업 보드'; document.title = (b.title || '수업 보드') + ' · 모아팡팡';
+    $('title').textContent = b.title || '수업 보드'; document.title = (b.title || '수업 보드') + ' · 모아팡';
     $('sub').textContent = (b.date || '') + ' · 글 ' + (b.postCount || 0) + '개';
     const q = isTeacher(u) ? query(collection(fs, 'parts'), where('bid', '==', bid)) : query(collection(fs, 'parts'), where('bid', '==', bid), where('pub', '==', true));
     const ps = (await getDocs(q)).docs.map((d) => d.data()).sort((a, c) => a.n - c.n);
