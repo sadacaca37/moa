@@ -125,7 +125,8 @@ const room = $('room');
   b.addEventListener('click', () => { const v = room.value; room.value = l === '지우기' ? v.slice(0, -1) : l === '처음부터' ? '' : (v + l).slice(0, 5); codeChanged(); });
   $('keys').append(b);
 });
-function codeChanged() { room.value = room.value.replace(/\D/g, '').slice(0, 5); $('codeGo').disabled = room.value.length !== 5; $('codeMsg').textContent = ''; }
+function codeBtn() { $('codeGo').disabled = room.value.length !== 5; }
+function codeChanged() { room.value = room.value.replace(/\D/g, '').slice(0, 5); codeBtn(); $('codeMsg').textContent = ''; }
 room.addEventListener('input', codeChanged);
 
 async function findRoom(code) {
@@ -148,7 +149,7 @@ $('codeF').addEventListener('submit', async (e) => {
     const c = await findRoom(room.value);
     if (!c) { $('codeMsg').textContent = '그런 방번호가 없어요. 다시 확인해 주세요.'; return; }
     showName(c);
-  } catch (err) { $('codeMsg').textContent = errText(err); } finally { codeChanged(); }
+  } catch (err) { $('codeMsg').textContent = errText(err); } finally { codeBtn(); }
 });
 $('back').addEventListener('click', () => { cls = null; $('nameF').hidden = true; $('codeF').hidden = false; history.replaceState(null, '', './'); room.focus(); });
 $('nm').addEventListener('input', () => { $('nameGo').disabled = !cleanName($('nm').value); $('nameMsg').textContent = ''; });
