@@ -13,9 +13,9 @@
 <style>
 /* VOICE: 아이들이 매 시간 처음 보는 문 — 방번호만 누르면 바로 들어가는 게임 시작 화면
    LAYOUT: 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 타자팡팡 + 링크 게시판, 오른쪽 아래 제작자 */
-main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:6px clamp(12px,3vw,24px) 110px;display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
-.left{flex:1 1 360px;max-width:440px;display:flex;flex-direction:column;gap:16px}
-.right{flex:999 1 520px;display:flex;flex-direction:column;gap:18px}
+main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(12px,3vw,24px) 70px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
+.left{flex:1 1 290px;max-width:360px;display:flex;flex-direction:column;gap:10px}
+.right{flex:999 1 380px;display:flex;flex-direction:column;gap:12px}
 .resume{display:flex;align-items:center;gap:12px;padding:10px 14px;text-decoration:none;cursor:pointer;width:100%;font:inherit;text-align:left}
 .resume canvas{width:52px;height:52px;image-rendering:pixelated;flex:none}
 .resume .tx{display:flex;flex-direction:column;gap:2px;flex:1}
@@ -23,36 +23,43 @@ main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:6px clam
 .resume b{font-size:17px}
 .resume .go{font:400 15px/1 'Jua',sans-serif;color:#fff;background:var(--blue);border:3px solid var(--ink);padding:8px 10px;white-space:nowrap}
 .stage{font:400 17px/1.2 'Jua',sans-serif}
-#room{font:700 38px/1 'Noto Sans KR',monospace;letter-spacing:.4em;text-align:center;padding:10px 0 10px .4em;background:var(--ink);color:var(--grn);border:4px solid var(--ink)}
+#room{font:700 30px/1 'Noto Sans KR',monospace;letter-spacing:.4em;text-align:center;padding:6px 0 6px .4em;background:var(--ink);color:var(--grn);border:4px solid var(--ink);width:100%}
 #room::placeholder{color:#4a6b55}
-.keys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.key{min-height:50px;border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);background:#fff;font:400 24px/1 'Jua',sans-serif;color:var(--ink);cursor:pointer}
+.keys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.key{min-height:40px;border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);background:#fff;font:400 21px/1 'Jua',sans-serif;color:var(--ink);cursor:pointer}
 .key.s{font-size:16px}
 .key:hover{background:var(--paper2)}.key:active{transform:translateY(3px);box-shadow:none}
 .cls{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFE3A3;border:3px solid var(--ink)}
 .cls i{width:14px;height:14px;border:3px solid var(--ink);flex:none;background:var(--red)}
 .cls b{font-size:16px}
 .cls button{margin-left:auto;border:0;background:transparent;color:var(--ink);font:500 13px/1 'Noto Sans KR',sans-serif;text-decoration:underline;cursor:pointer;min-height:40px}
-#nm{font:700 26px/1.2 'Noto Sans KR',sans-serif;text-align:center;padding:12px 10px}
-.msg{margin:0;font-size:14px;font-weight:700;color:#B3261E;min-height:1.4em}
-.typing{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:12px 14px;background:var(--yel);color:var(--ink);text-decoration:none;margin-top:86px}
-.typing .ic{width:48px;height:48px;background:#fff;border:4px solid var(--ink);display:grid;place-items:center;flex:none}
+#nm{font:700 24px/1.2 'Noto Sans KR',sans-serif;text-align:center;padding:9px 10px}
+.msg{margin:0;font-size:14px;font-weight:700;color:#B3261E}
+.msg:empty{display:none}
+.left .pf.pad{padding:14px}
+.left .stack{gap:9px}
+.left .btn.big{min-height:48px;font-size:20px}
+.qrhint{margin:0;font-size:12.5px;line-height:1.5;color:var(--sub)}
+.typing{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:8px 12px;background:var(--yel);color:var(--ink);text-decoration:none;margin-top:56px}
+.typing .ic{width:42px;height:42px;background:#fff;border:4px solid var(--ink);display:grid;place-items:center;flex:none}
 .typing .tx{display:flex;flex-direction:column;gap:4px;flex:1;min-width:170px}
-.typing .tx b{font:400 26px/1.2 'Jua',sans-serif}
-.typing .tx span{font-size:14px}
+.typing .tx b{font:400 23px/1.2 'Jua',sans-serif}
+.typing .tx span{font-size:13px}
 .typing .st{font:400 17px/1 'Jua',sans-serif;background:var(--red);color:#fff;border:3px solid var(--ink);padding:9px 14px;white-space:nowrap}
 .typing[aria-disabled=true] .st{background:var(--off);color:var(--sub)}
 .friends{position:absolute;left:16px;bottom:100%;display:flex;align-items:flex-end;gap:6px;pointer-events:none}
-.friends .msc.moa{height:78px}.friends .msc.pop{height:84px;animation-delay:-.6s}.friends .msc.star{height:74px;animation-delay:-1.2s}
-.bubble{position:absolute;left:250px;bottom:calc(100% + 40px);background:#fff;border:3px solid var(--ink);padding:6px 12px;font:400 17px/1.2 'Jua',sans-serif;white-space:nowrap}
+.friends .msc.moa{height:52px}.friends .msc.pop{height:56px;animation-delay:-.6s}.friends .msc.star{height:50px;animation-delay:-1.2s}
+.bubble{position:absolute;left:170px;bottom:calc(100% + 20px);background:#fff;border:3px solid var(--ink);padding:4px 10px;font:400 15px/1.2 'Jua',sans-serif;white-space:nowrap}
 .bubble::after{content:'';position:absolute;left:-12px;bottom:8px;border:6px solid transparent;border-right-color:var(--ink)}
-.board h2{font-size:24px}
+.board h2{font-size:21px}
+.board.pad{padding:14px}
 .bhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
 footer{position:fixed;right:20px;bottom:44px;z-index:2;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 12px;font-size:13px;font-weight:700;color:#fff;text-shadow:2px 2px 0 var(--ink)}
 footer a{color:#fff}
 .walkers{position:fixed;left:0;right:0;bottom:34px;height:72px;z-index:1;pointer-events:none;overflow:hidden}
 .walkers canvas{position:absolute;bottom:-6px;width:72px;height:72px;image-rendering:pixelated}
-@media (max-width:860px){.typing{margin-top:96px}footer{position:static;justify-content:center;padding:0 0 60px}.bubble{left:240px}}
+@media (max-width:999px){.walkers{display:none}}
+@media (max-width:700px){.left{max-width:none}footer{position:static;justify-content:center;padding:0 0 50px}}
 @media (max-width:420px){.bubble{display:none}}
 </style>
 </head>
@@ -78,6 +85,7 @@ footer a{color:#fff}
         <div class="keys" id="keys"></div>
         <p class="msg" id="codeMsg" role="alert"></p>
         <button type="submit" class="btn blue big" id="codeGo" disabled>다음 ▶</button>
+        <p class="qrhint">QR 코드나 선생님 링크로 오면 이름부터 써요.</p>
       </form>
       <form id="nameF" class="stack" autocomplete="off" hidden>
         <div class="cls"><i id="clsDot" aria-hidden="true"></i><b id="clsName"></b><button type="button" id="back">◀ 방번호 다시</button></div>
@@ -88,7 +96,6 @@ footer a{color:#fff}
         <button type="submit" class="btn blue big" id="nameGo" disabled>게임 시작 ▶</button>
       </form>
     </div>
-    <p class="note" style="background:rgba(255,255,255,.8);padding:8px 10px;border:3px solid var(--ink);color:var(--ink)">QR 코드나 선생님이 보낸 링크로 오면 방번호 없이 STAGE 2부터 시작해요.</p>
   </section>
 
   <section class="right" aria-labelledby="linksH">
