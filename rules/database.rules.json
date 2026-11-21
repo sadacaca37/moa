@@ -1,7 +1,7 @@
 {
   "rules": {
-    ".read": "auth != null && auth.token.email === 'sadacaca37@gmail.com' && auth.provider === 'password'",
-    ".write": "auth != null && auth.token.email === 'sadacaca37@gmail.com' && auth.provider === 'password'",
+    ".read": "auth != null && auth.token.email === 'TEACHER_EMAIL' && auth.provider === 'password'",
+    ".write": "auth != null && auth.token.email === 'TEACHER_EMAIL' && auth.provider === 'password'",
     "live": {
       "$cid": {
         "state": {

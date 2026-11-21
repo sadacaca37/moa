@@ -16,11 +16,13 @@ const app = initializeApp({
 export const auth = getAuth(app);
 export const fs = getFirestore(app);
 export const rt = getDatabase(app);
-export const TEACHER_EMAIL = 'sadacaca37@gmail.com';
 // 지금 열린 모아팡팡 주소 (moapang.kr 이든 예전 github.io/moa 든 그대로 따라감) — QR·반 링크에 씀
 export const SITE = new URL('../', import.meta.url).href;
 
-export const isTeacher = (u) => !!u && !u.isAnonymous && u.email === TEACHER_EMAIL;
+// 선생님 = 이메일·비밀번호로 로그인한 계정. 진짜 선생님인지는 Firebase 보안 규칙(콘솔에만 있는 선생님 이메일)이 막는다.
+// 선생님 이메일은 공개 코드에 적지 않고, 로그인한 그 컴퓨터에만 기억한다(TEACHER_EM_KEY).
+export const TEACHER_EM_KEY = 'moaTeacherEmail';
+export const isTeacher = (u) => !!u && !u.isAnonymous && (u.providerData || []).some((p) => p.providerId === 'password');
 
 // 로그인 상태가 정해지면 한 번 알려 준다
 export function whenAuth() {
