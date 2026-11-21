@@ -22,6 +22,7 @@ export const SITE = new URL('../', import.meta.url).href;
 // 선생님 = 이메일·비밀번호로 로그인한 계정. 진짜 선생님인지는 Firebase 보안 규칙(콘솔에만 있는 선생님 이메일)이 막는다.
 // 선생님 이메일은 공개 코드에 적지 않고, 로그인한 그 컴퓨터에만 기억한다(TEACHER_EM_KEY).
 export const TEACHER_EM_KEY = 'moaTeacherEmail';
+export const TEACHER_EMAIL = ''; // 예전 화면 파일이 기기에 남아 있을 때 깨지지 않게 (이메일은 적지 않음)
 export const isTeacher = (u) => !!u && !u.isAnonymous && (u.providerData || []).some((p) => p.providerId === 'password');
 
 // 로그인 상태가 정해지면 한 번 알려 준다
