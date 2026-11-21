@@ -223,9 +223,8 @@ async function loadHome() {
     const links = (d.links || []).filter((l) => !l.hide);
     $('links').innerHTML = links.map(card).join('') || '<p class="empty">아직 올린 링크가 없어요.</p>';
     if (isTeacher(user)) $('links').insertAdjacentHTML('afterbegin', '<a class="lk" href="teacher.html#home" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 링크 올리기</span></a>');
-    const tu = safeUrl(d.typingUrl);
-    if (tu) { $('typing').href = tu; $('typing').removeAttribute('aria-disabled'); }
-    else { $('typing').removeAttribute('href'); $('typingSub').textContent = '선생님이 주소를 넣으면 열려요'; }
+    // 타자팡팡은 모아팡팡 안(taja/)에 있음 — 같은 방번호·이름으로 저절로 들어가짐
+    $('typing').href = 'taja/'; $('typing').removeAttribute('aria-disabled');
   } catch (err) {
     $('links').innerHTML = '<p class="empty">' + esc(errText(err)) + '</p>';
   }

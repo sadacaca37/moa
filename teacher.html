@@ -239,9 +239,8 @@ function bindForm(id, getList, saveList) {
 /* ---------- 첫 화면 꾸미기 ---------- */
 function drawHome() {
   $('view').innerHTML = '<div class="stack"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">첫 화면 꾸미기</h1>' +
-    '<form class="pf card" id="typF"><h2>타자팡팡 주소</h2><label class="lb">주소<input class="field" id="typU" type="url" placeholder="https://" value="' + esc(home.typingUrl || '') + '"></label><div><button class="btn blue" type="submit">저장하기 ▶</button></div></form>' +
+    '<div class="pf card"><h2>타자팡팡</h2><p class="note">타자팡팡은 이제 모아팡팡 안에 있어요. 학생은 첫 화면 START를 누르면 같은 방번호·이름으로 저절로 들어가고, 기록은 모아팡팡과 같은 곳에 저장돼요.</p><div><a class="btn blue" href="taja/" target="_blank" rel="noopener">타자팡팡 열기 ▶</a></div></div>' +
     '<div class="pf card"><h2>첫 화면 링크 게시판</h2><p class="note">누구나 보는 링크예요. 수업 보드는 내 패들렛에서 \'첫 화면 링크에 올리기\'를 누르면 여기에 생겨요.</p>' + linksHTML(home.links || [], 'homeL') + '</div></div>';
-  $('typF').addEventListener('submit', async (e) => { e.preventDefault(); const u = $('typU').value.trim(); if (u && !safeUrl(u)) { toast('주소는 https:// 로 시작해야 해요.', true); return; } try { await setDoc(doc(fs, 'config', 'home'), { typingUrl: u }, { merge: true }); toast('저장했어요.'); } catch (err) { toast(errText(err), true); } });
   bindLinks('homeL', () => home.links || [], (list) => setDoc(doc(fs, 'config', 'home'), { links: list }, { merge: true }));
 }
 

@@ -4,7 +4,9 @@
     ".write": "auth != null && auth.token.email === 'sadacaca37@gmail.com' && auth.provider === 'password'",
     "live": {
       "$cid": {
-        "state": { ".read": "auth != null" },
+        "state": {
+          ".read": "auth != null"
+        },
         "players": {
           ".read": "auth != null",
           "$uid": {
@@ -29,8 +31,37 @@
         },
         "results": {
           "$run": {
-            "$uid": { ".write": "auth != null && auth.uid === $uid" }
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid"
+            }
           }
+        }
+      }
+    },
+    "taja": {
+      "lb": {
+        ".read": "auth != null",
+        "$month": {
+          ".validate": "$month.matches(/^20[0-9][0-9]-[01][0-9]$/)",
+          "$who": {
+            ".write": "auth != null",
+            ".validate": "newData.hasChildren(['userName', 'entries']) && newData.child('userName').isString() && newData.child('userName').val().length <= 30 && newData.child('entries').exists()",
+            "entries": {
+              "$i": {
+                ".validate": "$i.matches(/^[012]$/) && newData.hasChildren(['id', 'userName', 'cpm'])",
+                "cpm": {
+                  ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 1200"
+                }
+              }
+            }
+          }
+        }
+      },
+      "lbMonths": {
+        ".read": "auth != null",
+        "$month": {
+          ".write": "auth != null",
+          ".validate": "newData.isBoolean() && $month.matches(/^20[0-9][0-9]-[01][0-9]$/)"
         }
       }
     }

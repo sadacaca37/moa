@@ -9,9 +9,14 @@ service cloud.firestore {
     }
     function signedIn() { return request.auth != null; }
     function okStudent(d) {
-      return d.keys().hasOnly(['name', 'uid', 'score', 'outfit', 'created', 'seen'])
+      return d.keys().hasOnly(['name', 'uid', 'score', 'outfit', 'created', 'seen', 'taja'])
         && d.name is string && d.name.size() > 0 && d.name.size() <= 10
-        && d.score is int;
+        && d.score is int
+        && (!('taja' in d) || (d.taja is map && d.taja.size() <= 12));
+    }
+    // 이 학생 기록을 지금 쓰는 기기(모아팡팡·타자팡팡에 마지막으로 들어온 기기)인지
+    function owner(cid, key) {
+      return signedIn() && get(/databases/$(database)/documents/classes/$(cid)/students/$(key)).data.uid == request.auth.uid;
     }
     match /{document=**} { allow read, write: if teacher(); }
 
@@ -26,7 +31,27 @@ service cloud.firestore {
         allow create: if signedIn() && okStudent(request.resource.data) && request.resource.data.score == 0;
         allow update: if signedIn() && okStudent(request.resource.data)
           && (request.resource.data.score == resource.data.score || request.resource.data.score == resource.data.score + 1);
+        // 타자팡팡 학습 자료 (포인트·연습 기록·진도) — 본인 기기만
+        match /taja/{d} {
+          allow get: if d == 'progress' && owner(cid, key);
+          allow create, update: if d == 'progress' && owner(cid, key)
+            && request.resource.data.keys().hasOnly(['json', 'updatedAt'])
+            && request.resource.data.json is string && request.resource.data.json.size() < 1000000
+            && request.resource.data.updatedAt is int;
+        }
       }
+    }
+    // 타자팡팡: 선생님께 보내는 오늘의 연습 보고 (확인 표시는 선생님만)
+    match /taja_reports/{rid} {
+      allow get: if signedIn() && (resource == null || owner(resource.data.cid, resource.data.key));
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['id', 'userId', 'cid', 'key', 'name', 'grade', 'day', 'sentAt', 'checkedAt', 'note', 'summary'])
+        && request.resource.data.checkedAt == 0
+        && request.resource.data.userId == 'm_' + request.resource.data.cid + '_' + request.resource.data.key
+        && rid == request.resource.data.userId + '_' + request.resource.data.day
+        && request.resource.data.id == rid
+        && request.resource.data.note is string && request.resource.data.note.size() <= 120
+        && owner(request.resource.data.cid, request.resource.data.key);
     }
     match /boards/{bid} { allow read: if signedIn() && resource.data.public == true; }
     match /parts/{pid} { allow read: if signedIn() && resource.data.pub == true; }
