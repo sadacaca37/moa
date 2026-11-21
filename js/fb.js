@@ -17,7 +17,8 @@ export const auth = getAuth(app);
 export const fs = getFirestore(app);
 export const rt = getDatabase(app);
 export const TEACHER_EMAIL = 'sadacaca37@gmail.com';
-export const SITE = 'https://sadacaca37.github.io/moa/';
+// 지금 열린 모아팡팡 주소 (moapang.kr 이든 예전 github.io/moa 든 그대로 따라감) — QR·반 링크에 씀
+export const SITE = new URL('../', import.meta.url).href;
 
 export const isTeacher = (u) => !!u && !u.isAnonymous && u.email === TEACHER_EMAIL;
 
