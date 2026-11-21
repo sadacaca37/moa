@@ -68,8 +68,9 @@ const A = window.MoaAvatar;
 const ses = getSession();
 if (!ses) location.replace('./');
 const first = new URLSearchParams(location.search).has('first');
+const toTaja = new URLSearchParams(location.search).get('back') === 'taja'; // 타자팡에서 꾸미러 왔으면 다 꾸미고 타자팡으로
 $('clsT').textContent = ses.className; $('meName').textContent = ses.name;
-$('done').textContent = first ? '다 꾸몄어요! 대기실로 ▶' : '다 꾸몄어요! 반으로 ▶';
+$('done').textContent = toTaja ? '다 꾸몄어요! 타자팡으로 ▶' : first ? '다 꾸몄어요! 대기실로 ▶' : '다 꾸몄어요! 반으로 ▶';
 
 let me = A.clean(ses.outfit || A.START), dir = 'front', cur = 'hair';
 const big = $('big').getContext('2d');
@@ -124,7 +125,7 @@ $('done').addEventListener('click', async () => {
     await ensureUser();
     await setDoc(doc(fs, 'classes', ses.cid, 'students', ses.key), { name: ses.name, outfit: me, seen: serverTimestamp() }, { merge: true });
     ses.outfit = me; setSession(ses);
-    location.href = 'class.html';
+    location.href = toTaja ? 'taja/' : 'class.html';
   } catch (err) { $('saveMsg').textContent = errText(err); $('done').disabled = false; toast(errText(err), true); }
 });
 let frame = 0, t = 0, last = performance.now();
