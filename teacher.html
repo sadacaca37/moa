@@ -80,7 +80,7 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script type="module">
 import {
-  auth, fs, rt, whenAuth, isTeacher, teacherLogin, logout, resetPassword, TEACHER_EM_KEY, SITE,
+  auth, fs, rt, whenAuth, isTeacher, teacherLogin, logout, resetPassword, SITE,
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, increment, writeBatch,
   ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast
 } from './js/fb.js';
@@ -112,6 +112,7 @@ function confirmDlg(title, text, ok, fn) {
 
 /* ---------- 로그인 ---------- */
 // 이메일은 이 컴퓨터에서 한 번 로그인한 뒤에만 미리 채워진다 (다른 컴퓨터·학생 화면에는 안 보임)
+const TEACHER_EM_KEY = 'moaTeacherEmail';
 function savedEm() { try { return localStorage.getItem(TEACHER_EM_KEY) || ''; } catch (e) { return ''; } }
 function drawLogin(msg) {
   $('menu').hidden = true;
