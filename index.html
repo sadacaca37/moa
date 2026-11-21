@@ -13,6 +13,9 @@
 <style>
 /* VOICE: 아이들이 매 시간 처음 보는 문 — 방번호만 누르면 바로 들어가는 게임 시작 화면
    LAYOUT: 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 타자팡팡 + 링크 게시판, 오른쪽 아래 제작자 */
+@font-face{font-family:'Galmuri11';src:url(assets/fonts/Galmuri11-Bold.woff2) format('woff2');font-weight:400 700;font-display:swap}
+body{background:#2E9BEA url(assets/bg.webp) center top/max(100vw,200vh) auto no-repeat fixed}
+.dot,.dot *,.dot #room,.dot #nm{font-family:'Galmuri11','Noto Sans KR',monospace!important;font-weight:700!important}
 main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(12px,3vw,24px) 70px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
 .left{flex:1 1 290px;max-width:360px;display:flex;flex-direction:column;gap:10px}
 .right{flex:999 1 380px;display:flex;flex-direction:column;gap:12px}
@@ -27,7 +30,7 @@ main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(
 #room::placeholder{color:#4a6b55}
 .keys{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .key{min-height:40px;border:3px solid var(--ink);box-shadow:0 3px 0 var(--ink);background:#fff;font:400 21px/1 'Jua',sans-serif;color:var(--ink);cursor:pointer}
-.key.s{font-size:16px}
+.key.s{font-size:13px;letter-spacing:-.5px}
 .key:hover{background:var(--paper2)}.key:active{transform:translateY(3px);box-shadow:none}
 .cls{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFE3A3;border:3px solid var(--ink)}
 .cls i{width:14px;height:14px;border:3px solid var(--ink);flex:none;background:var(--red)}
@@ -40,27 +43,23 @@ main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(
 .left .stack{gap:9px}
 .left .btn.big{min-height:48px;font-size:20px}
 .qrhint{margin:0;font-size:12.5px;line-height:1.5;color:var(--sub)}
-.typing{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:8px 12px;background:var(--yel);color:var(--ink);text-decoration:none;margin-top:56px}
+.typing{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:8px 12px;background:var(--yel);color:var(--ink);text-decoration:none}
 .typing .ic{width:42px;height:42px;background:#fff;border:4px solid var(--ink);display:grid;place-items:center;flex:none}
 .typing .tx{display:flex;flex-direction:column;gap:4px;flex:1;min-width:170px}
 .typing .tx b{font:400 23px/1.2 'Jua',sans-serif}
 .typing .tx span{font-size:13px}
 .typing .st{font:400 17px/1 'Jua',sans-serif;background:var(--red);color:#fff;border:3px solid var(--ink);padding:9px 14px;white-space:nowrap}
 .typing[aria-disabled=true] .st{background:var(--off);color:var(--sub)}
-.friends{position:absolute;left:16px;bottom:100%;display:flex;align-items:flex-end;gap:6px;pointer-events:none}
-.friends .msc.moa{height:52px}.friends .msc.pop{height:56px;animation-delay:-.6s}.friends .msc.star{height:50px;animation-delay:-1.2s}
-.bubble{position:absolute;left:170px;bottom:calc(100% + 20px);background:#fff;border:3px solid var(--ink);padding:4px 10px;font:400 15px/1.2 'Jua',sans-serif;white-space:nowrap}
-.bubble::after{content:'';position:absolute;left:-12px;bottom:8px;border:6px solid transparent;border-right-color:var(--ink)}
 .board h2{font-size:21px}
 .board.pad{padding:14px}
 .bhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
 footer{position:fixed;right:20px;bottom:44px;z-index:2;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 12px;font-size:13px;font-weight:700;color:#fff;text-shadow:2px 2px 0 var(--ink)}
 footer a{color:#fff}
-.walkers{position:fixed;left:0;right:0;bottom:34px;height:72px;z-index:1;pointer-events:none;overflow:hidden}
-.walkers canvas{position:absolute;bottom:-6px;width:72px;height:72px;image-rendering:pixelated}
-@media (max-width:999px){.walkers{display:none}}
+.walkers{position:fixed;left:0;right:0;bottom:34px;height:104px;z-index:1;pointer-events:none;overflow:hidden}
+.walkers span{position:absolute;left:0;bottom:-2px;height:100px;background-repeat:no-repeat;image-rendering:pixelated;will-change:transform}
+@media (max-width:700px){.walkers{display:none}}
+.ground::after{content:'';position:absolute;left:0;right:0;top:14px;height:8px;background:repeating-linear-gradient(90deg,#4FAE2F 0 8px,transparent 8px 24px,#3F9A24 24px 32px,#4FAE2F 32px 40px,transparent 40px 56px,#3F9A24 56px 64px)}
 @media (max-width:700px){.left{max-width:none}footer{position:static;justify-content:center;padding:0 0 50px}}
-@media (max-width:420px){.bubble{display:none}}
 </style>
 </head>
 <body>
@@ -78,7 +77,7 @@ footer a{color:#fff}
       <span class="go">이어하기 ▶</span>
     </button>
 
-    <div class="pf pad">
+    <div class="pf pad dot">
       <form id="codeF" class="stack" autocomplete="off">
         <label for="room" class="stage">STAGE 1 · 방번호 5자리</label>
         <input id="room" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="-----" aria-describedby="codeMsg">
@@ -100,8 +99,6 @@ footer a{color:#fff}
 
   <section class="right" aria-labelledby="linksH">
     <a class="btn typing" id="typing" href="#" target="_blank" rel="noopener" aria-disabled="true">
-      <span class="friends" aria-hidden="true"><span class="msc moa"></span><span class="msc pop"></span><span class="msc star"></span></span>
-      <span class="bubble" aria-hidden="true">어서 와, 친구들!</span>
       <span class="ic" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 11 11" shape-rendering="crispEdges"><path fill="#1B1F3B" d="M0 2h11v7H0z"/><path fill="#fff" d="M1 3h1v1H1zM3 3h1v1H3zM5 3h1v1H5zM7 3h1v1H7zM9 3h1v1H9zM2 5h1v1H2zM4 5h1v1H4zM6 5h1v1H6zM8 5h1v1H8zM3 7h5v1H3z"/></svg></span>
       <span class="tx"><b>타자팡팡</b><span id="typingSub">타자 연습하고 기록 올리기 · 반 랭킹 보기</span></span>
       <span class="st">START ▶</span>
@@ -234,25 +231,28 @@ async function loadHome() {
 }
 loadHome();
 
-/* ---------- 땅 위를 걷는 친구들 (꾸미기 그림으로) ---------- */
-(async () => {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  await A.ready();
-  const box = $('walkers'), list = [];
-  for (let i = 0; i < 4; i++) {
-    const o = A.random(); await A.ensure(o);
-    const c = document.createElement('canvas'); c.width = 128; c.height = 128; box.append(c);
-    list.push({ c, x: Math.random() * innerWidth, v: (Math.random() < 0.5 ? -1 : 1) * (28 + Math.random() * 22), sheet: A.sheet(o), f: Math.floor(Math.random() * 4) });
-  }
+/* ---------- 땅 위를 걷는 친구들 (공룡 옷 아이 · 분홍 머리 아이 · 갈색 옷 아이, 걷는 그림 30장) ---------- */
+(() => {
+  const H = 100, N = 30;
+  const kinds = [['dino', 90, 158], ['girl', 103, 163], ['boy', 79, 157]];
+  const box = $('walkers');
+  const list = kinds.map(([n, fw, fh], i) => {
+    const w = Math.round(fw * H / fh);
+    const el = document.createElement('span');
+    el.style.cssText = 'width:' + w + 'px;background-image:url(assets/walk/' + n + '.webp);background-size:' + (w * N) + 'px ' + H + 'px';
+    box.append(el);
+    return { el, w, x: innerWidth * (0.2 + 0.3 * i), v: (i % 2 ? -1 : 1) * (40 + i * 9), f: i * 7 };
+  });
   let last = performance.now(), t = 0;
   (function step(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
     const W = innerWidth;
     for (const a of list) {
       a.x += a.v * dt;
-      if (a.x > W + 20) a.v = -Math.abs(a.v); if (a.x < -90) a.v = Math.abs(a.v);
-      a.c.style.transform = 'translateX(' + a.x.toFixed(1) + 'px)';
-      A.drawFrame(a.c.getContext('2d'), a.sheet, a.v < 0 ? 'left' : 'right', Math.floor(t / 0.16) + a.f, true);
+      if (a.x > W - a.w - 10) a.v = -Math.abs(a.v);
+      if (a.x < 10) a.v = Math.abs(a.v);
+      a.el.style.transform = 'translateX(' + a.x.toFixed(1) + 'px)' + (a.v < 0 ? ' scaleX(-1)' : '');
+      a.el.style.backgroundPosition = (-((Math.floor(t / 0.1) + a.f) % N) * a.w) + 'px 0';
     }
     requestAnimationFrame(step);
   })(last);
