@@ -1,6 +1,6 @@
 // 모아팡팡 Firebase 연결 (모든 화면이 함께 씀)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getDatabase, ref, set, update, remove, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, query as rquery, limitToLast, serverTimestamp as rnow, get as rget } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
@@ -34,6 +34,8 @@ export async function ensureUser() {
 }
 export async function teacherLogin(email, pw) { return (await signInWithEmailAndPassword(auth, email, pw)).user; }
 export async function logout() { await signOut(auth); }
+// 비밀번호를 잊었을 때: 선생님 메일로 새 비밀번호 만드는 링크를 보낸다
+export async function resetPassword(email) { await sendPasswordResetEmail(auth, email); }
 
 // 학생 이름 → 문서 이름 (같은 반에서 같은 이름이면 같은 학생)
 export function nameKey(name) {

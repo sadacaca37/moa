@@ -80,7 +80,7 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script type="module">
 import {
-  auth, fs, rt, whenAuth, isTeacher, teacherLogin, logout, TEACHER_EMAIL, SITE,
+  auth, fs, rt, whenAuth, isTeacher, teacherLogin, logout, resetPassword, TEACHER_EMAIL, SITE,
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, increment, writeBatch,
   ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast
 } from './js/fb.js';
@@ -117,8 +117,15 @@ function drawLogin(msg) {
     '<label class="lb">이메일<input class="field" id="em" type="email" autocomplete="username" value="' + esc(TEACHER_EMAIL) + '"></label>' +
     '<label class="lb">비밀번호<input class="field" id="pw" type="password" autocomplete="current-password"></label>' +
     '<p class="note" id="lmsg" role="alert" style="color:#B3261E;font-weight:700">' + esc(msg || '') + '</p>' +
-    '<button class="btn blue big" type="submit">로그인 ▶</button><p class="note">선생님 계정으로 들어오면 반 만들기, 수업 진행판, 첫 화면 링크를 고칠 수 있어요.</p></form>';
+    '<button class="btn blue big" type="submit">로그인 ▶</button><button class="btn sm" type="button" id="forgot">비밀번호를 잊었어요</button><p class="note">선생님 계정으로 들어오면 반 만들기, 수업 진행판, 첫 화면 링크를 고칠 수 있어요.</p></form>';
   $('pw').focus();
+  $('forgot').addEventListener('click', async () => {
+    const em = $('em').value.trim();
+    if (em !== TEACHER_EMAIL) { $('lmsg').textContent = '선생님 이메일(' + TEACHER_EMAIL + ')을 써 주세요.'; return; }
+    $('forgot').disabled = true;
+    try { await resetPassword(em); $('lmsg').style.color = 'var(--ink)'; $('lmsg').textContent = em + ' 메일함에 \'비밀번호 다시 만들기\' 메일을 보냈어요. 메일의 링크를 눌러 새 비밀번호를 정한 뒤 여기서 로그인해 주세요. (안 보이면 스팸함도 봐 주세요)'; }
+    catch (err) { $('lmsg').textContent = errText(err); $('forgot').disabled = false; }
+  });
   $('loginF').addEventListener('submit', async (e) => {
     e.preventDefault(); $('lmsg').textContent = '';
     try { const u = await teacherLogin($('em').value.trim(), $('pw').value); if (!isTeacher(u)) { await logout(); drawLogin('선생님 계정이 아니에요.'); return; } start(u); }
