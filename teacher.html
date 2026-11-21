@@ -290,7 +290,7 @@ function bindLive(c) {
   });
   $('gmEnd').addEventListener('click', () => setSt({ game: null }));
   $('chOff').addEventListener('click', () => setSt({ chatOff: !L.st.chatOff }));
-  $('chClr').addEventListener('click', () => confirmDlg('채팅 지우기', '이 반의 채팅을 모두 지워요.', '지우기', () => remove(ref(rt, 'live/' + c.id + '/chat')).then(() => toast('채팅을 지웠어요.')).catch((err) => toast(errText(err), true))));
+  $('chClr').addEventListener('click', () => confirmDlg('채팅 지우기', '이 반의 채팅을 모두 지워요.', '지우기', () => remove(ref(rt, 'live/' + c.id + '/chat')).then(() => { setSt({ chatClr: Date.now() }); toast('채팅을 지웠어요.'); }).catch((err) => toast(errText(err), true))));
 }
 function paintLive() {
   if (!L || !$('phB')) return;

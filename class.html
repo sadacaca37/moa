@@ -238,7 +238,7 @@ $('chatF').addEventListener('submit', async (e) => {
 function say(a, text) { a.bubble = String(text).length > 22 ? String(text).slice(0, 21) + '…' : String(text); a.bubbleT = 5; }
 
 /* ---------- 선생님 진행 ---------- */
-let lastCall = null, quizState = null;
+let lastCall = null, lastClr = null, quizState = null;
 function applyState(prevPhase, prevMap) {
   const n = st.notice && st.notice.m;
   $('notice').hidden = !n; $('noticeT').textContent = n || '';
@@ -249,6 +249,8 @@ function applyState(prevPhase, prevMap) {
     $('gameGo').href = 'games.html?g=' + encodeURIComponent(g.id) + '&run=' + encodeURIComponent(g.run);
     if (!done.includes(g.run) && Date.now() - (g.t || 0) < 20 * 60000) location.href = $('gameGo').href;
   } else $('gameStrip').hidden = true;
+  if (lastClr !== null && st.chatClr && st.chatClr !== lastClr) { $('log').innerHTML = ''; logLine('선생님이 채팅을 지웠어요', 'sys'); }
+  lastClr = st.chatClr || 0;
   const call = st.call || null;
   if (lastCall !== null && call && call !== lastCall && M) { const [x, y] = spotIn(M.gather || M.spawn || M.start); me.x = x; me.y = y; me.path = null; me.dir = 'up'; sendAll(); toast('선생님이 모두 불렀어요!'); }
   lastCall = call || 0;
@@ -498,7 +500,6 @@ function frame(now) {
     logLine('<b>' + esc(v.n || '?') + '</b>' + esc(v.m || ''), mine ? 'mine' : '');
     if (joined || Date.now() - (v.t || 0) < 8000) { const a = mine ? me : actors.get(v.u); if (a) say(a, v.m || ''); }
   });
-  onChildRemoved(ref(rt, base + '/chat'), () => { if (!$('log').querySelector('.cleared')) { $('log').innerHTML = ''; logLine('선생님이 채팅을 지웠어요', 'sys cleared'); } });
   people();
   requestAnimationFrame(frame);
   $('cv').focus({ preventScroll: true });
