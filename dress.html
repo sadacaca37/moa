@@ -65,11 +65,17 @@
 import { fs, ensureUser, doc, getDoc, setDoc, serverTimestamp, getSession, setSession, mapName, errText, toast } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
-const ses = getSession();
-if (!ses) location.replace('./');
-const first = new URLSearchParams(location.search).has('first');
-const toTaja = new URLSearchParams(location.search).get('back') === 'taja'; // 타자팡에서 꾸미러 왔으면 다 꾸미고 타자팡으로
+const qs = new URLSearchParams(location.search);
+const first = qs.has('first');
+const toTaja = qs.get('back') === 'taja'; // 타자팡에서 꾸미러 왔으면 다 꾸미고 타자팡으로
+// 타자팡 회원(이름+전화번호 로그인)이 꾸미러 오면 타자팡 회원 정보로 (모아팡 입장 기록은 건드리지 않음)
+const MEMBER_KEY = 'taja_member_dress';
+const memberSes = (() => { if (!toTaja || qs.get('who') !== 'member') return null; try { const d = JSON.parse(localStorage.getItem(MEMBER_KEY)); return d && d.cid && d.key && d.name ? d : null; } catch (e) { return null; } })();
+const ses = memberSes || getSession();
+if (!ses) location.replace(toTaja ? 'taja/' : './');
+const saveSes = (s) => { if (memberSes) { try { localStorage.setItem(MEMBER_KEY, JSON.stringify(s)); } catch (e) { /* 무시 */ } } else setSession(s); };
 $('clsT').textContent = ses.className; $('meName').textContent = ses.name;
+if (memberSes) $('mapT').hidden = true;
 $('done').textContent = toTaja ? '다 꾸몄어요! 타자팡으로 ▶' : first ? '다 꾸몄어요! 대기실로 ▶' : '다 꾸몄어요! 반으로 ▶';
 
 let me = A.clean(ses.outfit || A.START), dir = 'front', cur = 'hair';
@@ -124,7 +130,7 @@ $('done').addEventListener('click', async () => {
   try {
     await ensureUser();
     await setDoc(doc(fs, 'classes', ses.cid, 'students', ses.key), { name: ses.name, outfit: me, seen: serverTimestamp() }, { merge: true });
-    ses.outfit = me; setSession(ses);
+    ses.outfit = me; saveSes(ses);
     location.href = toTaja ? 'taja/' : 'class.html';
   } catch (err) { $('saveMsg').textContent = errText(err); $('done').disabled = false; toast(errText(err), true); }
 });
@@ -137,7 +143,7 @@ function loop(now) {
 (async () => {
   try {
     await ensureUser();
-    getDoc(doc(fs, 'classes', ses.cid)).then((s) => { if (s.exists()) $('mapT').textContent = '맵 · ' + mapName(s.data().map || 'classroom'); }).catch(() => {});
+    if (!memberSes) getDoc(doc(fs, 'classes', ses.cid)).then((s) => { if (s.exists()) $('mapT').textContent = '맵 · ' + mapName(s.data().map || 'classroom'); }).catch(() => {});
     getDoc(doc(fs, 'classes', ses.cid, 'students', ses.key)).then((s) => { if (s.exists() && s.data().outfit && !ses.outfit) { me = A.clean(s.data().outfit); changed(); } }).catch(() => {});
   } catch (e) { /* 저장은 끝에 다시 시도 */ }
   await A.loadAll();
