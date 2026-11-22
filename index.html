@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="css/moa.css">
 <style>
 /* VOICE: 아이들이 매 시간 처음 보는 문 — 방번호만 누르면 바로 들어가는 게임 시작 화면
-   LAYOUT: 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 타자팡 + 링크 게시판, 오른쪽 아래 제작자 */
+   LAYOUT: 왼쪽 위 '타자팡 ✦ 모아팡' 로고(타자팡 화면과 같음), 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 링크 게시판, 오른쪽 아래 제작자 */
 @font-face{font-family:'Galmuri11';src:url(assets/fonts/Galmuri11-Bold.woff2) format('woff2');font-weight:400 700;font-display:swap}
 body{background:#1897FA url(assets/bg-low.webp) center top/cover no-repeat fixed}
 .dot,.dot *,.dot #room,.dot #nm{font-family:'Galmuri11','Noto Sans KR',monospace!important;font-weight:700!important}
@@ -43,14 +43,16 @@ main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(
 .left .stack{gap:9px}
 .left .btn.big{min-height:48px;font-size:20px}
 .qrhint{margin:0;font-size:12.5px;line-height:1.5;color:var(--sub)}
-.typing{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:8px 12px;background:var(--yel);color:var(--ink);text-decoration:none}
-.typing .ic{width:42px;height:42px;background:#fff;border:4px solid var(--ink);display:grid;place-items:center;flex:none}
-.typing .tx{display:flex;flex-direction:column;gap:4px;flex:1;min-width:170px}
-.typing .tx b{font:400 23px/1.2 'Jua',sans-serif}
-.typing .tx span{font-size:13px}
-.typing .st{font:400 17px/1 'Jua',sans-serif;background:var(--red);color:#fff;border:3px solid var(--ink);padding:9px 14px;white-space:nowrap}
-.btn.typing.typing[aria-disabled=true]{background:var(--yel);color:var(--ink);cursor:default}
-.typing[aria-disabled=true] .st{background:var(--red);color:#fff;opacity:.85}
+/* 대표 로고: 타자팡 화면 위쪽과 같은 '타자팡 ✦ 모아팡' 그림 로고 */
+.brands{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:8px;text-decoration:none}
+.brand-icon{width:52px;height:52px;border-radius:14px;border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);transition:transform .15s}
+.brand-word{height:44px;width:auto;display:block;filter:drop-shadow(0 2px 0 rgba(27,35,64,.25));transition:transform .15s}
+.brand:hover .brand-icon{transform:translateY(-2px) rotate(-3deg)}
+.brand:hover .brand-word{transform:translateY(-2px) scale(1.03)}
+.brand:focus-visible{outline:4px solid #FF8A3D;outline-offset:3px}
+.brand-sep{color:#ffe14d;font-size:22px;text-shadow:-2px 0 0 var(--ink),2px 0 0 var(--ink),0 -2px 0 var(--ink),0 2px 0 var(--ink)}
+@media (max-width:639px){.brand-icon{width:38px;height:38px;border-width:2px}.brand-word{height:30px}.brands{gap:8px}}
 .board h2{font-size:21px}
 .board.pad{padding:14px}
 .bhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
@@ -65,7 +67,11 @@ footer a{color:#fff}
 </head>
 <body>
 <header class="top">
-  <a class="logo" href="./" aria-label="모아팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>모아팡</span></a>
+  <div class="brands">
+    <a class="brand" id="typing" href="taja/" title="타자팡으로 가기"><img src="assets/brand/tajapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/tajapang_word.webp" alt="타자팡" class="brand-word" draggable="false"></a>
+    <span class="brand-sep" aria-hidden="true">✦</span>
+    <a class="brand" href="./" title="모아팡 첫 화면"><img src="assets/brand/moapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/moapang_word.webp" alt="모아팡" class="brand-word" draggable="false"></a>
+  </div>
   <a class="btn sm" href="teacher.html" id="tBtn">선생님 로그인</a>
 </header>
 
@@ -99,11 +105,6 @@ footer a{color:#fff}
   </section>
 
   <section class="right" aria-labelledby="linksH">
-    <a class="btn typing" id="typing" href="#" target="_blank" rel="noopener" aria-disabled="true">
-      <span class="ic" aria-hidden="true"><svg width="32" height="32" viewBox="0 0 11 11" shape-rendering="crispEdges"><path fill="#1B1F3B" d="M0 2h11v7H0z"/><path fill="#fff" d="M1 3h1v1H1zM3 3h1v1H3zM5 3h1v1H5zM7 3h1v1H7zM9 3h1v1H9zM2 5h1v1H2zM4 5h1v1H4zM6 5h1v1H6zM8 5h1v1H8zM3 7h5v1H3z"/></svg></span>
-      <span class="tx"><b>타자팡</b><span id="typingSub">타자 연습하고 기록 올리기 · 반 랭킹 보기</span></span>
-      <span class="st">START ▶</span>
-    </a>
     <div class="pf pad board stack">
       <div class="bhead"><h2 id="linksH">링크 게시판</h2><span class="note">수업 보드는 바로 넘어가고, 다른 사이트는 새 창으로 열려요</span></div>
       <div class="cards" id="links"><p class="empty">링크를 불러오는 중…</p></div>
@@ -203,7 +204,7 @@ if (qr && /^\d{5}$/.test(qr)) {
   findRoom(qr).then((c) => { if (c) showName(c); else $('codeMsg').textContent = '그런 방번호가 없어요. 다시 확인해 주세요.'; }).catch((err) => { $('codeMsg').textContent = errText(err); });
 }
 
-/* ---------- 첫 화면 링크 · 타자팡 ---------- */
+/* ---------- 첫 화면 링크 (타자팡은 왼쪽 위 타자팡 로고로 감) ---------- */
 const COLORS = ['#7FE0E8', '#9BE07A', '#FF8F8F', '#9DB8FF', '#FFD23F', '#D7B5FF'];
 function card(l, i) {
   const isBoard = !!l.bid, url = isBoard ? 'board.html?b=' + encodeURIComponent(l.bid) : safeUrl(l.u);
@@ -223,8 +224,6 @@ async function loadHome() {
     const links = (d.links || []).filter((l) => !l.hide);
     $('links').innerHTML = links.map(card).join('') || '<p class="empty">아직 올린 링크가 없어요.</p>';
     if (isTeacher(user)) $('links').insertAdjacentHTML('afterbegin', '<a class="lk" href="teacher.html#home" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 링크 올리기</span></a>');
-    // 타자팡은 모아팡 안(taja/)에 있음 — 같은 방번호·이름으로 저절로 들어가짐
-    $('typing').href = 'taja/'; $('typing').removeAttribute('aria-disabled');
   } catch (err) {
     $('links').innerHTML = '<p class="empty">' + esc(errText(err)) + '</p>';
   }
