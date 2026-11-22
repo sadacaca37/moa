@@ -73,7 +73,7 @@
 <input type="file" id="picIn" accept="image/*" hidden>
 <div class="ground" aria-hidden="true"></div>
 <script type="module">
-import { fs, ensureUser, isTeacher, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, esc, safeUrl, hostOf, errText, getSession, toast } from './js/fb.js';
+import { fs, ensureUser, isTeacher, teacherRole, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, esc, safeUrl, hostOf, errText, getSession, toast } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const SEC = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
 const NAME_KEY = 'moa_board_name';
@@ -287,9 +287,12 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('dlg')
     S.user = await ensureUser(); S.teacher = isTeacher(S.user);
     const first = await getDoc(doc(fs, 'boards', bid));
     if (!first.exists()) return fail('지워진 패들렛이에요.');
-    S.board = first.data(); draw();
+    S.board = first.data();
+    // 선생님 모드는 이 패들렛의 주인 선생님만 (함께 쓰는 선생님 패들렛은 owner, 주 선생님 패들렛은 owner 없음)
+    if (S.teacher) { const r = await teacherRole(S.user); S.teacher = S.board.owner ? S.board.owner === S.user.uid : r === 'admin'; }
+    draw();
     onSnapshot(doc(fs, 'boards', bid), (s) => { if (s.exists()) { S.board = s.data(); draw(); } else fail('지워진 패들렛이에요.'); }, () => {});
-    const pq = S.teacher ? query(collection(fs, 'parts'), where('bid', '==', bid)) : query(collection(fs, 'parts'), where('bid', '==', bid), where('pub', '==', true));
+    const pq = S.teacher ? query(collection(fs, 'parts'), where('bid', '==', bid), ...(S.board.owner ? [where('owner', '==', S.board.owner)] : [])) : query(collection(fs, 'parts'), where('bid', '==', bid), where('pub', '==', true));
     onSnapshot(pq, (snap) => { S.parts = snap.docs.map((d) => d.data()); draw(); }, () => {});
     const rows = (snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data({ serverTimestamps: 'estimate' })));
     onSnapshot(collection(fs, 'boards', bid, 'posts'), (snap) => { S.live = rows(snap); S.liveErr = false; draw(); }, () => { S.liveErr = true; draw(); });

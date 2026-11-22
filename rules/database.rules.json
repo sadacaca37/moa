@@ -2,8 +2,21 @@
   "rules": {
     ".read": "auth != null && auth.token.email === 'TEACHER_EMAIL' && auth.provider === 'password'",
     ".write": "auth != null && auth.token.email === 'TEACHER_EMAIL' && auth.provider === 'password'",
+    "teachers": {
+      "$em": {
+        ".read": "auth != null && auth.token.email != null && auth.token.email.toLowerCase().replace('.', ',') === $em"
+      }
+    },
+    "owners": {
+      "$cid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.provider === 'password' && auth.token.email_verified === true && root.child('teachers').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true && (!data.exists() || data.val() === auth.uid) && (!newData.exists() || newData.val() === auth.uid)"
+      }
+    },
     "live": {
       "$cid": {
+        ".read": "auth != null && auth.provider === 'password' && auth.token.email_verified === true && root.child('teachers').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true && root.child('owners').child($cid).val() === auth.uid",
+        ".write": "auth != null && auth.provider === 'password' && auth.token.email_verified === true && root.child('teachers').child(auth.token.email.toLowerCase().replace('.', ',')).val() === true && root.child('owners').child($cid).val() === auth.uid",
         "state": {
           ".read": "auth != null"
         },

@@ -139,7 +139,7 @@ footer .studio{letter-spacing:.08em}
 <input type="file" id="fileIn" accept=".csv,.xlsx,.xls,text/csv" hidden>
 <footer><span class="studio">© 2026 MOAPANG STUDIO</span><span>Created by Eunkyung Kim</span><a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a></footer>
 <script type="module">
-import { fs, auth, whenAuth, isTeacher, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, getDocs, serverTimestamp } from './js/fb.js';
+import { fs, rt, ref, set, auth, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, getDocs, serverTimestamp } from './js/fb.js';
 {
 const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
 const SEC_COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
@@ -201,7 +201,7 @@ function watchParts() {
   if (!S.bid) return;
   const bid = S.bid;
   if (S.db) {
-    partsOff = S.db.collection('parts').where('bid', '==', bid).onSnapshot((snap) => { if (partsFor !== bid) return; S.parts = docs(snap); draw(); }, (e) => toast(errText(e), true));
+    partsOff = onSnapshot(query(collection(fs, 'parts'), where('bid', '==', bid), ...ownQ()), (snap) => { if (partsFor !== bid) return; S.parts = docs(snap); draw(); }, (e) => toast(errText(e), true));
     // 패들렛 화면(board.html)에서 학생·선생님이 함께 올린 글·사진과 댓글
     const o1 = onSnapshot(collection(fs, 'boards', bid, 'posts'), (snap) => { if (partsFor !== bid) return; S.live = liveRows(snap); draw(); }, () => {});
     const o2 = onSnapshot(collection(fs, 'boards', bid, 'comments'), (snap) => { if (partsFor !== bid) return; S.cmts = liveRows(snap); draw(); }, () => {});
@@ -211,10 +211,16 @@ function watchParts() {
     memSubs.push(f); f(); partsOff = () => { memSubs = memSubs.filter((x) => x !== f); };
   }
 }
+// 함께 쓰는 선생님(teacher): 자기가 만든 반·패들렛만 (주인 owner 칸을 붙여 저장하고, 자기 것만 불러옴)
+//  주 선생님(admin): 예전 그대로 owner 없는 것들
+const isMate = () => S.role === 'teacher';
+const ownQ = () => isMate() ? [where('owner', '==', S.uid)] : [];
+const keepMine = (list) => list.filter((d) => isMate() ? d.owner === S.uid : !d.owner);
+const ownIt = (path, data) => isMate() && /^(classes|boards|parts|rooms)\/[^/]+$/.test(path) ? Object.assign({}, data, { owner: S.uid }) : data;
 // Firestore를 claude.ai 저장소와 같은 모양으로 감싼다
 const FDB = {
   doc: (path) => ({
-    set: (data) => setDoc(doc(fs, path), data, path.startsWith('classes/') ? { merge: true } : {}),
+    set: (data) => setDoc(doc(fs, path), ownIt(path, data), path.startsWith('classes/') ? { merge: true } : {}),
     delete: () => deleteDoc(doc(fs, path))
   }),
   collection: (name) => ({
@@ -230,12 +236,20 @@ async function connect() {
     $('main').innerHTML = '<section class="nob pf"><h2>선생님만 쓰는 곳이에요</h2><p>선생님 계정으로 로그인하면 클래스와 패들렛을 고치고 저장할 수 있어요.</p><div class="row"><a class="btn blue" href="teacher.html?next=padlet.html">선생님 로그인 ▶</a><a class="btn" href="./">첫 화면</a></div></section>';
     return;
   }
+  const r = await teacherRole(u);
+  if (r !== 'admin' && r !== 'teacher') {
+    S.mode = 'nologin'; S.loaded = { classes: true, boards: true };
+    $('hdr').innerHTML = logo + '<div class="htxt"><h1>내 패들렛</h1></div>';
+    $('main').innerHTML = '<section class="nob pf"><h2>선생님 화면에서 먼저 들어와 주세요</h2><p>' + (r === 'unverified' ? '메일 인증을 마쳐야 쓸 수 있어요.' : '아직 모아팡 선생님으로 올라가 있지 않은 계정이에요.') + '</p><div class="row"><a class="btn blue" href="teacher.html?next=padlet.html">선생님 화면 ▶</a><a class="btn" href="./">첫 화면</a></div></section>';
+    return;
+  }
+  S.role = r; S.uid = u.uid;
   const db = FDB;
   S.db = db; S.mode = 'db';
   const timer = setTimeout(() => { S.slow = true; draw(); }, 10000);
   const done = (k) => { S.loaded[k] = true; if (S.loaded.classes && S.loaded.boards) { clearTimeout(timer); S.slow = false; route(); } };
-  db.collection('classes').onSnapshot((snap) => { S.classes = docs(snap); if (!snap.metadata.fromCache) done('classes'); draw(); }, (e) => { clearTimeout(timer); toast(errText(e), true); });
-  db.collection('boards').onSnapshot((snap) => { S.boards = docs(snap); if (!snap.metadata.fromCache) done('boards'); draw(); }, (e) => { clearTimeout(timer); toast(errText(e), true); });
+  onSnapshot(query(collection(fs, 'classes'), ...ownQ()), { includeMetadataChanges: true }, (snap) => { S.classes = keepMine(docs(snap)); if (!snap.metadata.fromCache) done('classes'); draw(); }, (e) => { clearTimeout(timer); toast(errText(e), true); });
+  onSnapshot(query(collection(fs, 'boards'), ...ownQ()), { includeMetadataChanges: true }, (snap) => { S.boards = keepMine(docs(snap)); if (!snap.metadata.fromCache) done('boards'); draw(); }, (e) => { clearTimeout(timer); toast(errText(e), true); });
 }
 
 /* ---------- 데이터 도우미 ---------- */
@@ -430,7 +444,7 @@ function drawBoard() {
     '<button class="mini" data-act="pubboard" aria-pressed="' + !!b.public + '" style="' + (b.public ? 'background:#7CFF8A' : '') + '">' + (b.public ? '✓ 학생에게 보여요' : '학생에게 보이기') + '</button>' +
     '<button class="mini" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김' : '✎ 학생 글쓰기 열림') + '</button>' +
     '<button class="mini" data-act="copyboard" style="background:#C7B2FF">다른 패들렛으로 복사</button>' +
-    '<button class="mini" data-act="pinhome">첫 화면 링크에 올리기</button><button class="mini" data-act="renameboard">이름 바꾸기</button><button class="mini" data-act="delboard">이 패들렛 지우기</button></div>';
+    (isMate() ? '' : '<button class="mini" data-act="pinhome">첫 화면 링크에 올리기</button>') + '<button class="mini" data-act="renameboard">이름 바꾸기</button><button class="mini" data-act="delboard">이 패들렛 지우기</button></div>';
   if (loading) { h += '<p class="note" style="margin:16px max(3vw,16px)">글을 불러오는 중…</p>'; $('main').className = 'wide'; $('main').innerHTML = h; return; }
   h += '<div class="cols"><div>' + (b.sections || []).map((name, i) => {
     const ps = posts.filter((p) => (p.sec || 0) === i);
@@ -561,7 +575,7 @@ async function copyBoard(sec, tcid, tbid) {
       S.wantBid = target.id;
       await writeBoard(target, copied);
     } else if (copied.length) {
-      const tp = (await getDocs(query(collection(fs, 'parts'), where('bid', '==', tbid)))).docs.map((d) => Object.assign({ id: d.id }, d.data())).sort((x, y) => x.n - y.n);
+      const tp = (await getDocs(query(collection(fs, 'parts'), where('bid', '==', tbid), ...ownQ()))).docs.map((d) => Object.assign({ id: d.id }, d.data())).sort((x, y) => x.n - y.n);
       const last = tp[tp.length - 1], pub = !!target.public;
       let n = last ? last.n : 0, cur = last ? (last.posts || []).slice() : [], size = bytes(cur);
       for (const p of copied) {
@@ -594,7 +608,8 @@ async function saveClass() {
   closeDlg();
   try {
     await put('classes/' + id, Object.assign(data, old ? {} : { map: 'classroom' }));
-    await setDoc(doc(fs, 'rooms', p.room), { cid: id, name, color: p.color });
+    if (isMate()) await set(ref(rt, 'owners/' + id), S.uid); // 실시간 교실(진행판)을 이 선생님만 다루게
+    await setDoc(doc(fs, 'rooms', p.room), ownIt('rooms/' + p.room, { cid: id, name, color: p.color }));
     if (old && old.room && old.room !== p.room) await deleteDoc(doc(fs, 'rooms', old.room));
     toast(old ? '\'' + name + '\'을 고쳤어요.' : '\'' + name + '\'을 만들었어요. 눌러서 패들렛을 가져와 보세요.');
   } catch (e) { toast(S.saveErr || errText(e), true); }
@@ -642,6 +657,7 @@ async function setPublic(b, v) {
   } catch (e) { toast(S.saveErr || errText(e), true); }
 }
 async function pinHome(b) {
+  if (isMate()) { toast('첫 화면 링크 게시판은 모아팡을 관리하는 선생님만 고칠 수 있어요. \'학생에게 보이기\'를 켜면 우리 반 화면에 보여요.', true); return; }
   try {
     if (!b.public) await setPublic(b, true);
     const s = await getDoc(doc(fs, 'config', 'home')); const d = s.exists() ? s.data() : {};

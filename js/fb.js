@@ -1,7 +1,7 @@
 // 모아팡 Firebase 연결 (모든 화면이 함께 씀)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getAuth, onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getAuth, onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, createUserWithEmailAndPassword, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment, limit } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getDatabase, ref, set, update, remove, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, query as rquery, limitToLast, serverTimestamp as rnow, get as rget } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
 const app = initializeApp({
@@ -41,6 +41,38 @@ export async function logout() { await signOut(auth); }
 // 비밀번호를 잊었을 때: 선생님 메일로 새 비밀번호 만드는 링크를 보낸다
 export async function resetPassword(email) { await sendPasswordResetEmail(auth, email); }
 
+/* ---------- 함께 쓰는 선생님 ----------
+ * - 주 선생님(admin): 예전 그대로 모든 것을 다룸. 주 선생님 반에는 owner 칸이 없다
+ * - 함께 쓰는 선생님(teacher): 주 선생님이 '선생님 관리'에서 이메일을 올리면, 그 선생님이 직접 가입하고 메일 인증
+ *   → 자기가 만든 반(owner = 자기 uid)과 그 반 학생·패들렛·문제만 보인다
+ */
+export const emKey = (em) => String(em || '').trim().toLowerCase().replace(/\./g, ',');
+let roleCache = null;
+// 'admin' | 'teacher' | 'unverified'(메일 인증 전) | 'none'(올리지 않은 계정) | 'error' | null(선생님 로그인 아님)
+export async function teacherRole(u) {
+  if (!isTeacher(u)) return null;
+  if (roleCache && roleCache.uid === u.uid) return roleCache.role;
+  const em = String(u.email || '').toLowerCase();
+  let role;
+  try {
+    const s = await getDoc(doc(fs, 'teachers', em));
+    if (s.exists()) role = u.emailVerified ? 'teacher' : 'unverified';
+    else { try { await getDocs(query(collection(fs, 'teachers'), limit(1))); role = 'admin'; } catch (e) { role = 'none'; } }
+  } catch (e) { role = /permission/i.test((e && e.code) || '') ? 'none' : 'error'; }
+  if (role !== 'error') roleCache = { uid: u.uid, role };
+  return role;
+}
+export async function teacherSignup(email, pw) {
+  const c = await createUserWithEmailAndPassword(auth, String(email).trim().toLowerCase(), pw);
+  try { await sendEmailVerification(c.user); } catch (e) { /* 인증 메일은 다시 보내기로 */ }
+  return c.user;
+}
+export async function resendVerify() { if (auth.currentUser) await sendEmailVerification(auth.currentUser); }
+// 메일 인증을 마친 뒤: 로그인 정보를 새로 받아 와야 보안 규칙이 인증을 알아본다
+export async function refreshUser() { const u = auth.currentUser; if (!u) return null; await u.reload(); await u.getIdToken(true); roleCache = null; return auth.currentUser; }
+// 반 주인 선생님에 맞는 문제 상자 이름 (주 선생님 반은 예전 그대로 'ox', 함께 쓰는 선생님은 'uid_ox')
+export const bankId = (owner, k) => owner ? owner + '_' + k : k;
+
 // 학생 이름 → 문서 이름 (같은 반에서 같은 이름이면 같은 학생)
 export function nameKey(name) {
   const n = String(name || '').normalize('NFC').replace(/\s+/g, '').toLowerCase();
@@ -71,6 +103,8 @@ export function errText(e) {
   if (/unavailable|network/i.test(c)) return '인터넷 연결이 끊겼어요. 잠시 뒤에 다시 해 주세요.';
   if (/wrong-password|invalid-credential|user-not-found|invalid-email/.test(c)) return '이메일이나 비밀번호가 맞지 않아요.';
   if (/too-many-requests/.test(c)) return '여러 번 틀렸어요. 잠시 뒤에 다시 해 주세요.';
+  if (/email-already-in-use/.test(c)) return '이미 가입한 이메일이에요. 로그인해 주세요.';
+  if (/weak-password/.test(c)) return '비밀번호는 6자 넘게 써 주세요.';
   if (/admin-restricted|operation-not-allowed/.test(c)) return '익명 로그인이 꺼져 있어요. 선생님께 알려 주세요.';
   return '잘 안 됐어요. 잠시 뒤에 다시 해 주세요.' + (c ? ' (' + c + ')' : '');
 }
@@ -84,6 +118,6 @@ export function toast(msg, bad) {
 }
 
 export {
-  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment, limit,
   ref, set, update, remove, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, rquery, limitToLast, rnow, rget
 };

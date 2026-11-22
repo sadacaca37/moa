@@ -289,7 +289,7 @@ ol.rank li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
 
 <script src="js/avatar.js"></script>
 <script type="module">
-import { fs, rt, whenAuth, ensureUser, isTeacher, doc, getDoc, setDoc, ref, set, rget, rnow, getSession } from './js/fb.js';
+import { fs, rt, whenAuth, ensureUser, isTeacher, teacherRole, bankId, doc, getDoc, setDoc, ref, set, rget, rnow, getSession } from './js/fb.js';
 {
 'use strict';
 const $ = s => document.querySelector(s);
@@ -1535,8 +1535,8 @@ function bank(k) {
   if (!BANKS[k]) { let v = null; try { v = JSON.parse(localStorage.getItem('mpp_qb_' + k)); } catch (e) { v = null; } BANKS[k] = Array.isArray(v) && v.length ? v : QK[k].def(); }
   return BANKS[k];
 }
-let TEACHER = false;
-function saveBank(k, list) { BANKS[k] = list; try { localStorage.setItem('mpp_qb_' + k, JSON.stringify(list)); } catch (e) { /* 이 기기에만 못 남김 */ } if (TEACHER) setDoc(doc(fs, 'banks', k), { list, at: Date.now() }).then(() => toast('모든 반이 이 문제를 써요')).catch(() => toast('문제를 저장소에 올리지 못했어요')); }
+let TEACHER = false, OWN = ''; // OWN: 문제 상자 주인 선생님 (주 선생님 '' · 함께 쓰는 선생님 uid)
+function saveBank(k, list) { BANKS[k] = list; try { localStorage.setItem('mpp_qb_' + k, JSON.stringify(list)); } catch (e) { /* 이 기기에만 못 남김 */ } if (TEACHER) setDoc(doc(fs, 'banks', bankId(OWN, k)), { list, at: Date.now() }).then(() => toast(OWN ? '내 반들이 이 문제를 써요' : '모든 반이 이 문제를 써요')).catch(() => toast('문제를 저장소에 올리지 못했어요')); }
 const qbBtn = k => `<div class="qbset"><button class="btn y" type="button" data-qb="${k}">문제 만들기 · ${bank(k).length}문제</button><small>마스터가 직접 쓰기 · 엑셀 · AI</small></div>`;
 
 /* 엑셀(.xlsx) 읽고 쓰기 — 압축 파일을 브라우저에서 바로 풀어요 */
@@ -1987,9 +1987,12 @@ function frame(now) {
 let USER = null, sentRun = false;
 (async () => {
   try { USER = SES ? await ensureUser() : await whenAuth(); } catch (e) { USER = null; }
-  TEACHER = isTeacher(USER);
+  TEACHER = false;
+  if (isTeacher(USER)) { const r = await teacherRole(USER); if (r === 'admin' || r === 'teacher') { TEACHER = true; OWN = r === 'teacher' ? USER.uid : ''; } }
+  // 학생: 우리 반 선생님의 문제 상자 (반 문서의 owner)
+  if (SES && !TEACHER && USER) { try { const c = await getDoc(doc(fs, 'classes', SES.cid)); OWN = (c.exists() && c.data().owner) || ''; } catch (e) { OWN = SES.tid || ''; } }
   if (SES) { $('#backCls').hidden = false; $('#resBack').hidden = false; $('#myName').value = SES.name; $('#myName').readOnly = true; }
-  if (TEACHER) { $('#backT').hidden = false; $('#sideNote').textContent = '선생님 계정이에요. 문제 만들기에서 저장한 문제는 모든 반의 게임과 퀴즈에서 함께 써요.'; }
+  if (TEACHER) { $('#backT').hidden = false; $('#sideNote').textContent = (OWN ? '선생님 계정이에요. 문제 만들기에서 저장한 문제는 내가 만든 반의 게임과 퀴즈에서 함께 써요.' : '선생님 계정이에요. 문제 만들기에서 저장한 문제는 모든 반의 게임과 퀴즈에서 함께 써요.'); }
   if (RUN) {
     $('#subT').textContent = '선생님이 시작한 게임이에요! 끝나면 내 기록이 선생님께 가요.';
     $('#sideNote').textContent = '선생님이 시작한 게임이에요. 같이 노는 친구들은 컴퓨터가 움직여요.';
@@ -1997,7 +2000,7 @@ let USER = null, sentRun = false;
   }
   if (USER) {
     // 선생님이 저장한 문제 (모든 반 공통)
-    await Promise.all(['ox', 'mc', 'ch'].map(async k => { try { const s = await getDoc(doc(fs, 'banks', k)); const l = s.exists() && s.data().list; if (Array.isArray(l) && l.length) BANKS[k] = l; } catch (e) { /* 기본 문제 */ } }));
+    await Promise.all(['ox', 'mc', 'ch'].map(async k => { try { const s = await getDoc(doc(fs, 'banks', bankId(OWN, k))); const l = s.exists() && s.data().list; if (Array.isArray(l) && l.length) BANKS[k] = l; } catch (e) { /* 기본 문제 */ } }));
     // 지금 반에 들어와 있는 친구들의 이름과 옷
     if (SES) { try { const ps = await rget(ref(rt, 'live/' + SES.cid + '/players')); ps.forEach(p => { const v = p.val(); if (v && p.key !== USER.uid && v.n) MATES.push({ n: String(v.n).slice(0, 6), o: AV.clean(v.o) }); }); } catch (e) { /* 친구 없이 */ } }
   }

@@ -123,7 +123,7 @@ footer .studio{letter-spacing:.08em}
 
 <script src="js/avatar.js"></script>
 <script type="module">
-import { fs, rt, auth, ensureUser, whenAuth, isTeacher, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, ref, rget, nameKey, cleanName, getSession, setSession, esc, safeUrl, hostOf, errText } from './js/fb.js';
+import { fs, rt, auth, ensureUser, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, ref, rget, nameKey, cleanName, getSession, setSession, esc, safeUrl, hostOf, errText } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
 let cls = null; // {cid, room, name, color}
@@ -145,7 +145,8 @@ async function findRoom(code) {
   const s = await getDoc(doc(fs, 'rooms', code));
   if (!s.exists()) return null;
   const d = s.data();
-  return { cid: d.cid, room: code, name: d.name || '우리 반', color: d.color || '#FF6B4A' };
+  // tid: 반 주인 선생님 (함께 쓰는 선생님 반만 있음, 주 선생님 반은 '')
+  return { cid: d.cid, room: code, name: d.name || '우리 반', color: d.color || '#FF6B4A', tid: d.owner || '' };
 }
 function showName(c) {
   cls = c;
@@ -180,7 +181,7 @@ async function enter(c, name) {
   if (s.exists()) { first = !s.data().outfit; await setDoc(sref, { name, uid: user.uid, seen: serverTimestamp() }, { merge: true }); }
   else await setDoc(sref, { name, uid: user.uid, score: 0, outfit: null, created: serverTimestamp(), seen: serverTimestamp() });
   const outfit = s.exists() ? s.data().outfit || null : null;
-  setSession({ cid: c.cid, room: c.room, className: c.name, color: c.color, name, key, outfit });
+  setSession({ cid: c.cid, room: c.room, className: c.name, color: c.color, name, key, outfit, tid: c.tid || '' });
   location.href = first ? 'dress.html?first=1' : 'class.html';
   return 'ok';
 }
@@ -228,7 +229,7 @@ async function loadHome() {
     const d = s.exists() ? s.data() : {};
     const links = (d.links || []).filter((l) => !l.hide);
     $('links').innerHTML = links.map(card).join('') || '<p class="empty">아직 올린 링크가 없어요.</p>';
-    if (isTeacher(user)) $('links').insertAdjacentHTML('afterbegin', '<a class="lk" href="teacher.html#home" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 링크 올리기</span></a>');
+    if (isTeacher(user) && (await teacherRole(user)) === 'admin') $('links').insertAdjacentHTML('afterbegin', '<a class="lk" href="teacher.html#home" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 링크 올리기</span></a>');
   } catch (err) {
     $('links').innerHTML = '<p class="empty">' + esc(errText(err)) + '</p>';
   }
@@ -239,13 +240,17 @@ loadHome();
 /* ---------- 내 패들렛 바로가기 (학생에게 보이기로 한 패들렛 · 선생님은 모두) ---------- */
 async function loadPads() {
   try {
-    const user = await ensureUser(), t = isTeacher(user);
-    const bq = t ? collection(fs, 'boards') : query(collection(fs, 'boards'), where('public', '==', true));
-    const bs = (await getDocs(bq)).docs.map((d) => Object.assign({ id: d.id }, d.data()))
+    const user = await ensureUser(), r = isTeacher(user) ? await teacherRole(user) : null;
+    const t = r === 'admin' || r === 'teacher';
+    // 주 선생님: owner 없는 패들렛 · 함께 쓰는 선생님: 자기 것 · 학생: 우리 반 선생님(tid)이 보이게 한 것
+    const own = r === 'teacher' ? [where('owner', '==', user.uid)] : [];
+    const mineOf = (b) => r === 'teacher' ? b.owner === user.uid : r === 'admin' ? !b.owner : (b.owner || '') === ((getSession() || {}).tid || '');
+    const bq = t ? query(collection(fs, 'boards'), ...own) : query(collection(fs, 'boards'), where('public', '==', true));
+    const bs = (await getDocs(bq)).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter(mineOf)
       .sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')));
     // 반 이름·색 (학생은 반 문서를 하나씩 읽을 수 있음)
     const cls = new Map();
-    if (t) (await getDocs(collection(fs, 'classes'))).docs.forEach((d) => cls.set(d.id, d.data()));
+    if (t) (await getDocs(query(collection(fs, 'classes'), ...own))).docs.forEach((d) => cls.set(d.id, d.data()));
     else await Promise.all([...new Set(bs.map((b) => b.cid).filter(Boolean))].map(async (cid) => { try { const s = await getDoc(doc(fs, 'classes', cid)); if (s.exists()) cls.set(cid, s.data()); } catch (e) { /* 무시 */ } }));
     const cards = bs.map((b, i) => {
       const c = cls.get(b.cid) || {};

@@ -65,7 +65,8 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
   <a class="logo" href="./" aria-label="모아팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>모아팡</span></a>
   <nav class="menu" id="menu" hidden>
     <a class="btn sm" href="#classes" data-nav="classes">우리 반</a>
-    <a class="btn sm" href="#home" data-nav="home">첫 화면 꾸미기</a>
+    <a class="btn sm" href="#home" data-nav="home" id="navHome">첫 화면 꾸미기</a>
+    <a class="btn sm" href="#team" data-nav="team" id="navTeam" hidden>선생님 관리</a>
     <a class="btn sm" href="padlet.html">내 패들렛</a>
     <a class="btn sm" href="games.html">미니 게임·문제 만들기</a>
     <a class="btn sm" href="./">첫 화면 보기</a>
@@ -81,6 +82,7 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
 <script type="module">
 import {
   auth, fs, rt, whenAuth, isTeacher, teacherLogin, logout, resetPassword, SITE,
+  teacherRole, teacherSignup, resendVerify, refreshUser, bankId, emKey,
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, increment, writeBatch,
   ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast
 } from './js/fb.js';
@@ -93,6 +95,9 @@ const GAMES = [['dodge', '똥 피하기', 1], ['tag', '술래잡기', 0], ['trea
 const MAX = 20;
 const uid = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 let user = null, classes = [], counts = {}, countOffs = {}, liveOffs = [], home = {}, view = '';
+// role: 'admin' = 주 선생님(모든 것), 'teacher' = 함께 쓰는 선생님(자기 반만)
+let role = '';
+const isAdmin = () => role === 'admin';
 
 /* ---------- 창 ---------- */
 let lastFocus = null;
@@ -120,8 +125,10 @@ function drawLogin(msg) {
     '<label class="lb">이메일<input class="field" id="em" type="email" autocomplete="username" value="' + esc(savedEm()) + '"></label>' +
     '<label class="lb">비밀번호<input class="field" id="pw" type="password" autocomplete="current-password"></label>' +
     '<p class="note" id="lmsg" role="alert" style="color:#B3261E;font-weight:700">' + esc(msg || '') + '</p>' +
-    '<button class="btn blue big" type="submit">로그인 ▶</button><button class="btn sm" type="button" id="forgot">비밀번호를 잊었어요</button><p class="note">선생님 계정으로 들어오면 반 만들기, 수업 진행판, 첫 화면 링크를 고칠 수 있어요.</p></form>';
+    '<button class="btn blue big" type="submit">로그인 ▶</button><button class="btn sm" type="button" id="forgot">비밀번호를 잊었어요</button><p class="note">선생님 계정으로 들어오면 반 만들기, 수업 진행판, 첫 화면 링크를 고칠 수 있어요.</p>' +
+    '<button class="btn sm" type="button" id="toSignup">처음이에요 · 함께 쓰는 선생님 가입</button></form>';
   $(savedEm() ? 'pw' : 'em').focus();
+  $('toSignup').addEventListener('click', drawSignup);
   $('forgot').addEventListener('click', async () => {
     const em = $('em').value.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { $('lmsg').textContent = '선생님 이메일을 먼저 써 주세요.'; return; }
@@ -131,9 +138,56 @@ function drawLogin(msg) {
   });
   $('loginF').addEventListener('submit', async (e) => {
     e.preventDefault(); $('lmsg').textContent = '';
-    try { const u = await teacherLogin($('em').value.trim(), $('pw').value); if (!isTeacher(u)) { await logout(); drawLogin('선생님 계정이 아니에요.'); return; } try { localStorage.setItem(TEACHER_EM_KEY, u.email || ''); } catch (e2) { /* 기억 못 해도 로그인은 됨 */ } start(u); }
+    try { const u = await teacherLogin($('em').value.trim(), $('pw').value); if (!isTeacher(u)) { await logout(); drawLogin('선생님 계정이 아니에요.'); return; } try { localStorage.setItem(TEACHER_EM_KEY, u.email || ''); } catch (e2) { /* 기억 못 해도 로그인은 됨 */ } afterLogin(u); }
     catch (err) { $('lmsg').textContent = errText(err); }
   });
+}
+// 함께 쓰는 선생님 가입: 주 선생님이 '선생님 관리'에 이메일을 먼저 올려 두어야 들어올 수 있다
+function drawSignup() {
+  $('menu').hidden = true;
+  $('view').innerHTML = '<form class="pf pad stack login" id="suF"><h1 style="font-size:26px">함께 쓰는 선생님 가입</h1>' +
+    '<p class="note" style="color:var(--ink)">모아팡을 관리하는 선생님이 \'선생님 관리\'에 내 이메일을 먼저 올려 두어야 해요. 가입하면 그 이메일로 인증 메일이 가요.</p>' +
+    '<label class="lb">이메일<input class="field" id="sem" type="email" autocomplete="username"></label>' +
+    '<label class="lb">비밀번호 (6자 넘게)<input class="field" id="spw" type="password" autocomplete="new-password"></label>' +
+    '<label class="lb">비밀번호 한 번 더<input class="field" id="spw2" type="password" autocomplete="new-password"></label>' +
+    '<p class="note" id="smsg" role="alert" style="color:#B3261E;font-weight:700"></p>' +
+    '<button class="btn blue big" type="submit">가입하기 ▶</button><button class="btn sm" type="button" id="toLogin">◀ 로그인으로</button></form>';
+  $('sem').focus();
+  $('toLogin').addEventListener('click', () => drawLogin(''));
+  $('suF').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const em = $('sem').value.trim().toLowerCase(), pw = $('spw').value;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { $('smsg').textContent = '이메일을 바르게 써 주세요.'; return; }
+    if (pw.length < 6) { $('smsg').textContent = '비밀번호는 6자 넘게 써 주세요.'; return; }
+    if (pw !== $('spw2').value) { $('smsg').textContent = '두 비밀번호가 달라요.'; return; }
+    try { const u = await teacherSignup(em, pw); try { localStorage.setItem(TEACHER_EM_KEY, em); } catch (e2) { /* 무시 */ } drawVerify(u, true); }
+    catch (err) { $('smsg').textContent = errText(err); }
+  });
+}
+function drawVerify(u, sent) {
+  $('menu').hidden = true;
+  $('view').innerHTML = '<div class="pf pad stack login"><h1 style="font-size:26px">메일 인증이 필요해요</h1>' +
+    '<p class="note" style="color:var(--ink)"><b>' + esc(u.email || '') + '</b> 메일함에 ' + (sent ? '인증 메일을 보냈어요' : '보낸 인증 메일이 있어요') + '. 메일의 링크를 누른 뒤 아래 [인증했어요]를 눌러 주세요. (안 보이면 스팸함도 봐 주세요)</p>' +
+    '<p class="note" id="vmsg" role="alert" style="color:#B3261E;font-weight:700"></p>' +
+    '<button class="btn blue big" type="button" id="vOk">인증했어요 ▶</button><button class="btn sm" type="button" id="vRe">인증 메일 다시 보내기</button><button class="btn sm" type="button" id="vOut">로그아웃</button></div>';
+  $('vOk').addEventListener('click', async () => { try { const u2 = await refreshUser(); if (u2 && u2.emailVerified) afterLogin(u2); else $('vmsg').textContent = '아직 인증이 안 됐어요. 메일의 링크를 눌러 주세요.'; } catch (err) { $('vmsg').textContent = errText(err); } });
+  $('vRe').addEventListener('click', async () => { $('vRe').disabled = true; try { await resendVerify(); $('vmsg').style.color = 'var(--ink)'; $('vmsg').textContent = '인증 메일을 다시 보냈어요.'; } catch (err) { $('vmsg').textContent = errText(err); $('vRe').disabled = false; } });
+  $('vOut').addEventListener('click', async () => { await logout(); drawLogin(''); });
+}
+function drawNotListed(u, err) {
+  $('menu').hidden = true;
+  $('view').innerHTML = '<div class="pf pad stack login"><h1 style="font-size:26px">' + (err ? '확인하지 못했어요' : '아직 등록 전이에요') + '</h1>' +
+    '<p class="note" style="color:var(--ink)">' + (err ? '인터넷 연결을 확인하고 다시 눌러 주세요.' : '<b>' + esc(u.email || '') + '</b> 계정은 아직 모아팡 선생님으로 올라가 있지 않아요. 모아팡을 관리하는 선생님께 \'선생님 관리\'에 이 이메일을 올려 달라고 부탁해 주세요.') + '</p>' +
+    '<button class="btn blue" type="button" id="nAgain">다시 확인하기</button><button class="btn sm" type="button" id="nOut">로그아웃</button></div>';
+  $('nAgain').addEventListener('click', async () => { const u2 = await refreshUser(); if (u2) afterLogin(u2); });
+  $('nOut').addEventListener('click', async () => { await logout(); drawLogin(''); });
+}
+async function afterLogin(u) {
+  $('view').innerHTML = '<p class="pf pad">확인하는 중…</p>';
+  const r = await teacherRole(u);
+  if (r === 'admin' || r === 'teacher') { role = r; start(u); }
+  else if (r === 'unverified') drawVerify(u, false);
+  else drawNotListed(u, r === 'error');
 }
 $('logout').addEventListener('click', async () => { await logout(); location.href = './'; });
 
@@ -173,8 +227,11 @@ async function classDlg(c) {
     if (isNew && classes.length >= MAX) { toast('클래스는 20개까지 만들 수 있어요.', true); return; }
     const id = c ? c.id : uid('c'), map = $('cm').value;
     try {
-      await setDoc(doc(fs, 'classes', id), { name, kind: d.kind, color: d.color, room: d.room, map, created: c ? (c.created || new Date().toISOString()) : new Date().toISOString() }, { merge: true });
-      await setDoc(doc(fs, 'rooms', d.room), { cid: id, name, color: d.color });
+      // 함께 쓰는 선생님의 반에는 주인(owner)을 적는다 (주 선생님 반은 예전 그대로 owner 없음)
+      const mine = isAdmin() ? {} : { owner: user.uid };
+      await setDoc(doc(fs, 'classes', id), Object.assign({ name, kind: d.kind, color: d.color, room: d.room, map, created: c ? (c.created || new Date().toISOString()) : new Date().toISOString() }, mine), { merge: true });
+      if (!isAdmin()) await set(ref(rt, 'owners/' + id), user.uid); // 실시간 교실(진행판)을 이 선생님만 다루게
+      await setDoc(doc(fs, 'rooms', d.room), Object.assign({ cid: id, name, color: d.color }, mine));
       if (c && c.room && c.room !== d.room) await deleteDoc(doc(fs, 'rooms', c.room));
       closeDlg(); toast(isNew ? '\'' + name + '\' 반을 만들었어요. 방번호 ' + d.room : '저장했어요.');
     } catch (err) { toast(errText(err), true); }
@@ -184,14 +241,20 @@ async function classDlg(c) {
 async function deleteClass(c) {
   try {
     toast('지우는 중…');
-    const bs = await getDocs(query(collection(fs, 'boards'), where('cid', '==', c.id)));
-    for (const b of bs.docs) { const ps = await getDocs(query(collection(fs, 'parts'), where('bid', '==', b.id))); for (const p of ps.docs) await deleteDoc(p.ref); await deleteDoc(b.ref); }
+    const own = isAdmin() ? [] : [where('owner', '==', user.uid)];
+    const bs = await getDocs(query(collection(fs, 'boards'), where('cid', '==', c.id), ...own));
+    for (const b of bs.docs) {
+      const ps = await getDocs(query(collection(fs, 'parts'), where('bid', '==', b.id), ...own)); for (const p of ps.docs) await deleteDoc(p.ref);
+      for (const sub of ['posts', 'comments']) { try { const xs = await getDocs(collection(fs, 'boards', b.id, sub)); for (const x of xs.docs) await deleteDoc(x.ref); } catch (e) { /* 없으면 넘어감 */ } }
+      await deleteDoc(b.ref);
+    }
     const ss = await getDocs(collection(fs, 'classes', c.id, 'students'));
     for (const s of ss.docs) await deleteDoc(s.ref);
     if (c.room) await deleteDoc(doc(fs, 'rooms', c.room));
     await deleteDoc(doc(fs, 'classes', c.id));
     await remove(ref(rt, 'live/' + c.id));
-    const h = home.links || []; if (h.some((l) => l.bid && bs.docs.some((b) => b.id === l.bid))) await setDoc(doc(fs, 'config', 'home'), { links: h.filter((l) => !(l.bid && bs.docs.some((b) => b.id === l.bid))) }, { merge: true });
+    if (c.owner) await remove(ref(rt, 'owners/' + c.id)).catch(() => {});
+    const h = home.links || []; if (isAdmin() && h.some((l) => l.bid && bs.docs.some((b) => b.id === l.bid))) await setDoc(doc(fs, 'config', 'home'), { links: h.filter((l) => !(l.bid && bs.docs.some((b) => b.id === l.bid))) }, { merge: true });
     toast('\'' + c.name + '\'을 지웠어요.'); location.hash = '#classes';
   } catch (err) { toast(errText(err), true); }
 }
@@ -262,7 +325,7 @@ function drawLive(cid) {
     liveOffs.push(onValue(rquery(ref(rt, base + '/chat'), limitToLast(40)), (s) => { L.chat = []; s.forEach((x) => { L.chat.push(x.val()); }); paintChat(); }));
     liveOffs.push(onValue(ref(rt, base + '/lastRun'), (s) => { const r = s.val(); if (r && r !== L.resFor && !(L.st.game && L.st.game.run)) watchResults(r); }));
     liveOffs.push(onSnapshot(collection(fs, 'classes', cid, 'students'), (s) => { L.students = s.docs.map((d) => Object.assign({ id: d.id }, d.data())); paintStudents(); }, () => {}));
-    Promise.all(['ox', 'mc'].map(async (k) => { let l = []; try { const s = await getDoc(doc(fs, 'banks', k)); l = s.exists() ? s.data().list || [] : []; } catch (e) { l = []; } L.bank[k] = l.length ? l : (k === 'ox' ? DEF_OX : DEF_MC); })).then(() => paintQuiz());
+    Promise.all(['ox', 'mc'].map(async (k) => { let l = []; try { const s = await getDoc(doc(fs, 'banks', bankId(c.owner, k))); l = s.exists() ? s.data().list || [] : []; } catch (e) { l = []; } L.bank[k] = l.length ? l : (k === 'ox' ? DEF_OX : DEF_MC); })).then(() => paintQuiz());
   }
   $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">' + esc(c.name) + ' 진행판</h1><div class="row"><span class="badge">방번호 ' + esc(c.room) + '</span><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><a class="btn sm" href="#classes">◀ 우리 반</a></div></div>' +
     '<div class="live"><div class="stack">' +
@@ -427,7 +490,34 @@ function route() {
   const h = location.hash.slice(1) || 'classes';
   document.querySelectorAll('[data-nav]').forEach((a) => a.setAttribute('aria-pressed', String(h.startsWith(a.dataset.nav))));
   if (h.startsWith('live-')) { view = 'live'; drawLive(h.slice(5)); }
-  else { stopLive(); if (h === 'home') { view = 'home'; drawHome(); } else { view = 'classes'; drawClasses(); } }
+  else { stopLive(); if (h === 'home' && isAdmin()) { view = 'home'; drawHome(); } else if (h === 'team' && isAdmin()) { view = 'team'; drawTeam(); } else { view = 'classes'; drawClasses(); } }
+}
+
+/* ---------- 선생님 관리 (주 선생님만) ---------- */
+let team = [], teamOff = null;
+function drawTeam() {
+  if (!teamOff) teamOff = onSnapshot(collection(fs, 'teachers'), (s) => { team = s.docs.map((d) => Object.assign({ id: d.id }, d.data())).sort((a, b) => (a.at || 0) - (b.at || 0)); if (view === 'team') drawTeam(); }, (err) => toast(errText(err), true));
+  $('view').innerHTML = '<div class="stack"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">선생님 관리</h1>' +
+    '<div class="pf card"><h2>함께 쓰는 선생님 · ' + team.length + '명</h2>' +
+    '<p class="note">여기에 이메일을 올리면, 그 선생님이 선생님 로그인 화면의 \'처음이에요 · 함께 쓰는 선생님 가입\'으로 직접 가입하고 메일 인증을 해요. 그 뒤로는 <b>자기가 만든 반과 그 반 학생·패들렛·문제만</b> 보여요. 서로의 반은 보이지 않아요.</p>' +
+    '<ul class="list" id="tmL">' + (team.length ? team.map((t) => '<li><b class="sp">' + esc(t.name || '') + '</b><span>' + esc(t.email || t.id) + '</span><button class="btn sm red" type="button" data-tdel="' + esc(t.id) + '">빼기</button></li>').join('') : '<li>아직 없어요.</li>') + '</ul>' +
+    '<form class="lform" id="tmF"><label class="lb">선생님 이름<input class="field" name="n" maxlength="20" placeholder="예: 박선생님"></label><label class="lb">이메일<input class="field" name="e" type="email" placeholder="가입할 때 쓸 이메일"></label><div class="wide"><button class="btn blue" type="submit">올리기 ▶</button></div></form></div>' +
+    '<p class="note pf pad" style="color:var(--ink)">무료 요금제라서 실시간 교실(가상 교실·진행판) 동시 접속 100명을 모든 선생님이 함께 써요. 두 선생님이 같은 시간에 수업하면 합쳐서 100명까지예요. 첫 화면 링크 게시판은 주 선생님만 고칠 수 있어요.</p></div>';
+  $('tmF').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const em = e.target.e.value.trim().toLowerCase(), n = e.target.n.value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { e.target.e.focus(); toast('이메일을 바르게 써 주세요.', true); return; }
+    if (em === String(user.email || '').toLowerCase()) { toast('내 계정은 올리지 않아도 돼요.', true); return; }
+    try { await setDoc(doc(fs, 'teachers', em), { email: em, name: n, at: Date.now() }); await set(ref(rt, 'teachers/' + emKey(em)), true); toast(em + ' 선생님을 올렸어요. 이제 가입할 수 있어요.'); }
+    catch (err) { toast(errText(err), true); }
+  });
+  $('tmL').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tdel]'); if (!b) return;
+    const em = b.dataset.tdel;
+    confirmDlg('선생님 빼기', em + ' 선생님이 더는 선생님 화면에 들어오지 못해요. 그 선생님이 만든 반과 기록은 지우지 않고 남겨 둬요.', '빼기', async () => {
+      try { await deleteDoc(doc(fs, 'teachers', em)); await remove(ref(rt, 'teachers/' + emKey(em))); toast('뺐어요.'); } catch (err) { toast(errText(err), true); }
+    });
+  });
 }
 addEventListener('hashchange', route);
 document.addEventListener('click', (e) => {
@@ -442,21 +532,24 @@ function start(u) {
   const next = new URLSearchParams(location.search).get('next');
   if (next && /^[a-z]+\.html$/.test(next)) { location.href = next; return; }
   $('menu').hidden = false;
-  onSnapshot(collection(fs, 'classes'), (s) => {
-    classes = s.docs.map((d) => Object.assign({ id: d.id }, d.data())).sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
+  $('navHome').hidden = !isAdmin(); $('navTeam').hidden = !isAdmin();
+  // 주 선생님: owner 없는 반(예전 반들) · 함께 쓰는 선생님: 자기 반만
+  const cq = isAdmin() ? collection(fs, 'classes') : query(collection(fs, 'classes'), where('owner', '==', u.uid));
+  onSnapshot(cq, (s) => {
+    classes = s.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((c) => isAdmin() ? !c.owner : c.owner === u.uid).sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
     watchCounts();
     if (view === 'classes') drawClasses();
     else if (view === 'live' && L) { const c = classes.find((x) => x.id === L.cid); if (!c) route(); else refreshList('clsL', c.links || [], () => (classes.find((x) => x.id === c.id) || {}).links || [], (list) => setDoc(doc(fs, 'classes', c.id), { links: list }, { merge: true })); }
     else if (!view) route();
   }, (err) => { $('view').innerHTML = '<p class="pf pad">' + esc(errText(err)) + '</p>'; });
-  onSnapshot(doc(fs, 'config', 'home'), (s) => {
+  if (isAdmin()) onSnapshot(doc(fs, 'config', 'home'), (s) => {
     home = s.exists() ? s.data() : {};
     if (view === 'home') { if ($('homeL')) refreshList('homeL', home.links || [], () => home.links || [], (list) => setDoc(doc(fs, 'config', 'home'), { links: list }, { merge: true })); else drawHome(); }
   }, () => {});
 }
 (async () => {
   const u = await whenAuth();
-  if (isTeacher(u)) start(u); else drawLogin(u && !u.isAnonymous ? '선생님 계정이 아니에요.' : '');
+  if (isTeacher(u)) afterLogin(u); else drawLogin(u && !u.isAnonymous ? '선생님 계정이 아니에요.' : '');
 })();
 </script>
 </body>
