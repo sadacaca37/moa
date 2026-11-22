@@ -205,9 +205,23 @@ if (ses) {
 
 /* ---------- QR·링크로 왔을 때 (?r=방번호) ---------- */
 const qr = new URLSearchParams(location.search).get('r');
-if (qr && /^\d{5}$/.test(qr)) {
+const qrRoom = qr && /^\d{5}$/.test(qr) ? findRoom(qr).catch((err) => { $('codeMsg').textContent = errText(err); return undefined; }) : null;
+if (qrRoom) {
   room.value = qr; codeChanged();
-  findRoom(qr).then((c) => { if (c) showName(c); else $('codeMsg').textContent = '그런 방번호가 없어요. 다시 확인해 주세요.'; }).catch((err) => { $('codeMsg').textContent = errText(err); });
+  qrRoom.then((c) => { if (c) showName(c); else if (c === null) $('codeMsg').textContent = '그런 방번호가 없어요. 다시 확인해 주세요.'; });
+}
+
+/* ---------- 이 첫 화면은 어느 선생님 것? ----------
+ * 선생님 본인(로그인) → 주소의 ?t=선생님 → QR(?r=방번호) 반의 선생님 → 들어갔던 반의 선생님 → 주 선생님('')
+ * 주 선생님 첫 화면은 config/home, 함께 쓰는 선생님은 config/home_{uid} */
+let HOME = '';
+async function homeOwner(user, r) {
+  if (r === 'teacher') return user.uid;
+  if (r === 'admin') return '';
+  const t = new URLSearchParams(location.search).get('t');
+  if (t && /^[A-Za-z0-9]{10,40}$/.test(t)) return t;
+  if (qrRoom) { const c = await qrRoom; if (c) return c.tid || ''; }
+  return (getSession() || {}).tid || '';
 }
 
 /* ---------- 첫 화면 링크 (타자팡은 왼쪽 위 타자팡 로고로 감) ---------- */
@@ -225,11 +239,13 @@ async function loadHome() {
   try {
     const user = await ensureUser();
     if (isTeacher(user)) { $('tBtn').textContent = '선생님 화면'; }
-    const s = await getDoc(doc(fs, 'config', 'home'));
+    const r = isTeacher(user) ? await teacherRole(user) : null;
+    HOME = await homeOwner(user, r);
+    const s = await getDoc(doc(fs, 'config', HOME ? 'home_' + HOME : 'home'));
     const d = s.exists() ? s.data() : {};
     const links = (d.links || []).filter((l) => !l.hide);
     $('links').innerHTML = links.map(card).join('') || '<p class="empty">아직 올린 링크가 없어요.</p>';
-    if (isTeacher(user) && (await teacherRole(user)) === 'admin') $('links').insertAdjacentHTML('afterbegin', '<a class="lk" href="teacher.html#home" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 링크 올리기</span></a>');
+    if (r === 'admin' || r === 'teacher') $('links').insertAdjacentHTML('afterbegin', '<a class="lk" href="teacher.html#home" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 링크 올리기</span></a>');
   } catch (err) {
     $('links').innerHTML = '<p class="empty">' + esc(errText(err)) + '</p>';
   }
@@ -244,7 +260,7 @@ async function loadPads() {
     const t = r === 'admin' || r === 'teacher';
     // 주 선생님: owner 없는 패들렛 · 함께 쓰는 선생님: 자기 것 · 학생: 우리 반 선생님(tid)이 보이게 한 것
     const own = r === 'teacher' ? [where('owner', '==', user.uid)] : [];
-    const mineOf = (b) => r === 'teacher' ? b.owner === user.uid : r === 'admin' ? !b.owner : (b.owner || '') === ((getSession() || {}).tid || '');
+    const mineOf = (b) => r === 'teacher' ? b.owner === user.uid : r === 'admin' ? !b.owner : (b.owner || '') === HOME;
     const bq = t ? query(collection(fs, 'boards'), ...own) : query(collection(fs, 'boards'), where('public', '==', true));
     const bs = (await getDocs(bq)).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter(mineOf)
       .sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')));

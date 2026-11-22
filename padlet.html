@@ -444,7 +444,7 @@ function drawBoard() {
     '<button class="mini" data-act="pubboard" aria-pressed="' + !!b.public + '" style="' + (b.public ? 'background:#7CFF8A' : '') + '">' + (b.public ? '✓ 학생에게 보여요' : '학생에게 보이기') + '</button>' +
     '<button class="mini" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김' : '✎ 학생 글쓰기 열림') + '</button>' +
     '<button class="mini" data-act="copyboard" style="background:#C7B2FF">다른 패들렛으로 복사</button>' +
-    (isMate() ? '' : '<button class="mini" data-act="pinhome">첫 화면 링크에 올리기</button>') + '<button class="mini" data-act="renameboard">이름 바꾸기</button><button class="mini" data-act="delboard">이 패들렛 지우기</button></div>';
+    '<button class="mini" data-act="pinhome">첫 화면 링크에 올리기</button><button class="mini" data-act="renameboard">이름 바꾸기</button><button class="mini" data-act="delboard">이 패들렛 지우기</button></div>';
   if (loading) { h += '<p class="note" style="margin:16px max(3vw,16px)">글을 불러오는 중…</p>'; $('main').className = 'wide'; $('main').innerHTML = h; return; }
   h += '<div class="cols"><div>' + (b.sections || []).map((name, i) => {
     const ps = posts.filter((p) => (p.sec || 0) === i);
@@ -657,13 +657,14 @@ async function setPublic(b, v) {
   } catch (e) { toast(S.saveErr || errText(e), true); }
 }
 async function pinHome(b) {
-  if (isMate()) { toast('첫 화면 링크 게시판은 모아팡을 관리하는 선생님만 고칠 수 있어요. \'학생에게 보이기\'를 켜면 우리 반 화면에 보여요.', true); return; }
+  // 첫 화면은 선생님마다 따로: 주 선생님 config/home · 함께 쓰는 선생님 config/home_{uid}
+  const hRef = doc(fs, 'config', isMate() ? 'home_' + S.uid : 'home');
   try {
     if (!b.public) await setPublic(b, true);
-    const s = await getDoc(doc(fs, 'config', 'home')); const d = s.exists() ? s.data() : {};
+    const s = await getDoc(hRef); const d = s.exists() ? s.data() : {};
     const links = (d.links || []).filter((l) => l.bid !== b.id);
     links.unshift({ bid: b.id, t: b.title, d: (curClass() || {}).name || '', site: '수업 보드', c: '#D7B5FF' });
-    await setDoc(doc(fs, 'config', 'home'), { links }, { merge: true });
+    await setDoc(hRef, { links }, { merge: true });
     toast('첫 화면 링크 게시판에 올렸어요.');
   } catch (e) { toast(errText(e), true); }
 }

@@ -47,8 +47,8 @@ service cloud.firestore {
     // 학생(익명 로그인)
     match /config/{d} {
       allow get: if signedIn();
-      // 함께 쓰는 선생님의 타자팡 설정 (자기 것만)
-      allow write: if tch() && (d == 'taja_' + request.auth.uid || d == 'taja_approved_' + request.auth.uid);
+      // 함께 쓰는 선생님의 첫 화면 링크(home_uid)·타자팡 설정 (자기 것만)
+      allow write: if tch() && (d == 'home_' + request.auth.uid || d == 'taja_' + request.auth.uid || d == 'taja_approved_' + request.auth.uid);
     }
     match /rooms/{code} {
       allow get: if signedIn();

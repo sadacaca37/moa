@@ -98,6 +98,9 @@ let user = null, classes = [], counts = {}, countOffs = {}, liveOffs = [], home 
 // role: 'admin' = 주 선생님(모든 것), 'teacher' = 함께 쓰는 선생님(자기 반만)
 let role = '';
 const isAdmin = () => role === 'admin';
+// 첫 화면 링크 게시판: 주 선생님은 config/home (moapang.kr), 함께 쓰는 선생님은 config/home_{uid} (moapang.kr/?t=uid)
+const homeRef = () => doc(fs, 'config', isAdmin() ? 'home' : 'home_' + user.uid);
+const homeUrl = () => isAdmin() ? SITE : SITE + '?t=' + user.uid;
 
 /* ---------- 창 ---------- */
 let lastFocus = null;
@@ -254,9 +257,18 @@ async function deleteClass(c) {
     await deleteDoc(doc(fs, 'classes', c.id));
     await remove(ref(rt, 'live/' + c.id));
     if (c.owner) await remove(ref(rt, 'owners/' + c.id)).catch(() => {});
-    const h = home.links || []; if (isAdmin() && h.some((l) => l.bid && bs.docs.some((b) => b.id === l.bid))) await setDoc(doc(fs, 'config', 'home'), { links: h.filter((l) => !(l.bid && bs.docs.some((b) => b.id === l.bid))) }, { merge: true });
+    const h = home.links || []; if (h.some((l) => l.bid && bs.docs.some((b) => b.id === l.bid))) await setDoc(homeRef(), { links: h.filter((l) => !(l.bid && bs.docs.some((b) => b.id === l.bid))) }, { merge: true });
     toast('\'' + c.name + '\'을 지웠어요.'); location.hash = '#classes';
   } catch (err) { toast(errText(err), true); }
+}
+function homeQrDlg() {
+  const url = homeUrl();
+  let svg = '';
+  try { const q = window.qrcode(0, 'M'); q.addData(url); q.make(); svg = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true }); } catch (e) { svg = '<p class="note">QR을 만들지 못했어요. 링크를 써 주세요.</p>'; }
+  openDlg(dlgTop('우리 첫 화면') + '<div class="qr">' + svg + '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(url) + '</a><p class="note">QR을 찍거나 링크를 누르면 우리 첫 화면이 열려요.</p></div>' +
+    '<div class="row" style="justify-content:center"><button class="btn blue" type="button" id="copyH">링크 복사</button><button class="btn" type="button" id="printH">인쇄하기</button></div>', '#copyH');
+  $('copyH').addEventListener('click', async () => { try { await navigator.clipboard.writeText(url); toast('링크를 복사했어요.'); } catch (e) { toast('복사하지 못했어요. 링크를 길게 눌러 복사해 주세요.', true); } });
+  $('printH').addEventListener('click', () => print());
 }
 function qrDlg(c) {
   const url = SITE + '?r=' + c.room;
@@ -305,9 +317,12 @@ function bindForm(id, getList, saveList) {
 /* ---------- 첫 화면 꾸미기 ---------- */
 function drawHome() {
   $('view').innerHTML = '<div class="stack"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">첫 화면 꾸미기</h1>' +
+    '<div class="pf card"><h2>우리 첫 화면 주소</h2><p class="note">학생이 이 주소로 들어오면 아래 링크 게시판과 내 패들렛(학생에게 보이기로 한 것)이 보여요. 반 QR·링크로 들어온 학생과, 우리 반에 한 번 들어온 학생도 이 첫 화면을 봐요.' + (isAdmin() ? ' 주소 없이 moapang.kr 로 처음 들어온 사람도 이 첫 화면을 봐요.' : ' 다른 선생님의 첫 화면과는 따로예요.') + '</p>' +
+      '<p style="margin:0;font-weight:700;word-break:break-all"><a href="' + esc(homeUrl()) + '" target="_blank" rel="noopener">' + esc(homeUrl()) + '</a></p><div class="row"><button class="btn blue sm" type="button" id="homeQr">QR·링크 복사</button></div></div>' +
     '<div class="pf card"><h2>타자팡</h2><p class="note">타자팡은 이제 모아팡 안에 있어요. 학생은 첫 화면 START를 누르면 같은 방번호·이름으로 저절로 들어가고, 기록은 모아팡과 같은 곳에 저장돼요.</p><div><a class="btn blue" href="taja/" target="_blank" rel="noopener">타자팡 열기 ▶</a></div></div>' +
     '<div class="pf card"><h2>첫 화면 링크 게시판</h2><p class="note">누구나 보는 링크예요. 수업 보드는 내 패들렛에서 \'첫 화면 링크에 올리기\'를 누르면 여기에 생겨요.</p>' + linksHTML(home.links || [], 'homeL') + '</div></div>';
-  bindLinks('homeL', () => home.links || [], (list) => setDoc(doc(fs, 'config', 'home'), { links: list }, { merge: true }));
+  bindLinks('homeL', () => home.links || [], (list) => setDoc(homeRef(), { links: list }, { merge: true }));
+  $('homeQr').addEventListener('click', () => homeQrDlg());
 }
 
 /* ---------- 진행판 ---------- */
@@ -490,7 +505,7 @@ function route() {
   const h = location.hash.slice(1) || 'classes';
   document.querySelectorAll('[data-nav]').forEach((a) => a.setAttribute('aria-pressed', String(h.startsWith(a.dataset.nav))));
   if (h.startsWith('live-')) { view = 'live'; drawLive(h.slice(5)); }
-  else { stopLive(); if (h === 'home' && isAdmin()) { view = 'home'; drawHome(); } else if (h === 'team' && isAdmin()) { view = 'team'; drawTeam(); } else { view = 'classes'; drawClasses(); } }
+  else { stopLive(); if (h === 'home') { view = 'home'; drawHome(); } else if (h === 'team' && isAdmin()) { view = 'team'; drawTeam(); } else { view = 'classes'; drawClasses(); } }
 }
 
 /* ---------- 선생님 관리 (주 선생님만) ---------- */
@@ -502,7 +517,7 @@ function drawTeam() {
     '<p class="note">여기에 이메일을 올리면, 그 선생님이 선생님 로그인 화면의 \'처음이에요 · 함께 쓰는 선생님 가입\'으로 직접 가입하고 메일 인증을 해요. 그 뒤로는 <b>자기가 만든 반과 그 반 학생·패들렛·문제만</b> 보여요. 서로의 반은 보이지 않아요.</p>' +
     '<ul class="list" id="tmL">' + (team.length ? team.map((t) => '<li><b class="sp">' + esc(t.name || '') + '</b><span>' + esc(t.email || t.id) + '</span><button class="btn sm red" type="button" data-tdel="' + esc(t.id) + '">빼기</button></li>').join('') : '<li>아직 없어요.</li>') + '</ul>' +
     '<form class="lform" id="tmF"><label class="lb">선생님 이름<input class="field" name="n" maxlength="20" placeholder="예: 박선생님"></label><label class="lb">이메일<input class="field" name="e" type="email" placeholder="가입할 때 쓸 이메일"></label><div class="wide"><button class="btn blue" type="submit">올리기 ▶</button></div></form></div>' +
-    '<p class="note pf pad" style="color:var(--ink)">무료 요금제라서 실시간 교실(가상 교실·진행판) 동시 접속 100명을 모든 선생님이 함께 써요. 두 선생님이 같은 시간에 수업하면 합쳐서 100명까지예요. 첫 화면 링크 게시판은 주 선생님만 고칠 수 있어요.</p></div>';
+    '<p class="note pf pad" style="color:var(--ink)">무료 요금제라서 실시간 교실(가상 교실·진행판) 동시 접속 100명을 모든 선생님이 함께 써요. 두 선생님이 같은 시간에 수업하면 합쳐서 100명까지예요. 첫 화면은 선생님마다 따로예요. 함께 쓰는 선생님은 자기 첫 화면 주소(moapang.kr/?t=…)를 학생에게 알려 주면 되고, 그 선생님 반 QR로 들어온 학생도 그 선생님 첫 화면을 봐요.</p></div>';
   $('tmF').addEventListener('submit', async (e) => {
     e.preventDefault();
     const em = e.target.e.value.trim().toLowerCase(), n = e.target.n.value.trim();
@@ -532,7 +547,7 @@ function start(u) {
   const next = new URLSearchParams(location.search).get('next');
   if (next && /^[a-z]+\.html$/.test(next)) { location.href = next; return; }
   $('menu').hidden = false;
-  $('navHome').hidden = !isAdmin(); $('navTeam').hidden = !isAdmin();
+  $('navTeam').hidden = !isAdmin();
   // 주 선생님: owner 없는 반(예전 반들) · 함께 쓰는 선생님: 자기 반만
   const cq = isAdmin() ? collection(fs, 'classes') : query(collection(fs, 'classes'), where('owner', '==', u.uid));
   onSnapshot(cq, (s) => {
@@ -542,9 +557,9 @@ function start(u) {
     else if (view === 'live' && L) { const c = classes.find((x) => x.id === L.cid); if (!c) route(); else refreshList('clsL', c.links || [], () => (classes.find((x) => x.id === c.id) || {}).links || [], (list) => setDoc(doc(fs, 'classes', c.id), { links: list }, { merge: true })); }
     else if (!view) route();
   }, (err) => { $('view').innerHTML = '<p class="pf pad">' + esc(errText(err)) + '</p>'; });
-  if (isAdmin()) onSnapshot(doc(fs, 'config', 'home'), (s) => {
+  onSnapshot(homeRef(), (s) => {
     home = s.exists() ? s.data() : {};
-    if (view === 'home') { if ($('homeL')) refreshList('homeL', home.links || [], () => home.links || [], (list) => setDoc(doc(fs, 'config', 'home'), { links: list }, { merge: true })); else drawHome(); }
+    if (view === 'home') { if ($('homeL')) refreshList('homeL', home.links || [], () => home.links || [], (list) => setDoc(homeRef(), { links: list }, { merge: true })); else drawHome(); }
   }, () => {});
 }
 (async () => {
