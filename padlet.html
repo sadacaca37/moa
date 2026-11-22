@@ -127,6 +127,7 @@ main.wide{max-width:none;padding-inline:0}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 footer{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 12px;padding:10px max(3vw,16px) 16px;font-size:13px;font-weight:700;color:#fff;text-shadow:2px 2px 0 var(--ink)}
 footer a{color:#fff}
+footer .studio{letter-spacing:.08em}
 @media (max-width:600px){header{position:static}.find{margin-left:0;width:100%}.find input{flex:1;width:auto}.htxt{min-width:100%}.sec{width:82vw}}
 @media (prefers-reduced-motion:reduce){.moa{animation:none}.card:hover{transform:none}}
 </style>
@@ -136,7 +137,7 @@ footer a{color:#fff}
 <main id="main"><p class="note">불러오는 중…</p></main>
 <div id="dlg"></div>
 <input type="file" id="fileIn" accept=".csv,.xlsx,.xls,text/csv" hidden>
-<footer><span>제작자 김은경</span><a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a></footer>
+<footer><span class="studio">© 2026 MOAPANG STUDIO</span><span>Created by Eunkyung Kim</span><a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a></footer>
 <script type="module">
 import { fs, auth, whenAuth, isTeacher, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, getDocs, serverTimestamp } from './js/fb.js';
 {
