@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="css/moa.css">
 <style>
 /* VOICE: 아이들이 매 시간 처음 보는 문 — 방번호만 누르면 바로 들어가는 게임 시작 화면
-   LAYOUT: 왼쪽 위 '타자팡 ✦ 모아팡' 로고(타자팡 화면과 같음), 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 링크 게시판, 오른쪽 아래 제작자 */
+   LAYOUT: 왼쪽 위 '타자팡 ✦ 모아팡' 로고(타자팡 화면과 같음), 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 링크 게시판 + 그 아래 내 패들렛 바로가기, 오른쪽 아래 제작자 */
 @font-face{font-family:'Galmuri11';src:url(assets/fonts/Galmuri11-Bold.woff2) format('woff2');font-weight:400 700;font-display:swap}
 body{background:#1897FA url(assets/bg-low.webp) center top/cover no-repeat fixed}
 .dot,.dot *,.dot #room,.dot #nm{font-family:'Galmuri11','Noto Sans KR',monospace!important;font-weight:700!important}
@@ -109,6 +109,10 @@ footer a{color:#fff}
       <div class="bhead"><h2 id="linksH">링크 게시판</h2><span class="note">수업 보드는 바로 넘어가고, 다른 사이트는 새 창으로 열려요</span></div>
       <div class="cards" id="links"><p class="empty">링크를 불러오는 중…</p></div>
     </div>
+    <div class="pf pad board stack">
+      <div class="bhead"><h2 id="padsH">내 패들렛</h2><span class="note">누르면 패들렛이 열려요 · 친구들과 글·사진·댓글을 함께 올려요</span></div>
+      <div class="cards" id="pads"><p class="empty">패들렛을 불러오는 중…</p></div>
+    </div>
   </section>
 </main>
 
@@ -118,7 +122,7 @@ footer a{color:#fff}
 
 <script src="js/avatar.js"></script>
 <script type="module">
-import { fs, rt, auth, ensureUser, whenAuth, isTeacher, doc, getDoc, setDoc, serverTimestamp, ref, rget, nameKey, cleanName, getSession, setSession, esc, safeUrl, hostOf, errText } from './js/fb.js';
+import { fs, rt, auth, ensureUser, whenAuth, isTeacher, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, ref, rget, nameKey, cleanName, getSession, setSession, esc, safeUrl, hostOf, errText } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
 let cls = null; // {cid, room, name, color}
@@ -227,8 +231,35 @@ async function loadHome() {
   } catch (err) {
     $('links').innerHTML = '<p class="empty">' + esc(errText(err)) + '</p>';
   }
+  loadPads();
 }
 loadHome();
+
+/* ---------- 내 패들렛 바로가기 (학생에게 보이기로 한 패들렛 · 선생님은 모두) ---------- */
+async function loadPads() {
+  try {
+    const user = await ensureUser(), t = isTeacher(user);
+    const bq = t ? collection(fs, 'boards') : query(collection(fs, 'boards'), where('public', '==', true));
+    const bs = (await getDocs(bq)).docs.map((d) => Object.assign({ id: d.id }, d.data()))
+      .sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')));
+    // 반 이름·색 (학생은 반 문서를 하나씩 읽을 수 있음)
+    const cls = new Map();
+    if (t) (await getDocs(collection(fs, 'classes'))).docs.forEach((d) => cls.set(d.id, d.data()));
+    else await Promise.all([...new Set(bs.map((b) => b.cid).filter(Boolean))].map(async (cid) => { try { const s = await getDoc(doc(fs, 'classes', cid)); if (s.exists()) cls.set(cid, s.data()); } catch (e) { /* 무시 */ } }));
+    const cards = bs.map((b, i) => {
+      const c = cls.get(b.cid) || {};
+      const state = !b.public ? '학생에게 안 보여요 (선생님만)' : b.lock ? '읽기만 해요' : '글·사진·댓글 함께 쓰기';
+      return '<a class="lk" href="board.html?b=' + encodeURIComponent(b.id) + '">' +
+        '<span class="band" style="background:' + esc(c.color || COLORS[i % COLORS.length]) + '"><b>' + esc(c.name || '패들렛') + '</b></span>' +
+        '<span class="body"><span class="t">' + esc(b.title || '패들렛') + '</span><span class="d">' + esc(state) + '</span>' +
+        '<span class="h"><span>' + esc(b.date || '') + '</span><span>열기 ▶</span></span></span></a>';
+    }).join('');
+    const manage = t ? '<a class="lk" href="padlet.html" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 내 패들렛 관리</span></a>' : '';
+    $('pads').innerHTML = manage + cards || '<p class="empty">아직 열린 패들렛이 없어요.</p>';
+  } catch (err) {
+    $('pads').innerHTML = '<p class="empty">' + esc(errText(err)) + '</p>';
+  }
+}
 
 /* ---------- 땅 위를 걷는 친구들 (공룡 옷 아이 · 분홍 머리 아이 · 갈색 옷 아이, 걷는 그림 30장) ---------- */
 (() => {

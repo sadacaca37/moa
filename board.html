@@ -3,67 +3,298 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>수업 보드 · 모아팡</title>
+<title>패들렛 · 모아팡</title>
 <link rel="icon" href="assets/moa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/moa.css">
 <style>
-/* VOICE: 선생님이 정리한 수업 보드를 학생이 읽는 화면 — 패들렛처럼 칸이 가로로 늘어선다 */
+/* VOICE: 선생님이 만든 패들렛에 반 친구들이 함께 글·사진·댓글을 올리는 화면 — 칸이 가로로 늘어선다
+   LAYOUT: 위 제목 띠(+ 글 쓰기), 가로로 늘어선 칸, 칸마다 글 카드와 댓글 */
 .head{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px clamp(12px,3vw,24px)}
-.head h1{font-size:28px;color:#fff;text-shadow:3px 3px 0 var(--ink)}
+.head h1{font-size:28px;color:#fff;text-shadow:3px 3px 0 var(--ink);overflow-wrap:anywhere}
 .head small{display:block;color:#fff;font-weight:700;text-shadow:2px 2px 0 var(--ink)}
+.head .ttl{flex:1;min-width:200px}
+.head .acts{display:flex;flex-wrap:wrap;gap:8px}
+.lockbar{margin:0 clamp(12px,3vw,24px);padding:8px 12px;background:#fff;border:3px solid var(--ink);font-size:14px;font-weight:700;display:inline-block}
 .cols{overflow-x:auto;padding:8px clamp(12px,3vw,24px) 90px}
 .cols>div{display:flex;gap:16px;align-items:flex-start;width:max-content}
 .sec{width:300px;flex:none;display:flex;flex-direction:column;gap:12px}
 .sech{margin:0;padding:10px 14px;font:400 20px/1.3 'Jua',sans-serif;display:flex;justify-content:space-between;gap:8px}
+.sech span{overflow-wrap:anywhere}
 .post{background:#fff;border:4px solid var(--ink);box-shadow:4px 4px 0 var(--ink);display:flex;flex-direction:column}
-.pin{padding:10px 12px 10px;display:flex;flex-direction:column;gap:6px}
+.post.mine{box-shadow:4px 4px 0 var(--blue)}
+.pic{display:block;width:100%;padding:0;border:0;border-bottom:4px solid var(--ink);background:#F4F0E4;cursor:zoom-in}
+.pic img{display:block;width:100%;max-height:340px;object-fit:cover}
+.pin{padding:10px 12px 8px;display:flex;flex-direction:column;gap:6px}
 .pin h3{margin:0;font:700 16px/1.4 'Noto Sans KR',sans-serif;overflow-wrap:anywhere}
 .pin p{margin:0;font-size:14px;line-height:1.6;color:#333A55;white-space:pre-line;overflow-wrap:anywhere}
 .lnk{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 10px;background:#EAF3FF;border:3px solid var(--ink);text-decoration:none;font-size:13px;font-weight:700;overflow-wrap:anywhere}
-.by{font-size:12px;color:var(--sub);padding:0 12px 10px;font-weight:700}
-@media (max-width:600px){.sec{width:82vw}}
+.by{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 6px 6px 12px;font-size:12px;color:var(--sub);flex-wrap:wrap}
+.by b{color:var(--ink)}
+.tiny{min-height:36px;padding:0 6px;border:0;background:transparent;font:700 12px 'Noto Sans KR',sans-serif;color:var(--sub);cursor:pointer;text-decoration:underline}
+.cm{border-top:3px dashed #D9D2BE;padding:8px 10px 10px;display:flex;flex-direction:column;gap:6px;background:#FFFCF3}
+.cm ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.cm li{font-size:13px;line-height:1.5;overflow-wrap:anywhere;display:flex;gap:6px;align-items:flex-start}
+.cm li b{flex:none;font-weight:700}
+.cm li span{flex:1}
+.cm li .tiny{min-height:24px;padding:0 2px}
+.cm form{display:flex;gap:6px}
+.cm input{flex:1;min-height:38px;border:3px solid var(--ink);padding:4px 8px;font:500 14px 'Noto Sans KR',sans-serif}
+.cm button.go{min-height:38px;padding:0 10px;border:3px solid var(--ink);background:var(--blue);color:#fff;font:400 15px 'Jua',sans-serif;cursor:pointer}
+.cm .old{font-size:12px;color:var(--sub)}
+.addpost{min-height:48px;border:3px dashed var(--ink);background:rgba(255,255,255,.86);font-size:16px;cursor:pointer}
+.dlg{display:flex;flex-direction:column;gap:10px;padding:20px}
+.dlg .tp{display:flex;align-items:center;gap:10px}
+.dlg h2{font-size:24px;flex:1}
+.prev{display:flex;align-items:center;gap:10px}
+.prev img{max-width:140px;max-height:110px;border:3px solid var(--ink)}
+.big{max-width:min(96vw,1100px)!important;background:#fff;padding:10px}
+.big img{display:block;width:100%;max-height:82vh;object-fit:contain}
+.msg{margin:0;font-size:14px;font-weight:700;color:#B3261E}
+.msg:empty{display:none}
+@media (max-width:600px){.sec{width:82vw}.head h1{font-size:23px}}
 </style>
 </head>
 <body>
 <div class="head">
   <a class="logo" href="./" aria-label="모아팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i></a>
   <button class="btn sm" type="button" id="back">◀ 돌아가기</button>
-  <div><small id="sub">수업 보드</small><h1 id="title">불러오는 중…</h1></div>
+  <div class="ttl"><small id="sub">패들렛</small><h1 id="title">불러오는 중…</h1></div>
+  <div class="acts">
+    <button class="btn sm" type="button" id="lockBtn" hidden></button>
+    <button class="btn blue" type="button" id="writeBtn" hidden>+ 글 쓰기</button>
+  </div>
 </div>
+<p class="lockbar" id="lockbar" hidden></p>
 <div class="cols" id="cols"></div>
+<div id="dlg"></div>
+<input type="file" id="picIn" accept="image/*" hidden>
 <div class="ground" aria-hidden="true"></div>
 <script type="module">
-import { fs, ensureUser, isTeacher, doc, getDoc, collection, query, where, getDocs, esc, safeUrl, hostOf, errText, getSession } from './js/fb.js';
+import { fs, ensureUser, isTeacher, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, esc, safeUrl, hostOf, errText, getSession, toast } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const SEC = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
+const NAME_KEY = 'moa_board_name';
 $('back').addEventListener('click', () => { if (history.length > 1 && document.referrer) history.back(); else location.href = getSession() ? 'class.html' : './'; });
 const bid = new URLSearchParams(location.search).get('b');
-function fail(m) { $('title').textContent = '보드를 열 수 없어요'; $('cols').innerHTML = '<p class="empty pf" style="max-width:520px">' + esc(m) + '</p>'; }
+const S = { user: null, teacher: false, board: null, parts: [], live: [], cmts: [], liveErr: false, open: new Set(), pic: '', sec: 0, busy: false };
+function fail(m) { $('title').textContent = '패들렛을 열 수 없어요'; $('cols').innerHTML = '<p class="empty pf" style="max-width:520px">' + esc(m) + '</p>'; }
+
+/* ---------- 이름 ---------- */
+function myName() {
+  if (S.teacher) return '선생님';
+  const s = getSession(); if (s && s.name) return s.name;
+  try { return localStorage.getItem(NAME_KEY) || ''; } catch (e) { return ''; }
+}
+function keepName(n) { try { localStorage.setItem(NAME_KEY, n); } catch (e) { /* 무시 */ } }
+const cleanTxt = (s, n) => String(s || '').normalize('NFC').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, n);
+
+/* ---------- 쓸 수 있는지 ---------- */
+const canWrite = () => !!S.board && (S.teacher || (S.board.public === true && S.board.lock !== true));
+const ms = (t) => (t && typeof t.toMillis === 'function' ? t.toMillis() : typeof t === 'number' ? t : 0);
+function when(t) {
+  const v = ms(t); if (!v) return '방금';
+  const d = new Date(v), now = Date.now();
+  if (now - v < 60000) return '방금';
+  if (now - v < 3600000) return Math.floor((now - v) / 60000) + '분 전';
+  return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+/* ---------- 그리기 ---------- */
+function draw() {
+  const b = S.board; if (!b) return;
+  $('title').textContent = b.title || '패들렛'; document.title = (b.title || '패들렛') + ' · 모아팡';
+  const oldPosts = []; S.parts.slice().sort((a, c) => a.n - c.n).forEach((p) => (p.posts || []).forEach((x) => oldPosts.push(Object.assign({ kind: 'old' }, x))));
+  const live = S.live.slice().sort((a, c) => ms(a.at) - ms(c.at)).map((x) => Object.assign({ kind: 'live' }, x));
+  const all = oldPosts.concat(live);
+  $('sub').textContent = (b.date ? b.date + ' · ' : '') + '글 ' + all.length + '개 · 댓글 ' + S.cmts.length + '개';
+  const w = canWrite();
+  $('writeBtn').hidden = !w;
+  $('lockBtn').hidden = !S.teacher;
+  $('lockBtn').textContent = b.lock ? '🔒 글쓰기 잠김 (누르면 열기)' : '글쓰기 잠그기';
+  $('lockbar').hidden = w && !S.liveErr;
+  $('lockbar').textContent = S.liveErr ? '친구들 글은 아직 불러올 수 없어요. 선생님이 준비하면 보여요.' : !b.public ? '학생에게 아직 안 보이는 패들렛이에요. (선생님만 보여요)' : '선생님이 글쓰기를 잠갔어요. 읽기만 할 수 있어요.';
+  if (S.teacher && !b.public) $('lockbar').hidden = false;
+  const byPid = new Map(); S.cmts.slice().sort((a, c) => ms(a.at) - ms(c.at)).forEach((c) => { if (!byPid.has(c.pid)) byPid.set(c.pid, []); byPid.get(c.pid).push(c); });
+  const keepFocus = document.activeElement && document.activeElement.dataset && document.activeElement.dataset.cin;
+  const keepVals = {}; document.querySelectorAll('[data-cin]').forEach((i) => { if (i.value) keepVals[i.dataset.cin] = i.value; });
+  const sx = $('cols').scrollLeft;
+  $('cols').innerHTML = '<div>' + (b.sections || ['글 모음']).map((name, i) => {
+    const list = all.filter((p) => (p.sec || 0) === i);
+    return '<section class="sec"><h2 class="sech pf" style="background:' + SEC[i % SEC.length] + '"><span>' + esc(name) + '</span><span>' + list.length + '</span></h2>' +
+      list.map((p) => postHTML(p, byPid.get(p.id) || [], w)).join('') +
+      (w ? '<button class="addpost hd" type="button" data-act="write" data-s="' + i + '">+ 이 칸에 글 쓰기</button>' : '') + '</section>';
+  }).join('') + '</div>';
+  $('cols').scrollLeft = sx;
+  Object.keys(keepVals).forEach((k) => { const i = document.querySelector('[data-cin="' + k + '"]'); if (i) i.value = keepVals[k]; });
+  if (keepFocus) { const i = document.querySelector('[data-cin="' + keepFocus + '"]'); if (i) i.focus(); }
+}
+function postHTML(p, cs, w) {
+  const link = safeUrl(p.link), video = /youtube\.com|youtu\.be/i.test(link);
+  const mine = p.kind === 'live' && S.user && p.uid === S.user.uid;
+  const canDel = p.kind === 'live' && (mine || S.teacher);
+  const img = p.kind === 'live' && /^data:image\/(jpeg|png|webp);base64,/.test(p.img || '') ? p.img : '';
+  const opened = S.open.has(p.id), shown = opened ? cs : cs.slice(-2);
+  let h = '<article class="post' + (mine ? ' mine' : '') + '">';
+  if (img) h += '<button type="button" class="pic" data-act="big" data-id="' + esc(p.id) + '" aria-label="사진 크게 보기"><img src="' + img + '" alt="' + esc(p.title || (p.author || '') + '의 사진') + '" loading="lazy"></button>';
+  h += '<div class="pin">' + (p.title ? '<h3>' + esc(p.title) + '</h3>' : '') + (p.body ? '<p>' + esc(p.body) + '</p>' : '') +
+    (link ? '<a class="lnk" href="' + esc(link) + '" target="_blank" rel="noopener">' + (video ? '▶ 영상 · ' : '🔗 ') + esc(hostOf(link) || link) + '</a>' : '') + '</div>';
+  h += '<div class="by"><span><b>' + esc(p.author || '선생님') + '</b>' + (p.kind === 'live' ? ' · ' + when(p.at) : '') + '</span>' + (canDel ? '<button class="tiny" type="button" data-act="delpost" data-id="' + esc(p.id) + '">지우기</button>' : '') + '</div>';
+  h += '<div class="cm">';
+  if (p.kind === 'old' && p.comments) h += '<span class="old">패들렛에 있던 댓글 ' + p.comments + '개</span>';
+  if (cs.length > shown.length) h += '<button class="tiny" type="button" data-act="more" data-id="' + esc(p.id) + '" style="align-self:flex-start">댓글 ' + cs.length + '개 모두 보기</button>';
+  if (shown.length) h += '<ul>' + shown.map((c) => '<li><b>' + esc(c.author) + '</b><span>' + esc(c.body) + '</span>' + ((S.user && c.uid === S.user.uid) || S.teacher ? '<button class="tiny" type="button" data-act="delcm" data-id="' + esc(c.id) + '" aria-label="댓글 지우기">✕</button>' : '') + '</li>').join('') + '</ul>';
+  if (w) h += '<form data-cform="' + esc(p.id) + '"><input data-cin="' + esc(p.id) + '" maxlength="300" autocomplete="off" placeholder="댓글 달기…" aria-label="댓글 쓰기"><button class="go" type="submit">올리기</button></form>';
+  h += '</div></article>';
+  return h;
+}
+
+/* ---------- 창 ---------- */
+let lastFocus = null;
+function openDlg(html, cls, focusSel) {
+  lastFocus = document.activeElement;
+  $('dlg').innerHTML = '<div class="modal" data-act="ovclose"><div class="pf ' + (cls || '') + '" role="dialog" aria-modal="true" aria-labelledby="dlgt">' + html + '</div></div>';
+  const f = $('dlg').querySelector(focusSel || 'input,select,textarea,button'); if (f) f.focus();
+}
+function closeDlg() { $('dlg').innerHTML = ''; S.pic = ''; if (lastFocus && document.contains(lastFocus)) lastFocus.focus(); }
+function writeDlg(si) {
+  const b = S.board; S.pic = ''; S.sec = si;
+  const nm = myName();
+  openDlg('<form class="dlg" id="wf" novalidate><div class="tp"><h2 id="dlgt">글 쓰기</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div>' +
+    '<label class="lb">올릴 칸<select id="ws" class="field">' + (b.sections || ['글 모음']).map((n, i) => '<option value="' + i + '"' + (i === si ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>' +
+    '<label class="lb">제목<input id="wt" class="field" maxlength="80" autocomplete="off"></label>' +
+    '<label class="lb">내용<textarea id="wb" class="field" rows="4" maxlength="2000"></textarea></label>' +
+    '<div class="lb">사진 (있으면)<div class="prev"><button type="button" class="btn sm" data-act="pickpic">📷 사진 고르기</button><span id="pv" class="note">사진은 작게 줄여서 올라가요.</span></div></div>' +
+    '<label class="lb">링크 (있으면)<input id="wl" class="field" type="url" maxlength="500" autocomplete="off" placeholder="https://"></label>' +
+    (S.teacher ? '' : '<label class="lb">내 이름<input id="wn" class="field" maxlength="10" autocomplete="off" value="' + esc(nm) + '" placeholder="이름을 써 주세요"></label>') +
+    '<p class="msg" id="wm" role="alert"></p><div class="row"><button type="submit" class="btn blue" id="wgo">올리기 ▶</button></div></form>', 'dlgbox', '#wt');
+}
+
+/* ---------- 사진 줄이기 (긴 쪽 1280px, JPEG, 약 250KB 아래) ---------- */
+function loadImg(file) {
+  return new Promise((ok, no) => {
+    const url = URL.createObjectURL(file), im = new Image();
+    im.onload = () => { URL.revokeObjectURL(url); ok(im); };
+    im.onerror = () => { URL.revokeObjectURL(url); no(new Error('img')); };
+    im.src = url;
+  });
+}
+async function shrink(file) {
+  const im = await loadImg(file);
+  let side = 1280, q = 0.82, out = '';
+  for (let k = 0; k < 8; k++) {
+    const r = Math.min(1, side / Math.max(im.naturalWidth, im.naturalHeight));
+    const w = Math.max(1, Math.round(im.naturalWidth * r)), h = Math.max(1, Math.round(im.naturalHeight * r));
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h); cx.drawImage(im, 0, 0, w, h);
+    out = cv.toDataURL('image/jpeg', q);
+    if (out.length <= 340000) return out;
+    if (q > 0.6) q -= 0.1; else side = Math.round(side * 0.8);
+  }
+  return out.length <= 700000 ? out : '';
+}
+
+/* ---------- 올리기 · 지우기 ---------- */
+async function sendPost() {
+  if (S.busy) return;
+  const si = +$('ws').value || 0, title = cleanTxt($('wt').value, 80), body = cleanTxt($('wb').value, 2000);
+  let link = cleanTxt($('wl').value, 500);
+  if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
+  const author = S.teacher ? '선생님' : cleanTxt($('wn').value, 10);
+  if (!S.teacher && !author) { $('wm').textContent = '이름을 써 주세요.'; $('wn').focus(); return; }
+  if (!title && !body && !link && !S.pic) { $('wm').textContent = '제목이나 내용, 사진 중 하나는 있어야 해요.'; $('wt').focus(); return; }
+  S.busy = true; $('wgo').disabled = true; $('wgo').textContent = '올리는 중…';
+  try {
+    await setDoc(doc(collection(fs, 'boards', bid, 'posts')), { sec: si, title, body, link, img: S.pic || '', author, uid: S.user.uid, at: serverTimestamp() });
+    if (!S.teacher) keepName(author);
+    closeDlg(); toast('글을 올렸어요!');
+  } catch (err) {
+    $('wm').textContent = /permission/i.test(err.code || '') ? '지금은 글을 올릴 수 없어요. 선생님이 글쓰기를 잠갔거나 아직 준비 중이에요.' : errText(err);
+    $('wgo').disabled = false; $('wgo').textContent = '올리기 ▶';
+  } finally { S.busy = false; }
+}
+async function sendComment(pid, input) {
+  const body = cleanTxt(input.value, 300); if (!body) return;
+  let author = myName();
+  if (!author) {
+    author = cleanTxt(prompt('댓글에 쓸 내 이름을 써 주세요') || '', 10);
+    if (!author) return; keepName(author);
+  }
+  // 화면이 다시 그려져도 글자가 남지 않게 먼저 비움 (안 되면 되돌림)
+  input.value = ''; input.disabled = true;
+  const cur = () => document.querySelector('[data-cin="' + CSS.escape(pid) + '"]');
+  try { await setDoc(doc(collection(fs, 'boards', bid, 'comments')), { pid, body, author, uid: S.user.uid, at: serverTimestamp() }); S.open.add(pid); }
+  catch (err) { const i = cur(); if (i) i.value = body; toast(/permission/i.test(err.code || '') ? '지금은 댓글을 달 수 없어요.' : errText(err), true); }
+  finally { input.disabled = false; const i = cur(); if (i) { i.disabled = false; i.focus(); } }
+}
+async function delPost(id) {
+  const p = S.live.find((x) => x.id === id); if (!p) return;
+  if (!confirm('이 글을 지울까요? 지운 글은 되돌릴 수 없어요.')) return;
+  try {
+    await deleteDoc(doc(fs, 'boards', bid, 'posts', id));
+    for (const c of S.cmts.filter((x) => x.pid === id && (S.teacher || x.uid === S.user.uid))) { try { await deleteDoc(doc(fs, 'boards', bid, 'comments', c.id)); } catch (e) { /* 무시 */ } }
+    toast('글을 지웠어요.');
+  } catch (err) { toast(errText(err), true); }
+}
+async function delComment(id) {
+  if (!confirm('이 댓글을 지울까요?')) return;
+  try { await deleteDoc(doc(fs, 'boards', bid, 'comments', id)); } catch (err) { toast(errText(err), true); }
+}
+
+/* ---------- 누르기 ---------- */
+document.addEventListener('click', async (e) => {
+  const t = e.target.closest('[data-act]'); if (!t) return;
+  const a = t.dataset.act, id = t.dataset.id;
+  if (a === 'ovclose') { if (e.target === t) closeDlg(); return; }
+  if (a === 'close') closeDlg();
+  else if (a === 'write') { if (canWrite()) writeDlg(+t.dataset.s || 0); }
+  else if (a === 'pickpic') $('picIn').click();
+  else if (a === 'delpost') delPost(id);
+  else if (a === 'delcm') delComment(id);
+  else if (a === 'more') { S.open.add(id); draw(); }
+  else if (a === 'big') { const p = S.live.find((x) => x.id === id); if (p && p.img) openDlg('<div class="tp" style="display:flex;justify-content:flex-end;margin-bottom:8px"><h2 id="dlgt" class="sr">사진 크게 보기</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div><img src="' + p.img + '" alt="' + esc(p.title || '사진') + '">', 'big', '[data-act=close]'); }
+});
+$('writeBtn').addEventListener('click', () => { if (canWrite()) writeDlg(0); });
+$('lockBtn').addEventListener('click', async () => {
+  if (!S.teacher || !S.board) return;
+  try { await updateDoc(doc(fs, 'boards', bid), { lock: !S.board.lock }); toast(S.board.lock ? '학생 글쓰기를 열었어요.' : '학생 글쓰기를 잠갔어요. 읽기만 할 수 있어요.'); } catch (err) { toast(errText(err), true); }
+});
+$('picIn').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f || !$('pv')) return;
+  if (!/^image\//.test(f.type)) { $('wm').textContent = '사진 파일만 올릴 수 있어요.'; return; }
+  $('pv').textContent = '사진 줄이는 중…';
+  try {
+    const d = await shrink(f);
+    if (!d) throw new Error('big');
+    S.pic = d;
+    $('pv').innerHTML = '<img src="' + d + '" alt="고른 사진 미리보기"> <button type="button" class="tiny" data-act="nopic">사진 빼기</button>';
+  } catch (err) { S.pic = ''; $('pv').textContent = '이 사진은 올릴 수 없어요. 다른 사진을 골라 주세요.'; }
+});
+document.addEventListener('click', (e) => { if (e.target.closest('[data-act=nopic]')) { S.pic = ''; $('pv').textContent = '사진은 작게 줄여서 올라가요.'; } });
+document.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (e.target.id === 'wf') sendPost();
+  else if (e.target.dataset.cform) sendComment(e.target.dataset.cform, e.target.querySelector('input'));
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('dlg').innerHTML) closeDlg(); });
+
+/* ---------- 불러오기 (실시간) ---------- */
 (async () => {
   if (!bid) return fail('주소가 잘못되었어요.');
   try {
-    const u = await ensureUser();
-    const bs = await getDoc(doc(fs, 'boards', bid));
-    if (!bs.exists()) return fail('지워진 보드예요.');
-    const b = bs.data();
-    $('title').textContent = b.title || '수업 보드'; document.title = (b.title || '수업 보드') + ' · 모아팡';
-    $('sub').textContent = (b.date || '') + ' · 글 ' + (b.postCount || 0) + '개';
-    const q = isTeacher(u) ? query(collection(fs, 'parts'), where('bid', '==', bid)) : query(collection(fs, 'parts'), where('bid', '==', bid), where('pub', '==', true));
-    const ps = (await getDocs(q)).docs.map((d) => d.data()).sort((a, c) => a.n - c.n);
-    const posts = []; ps.forEach((p) => (p.posts || []).forEach((x) => posts.push(x)));
-    $('cols').innerHTML = '<div>' + (b.sections || ['글 모음']).map((name, i) => {
-      const list = posts.filter((p) => (p.sec || 0) === i);
-      return '<section class="sec"><h2 class="sech pf" style="background:' + SEC[i % SEC.length] + '"><span>' + esc(name) + '</span><span>' + list.length + '</span></h2>' + list.map((p) => {
-        const link = safeUrl(p.link), video = /youtube\.com|youtu\.be/i.test(link);
-        return '<article class="post"><div class="pin">' + (p.title ? '<h3>' + esc(p.title) + '</h3>' : '') + (p.body ? '<p>' + esc(p.body) + '</p>' : '') +
-          (link ? '<a class="lnk" href="' + esc(link) + '" target="_blank" rel="noopener">' + (video ? '▶ 영상 · ' : '🔗 ') + esc(hostOf(link) || link) + '</a>' : '') + '</div>' +
-          (p.author ? '<div class="by">' + esc(p.author) + '</div>' : '') + '</article>';
-      }).join('') + '</section>';
-    }).join('') + '</div>';
-  } catch (err) { fail(/permission/i.test(err.code || '') ? '아직 선생님이 학생에게 보여 주지 않은 보드예요.' : errText(err)); }
+    S.user = await ensureUser(); S.teacher = isTeacher(S.user);
+    const first = await getDoc(doc(fs, 'boards', bid));
+    if (!first.exists()) return fail('지워진 패들렛이에요.');
+    S.board = first.data(); draw();
+    onSnapshot(doc(fs, 'boards', bid), (s) => { if (s.exists()) { S.board = s.data(); draw(); } else fail('지워진 패들렛이에요.'); }, () => {});
+    const pq = S.teacher ? query(collection(fs, 'parts'), where('bid', '==', bid)) : query(collection(fs, 'parts'), where('bid', '==', bid), where('pub', '==', true));
+    onSnapshot(pq, (snap) => { S.parts = snap.docs.map((d) => d.data()); draw(); }, () => {});
+    const rows = (snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data({ serverTimestamps: 'estimate' })));
+    onSnapshot(collection(fs, 'boards', bid, 'posts'), (snap) => { S.live = rows(snap); S.liveErr = false; draw(); }, () => { S.liveErr = true; draw(); });
+    onSnapshot(collection(fs, 'boards', bid, 'comments'), (snap) => { S.cmts = rows(snap); draw(); }, () => {});
+  } catch (err) { fail(/permission/i.test(err.code || '') ? '아직 선생님이 학생에게 보여 주지 않은 패들렛이에요.' : errText(err)); }
 })();
 </script>
 </body>
