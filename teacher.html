@@ -67,7 +67,7 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
 @media print{body{background:#fff}.top,.ground,#view,#toasts{display:none!important}.modal{position:static;background:none;padding:0}.modal .pf{box-shadow:none;border:0}.modal .row{display:none}}
 </style>
 </head>
-<body>
+<body class="tpage">
 <div class="moa-strip" role="note"><span class="sp" aria-hidden="true">✨</span><span class="moa-strip-chip">🍀 모아팡 랜드</span><span class="moa-strip-text">• 우리 반 친구들과 함께 모여 배우고 노는 신나는 놀이터! 💚</span><span class="sp" aria-hidden="true">✨</span></div>
 <header class="top">
   <div class="brands sm"><a class="brand" href="taja/" title="타자팡으로 가기"><img src="assets/brand/tajapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/tajapang_word.webp" alt="타자팡" class="brand-word" draggable="false"></a><span class="brand-sep" aria-hidden="true">✦</span><a class="brand" href="./" title="모아팡 첫 화면"><img src="assets/brand/moapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/moapang_word.webp" alt="모아팡" class="brand-word" draggable="false"></a></div>
@@ -212,7 +212,7 @@ function watchCounts() {
 }
 function drawClasses() {
   const cs = classes;
-  $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">우리 반 · ' + cs.length + ' / ' + MAX + '</h1></div>' +
+  $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 class="ttl">우리 반 · ' + cs.length + ' / ' + MAX + '</h1></div>' +
     '<div class="grid">' + cs.map((c) => '<article class="pf ccard"><div class="band" style="background:' + esc(c.color || '#FFD23F') + '"><b>' + esc(c.kind || '정규반') + '</b><span class="on"><i aria-hidden="true"></i>접속 ' + (counts[c.id] || 0) + '명</span></div>' +
       '<div class="bd"><h3>' + esc(c.name) + '</h3><div class="meta"><span>방번호 <b>' + esc(c.room || '-') + '</b></span><span>맵 · ' + esc(mapName(c.map || 'classroom')) + '</span>' + (c.qz && (c.qz.ox || c.qz.mc) ? '<span>📚 ' + esc([c.qz.ox, c.qz.mc].filter(Boolean).map((q) => q.name).join(', ')) + '</span>' : '') + '</div>' +
       '<div class="row"><a class="btn blue sm" href="#live-' + esc(c.id) + '">진행판 ▶</a><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><button class="btn sm" type="button" data-edit="' + esc(c.id) + '">고치기</button><a class="btn sm" href="' + esc(previewUrl(c)) + '" title="이 반 학생에게 보이는 화면을 봐요">👀 학생 화면</a></div></div></article>').join('') +
@@ -325,7 +325,7 @@ function bindForm(id, getList, saveList) {
 
 /* ---------- 첫 화면 꾸미기 ---------- */
 function drawHome() {
-  $('view').innerHTML = '<div class="stack"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">첫 화면 꾸미기</h1>' +
+  $('view').innerHTML = '<div class="stack"><h1 class="ttl">첫 화면 꾸미기</h1>' +
     '<div class="pf card"><h2>우리 첫 화면 주소</h2><p class="note">학생이 이 주소로 들어오면 아래 링크 게시판과 내 패들렛(학생에게 보이기로 한 것)이 보여요. 반 QR·링크로 들어온 학생과, 우리 반에 한 번 들어온 학생도 이 첫 화면을 봐요.' + (isAdmin() ? ' 주소 없이 moapang.kr 로 처음 들어온 사람도 이 첫 화면을 봐요.' : ' 다른 선생님의 첫 화면과는 따로예요.') + '</p>' +
       '<p style="margin:0;font-weight:700;word-break:break-all"><a href="' + esc(homeUrl()) + '" target="_blank" rel="noopener">' + esc(homeUrl()) + '</a></p><div class="row"><button class="btn blue sm" type="button" id="homeQr">QR·링크 복사</button></div></div>' +
     '<div class="pf card"><h2>타자팡</h2><p class="note">타자팡은 이제 모아팡 안에 있어요. 학생은 첫 화면 START를 누르면 같은 방번호·이름으로 저절로 들어가고, 기록은 모아팡과 같은 곳에 저장돼요.</p><div><a class="btn blue" href="taja/" target="_blank" rel="noopener">타자팡 열기 ▶</a></div></div>' +
@@ -351,7 +351,7 @@ function drawLive(cid) {
     liveOffs.push(onSnapshot(collection(fs, 'classes', cid, 'students'), (s) => { L.students = s.docs.map((d) => Object.assign({ id: d.id }, d.data())); paintStudents(); }, () => {}));
     Promise.all(['ox', 'mc'].map(async (k) => { const qz = (c.qz || {})[k]; if (qz && Array.isArray(qz.list) && qz.list.length) { L.saved[k] = true; L.bank[k] = qz.list; return; } let l = []; try { const s = await getDoc(doc(fs, 'banks', bankId(c.owner, k))); l = s.exists() ? s.data().list || [] : []; } catch (e) { l = []; } L.saved[k] = l.length > 0; L.bank[k] = l.length ? l : (k === 'ox' ? DEF_OX : DEF_MC); })).then(() => paintQuiz());
   }
-  $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">' + esc(c.name) + ' 진행판</h1><div class="row"><span class="badge">방번호 ' + esc(c.room) + '</span><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><a class="btn sm grn" href="' + esc(previewUrl(c)) + '" title="학생에게 보이는 첫 화면·교실·패들렛·게임을 그대로 봐요 (기록은 남지 않아요)">👀 학생 화면으로 보기</a><a class="btn sm" href="#classes">◀ 우리 반</a></div></div>' +
+  $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 class="ttl">' + esc(c.name) + ' 진행판</h1><div class="row"><span class="badge">방번호 ' + esc(c.room) + '</span><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><a class="btn sm grn" href="' + esc(previewUrl(c)) + '" title="학생에게 보이는 첫 화면·교실·패들렛·게임을 그대로 봐요 (기록은 남지 않아요)">👀 학생 화면으로 보기</a><a class="btn sm" href="#classes">◀ 우리 반</a></div></div>' +
     // 교실 화면: 선생님도 캐릭터(👑)로 들어가서 학생들과 같이 보임
     '<section class="pf card"><div class="row" style="justify-content:space-between;align-items:center"><h2>🏫 교실 화면 <small style="font:700 13px \'Noto Sans KR\',sans-serif;color:var(--sub)">👑 선생님도 캐릭터로 들어가 있어요 · 화면을 누르고 방향키로 움직여요</small></h2><button class="btn sm" type="button" id="roomFull">크게 보기 ⛶</button></div>' +
       '<div class="roomv"><iframe id="roomF" src="class.html?teach=' + encodeURIComponent(c.id) + '&embed=1" title="' + esc(c.name) + ' 교실 화면" allow="fullscreen"></iframe></div></section>' +
@@ -640,7 +640,7 @@ async function saveSet(set) {
 }
 function drawQuizLib() {
   const sets = LIB.sets.slice().sort((a, b) => (b.at || 0) - (a.at || 0));
-  $('view').innerHTML = '<div class="stack"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">📚 퀴즈 보관함</h1>' +
+  $('view').innerHTML = '<div class="stack"><h1 class="ttl">📚 퀴즈 보관함</h1>' +
     '<div class="pf card"><h2>퀴즈 세트 · ' + sets.length + '개</h2><p class="note">퀴즈 세트를 미리 만들어 두고 <b>반을 골라 보내면</b>, 그 반의 진행판 퀴즈와 미니 게임(OX 퀴즈)에서 그 문제를 써요. 같은 세트를 여러 반에 보낼 수 있고, 세트를 고치면 받은 반에도 바로 바뀌어요. 아무 세트도 받지 않은 반은 기본 문제 상자를 써요.</p>' +
     '<div class="row"><button class="btn blue" type="button" data-new="ox">＋ OX 퀴즈 세트</button><button class="btn blue" type="button" data-new="mc">＋ 객관식 세트</button></div>' +
     '<ul class="list" id="qsL" style="max-height:none">' + (LIB.ok ? (sets.length ? sets.map((s) => { const to = sentTo(s); return '<li><span class="tag" style="background:' + (s.k === 'ox' ? '#FFD23F' : '#9DB8FF') + '">' + KN[s.k] + '</span><span class="sp"><b>' + esc(s.name) + '</b> · ' + (s.list || []).length + '문제<br><small style="color:var(--sub)">' + (to.length ? '보낸 반: ' + esc(to.map((c) => c.name).join(', ')) : '아직 보낸 반이 없어요') + '</small></span>' +
@@ -724,7 +724,7 @@ function route() {
 let team = [], teamOff = null;
 function drawTeam() {
   if (!teamOff) teamOff = onSnapshot(collection(fs, 'teachers'), (s) => { team = s.docs.map((d) => Object.assign({ id: d.id }, d.data())).sort((a, b) => (a.at || 0) - (b.at || 0)); if (view === 'team') drawTeam(); }, (err) => toast(errText(err), true));
-  $('view').innerHTML = '<div class="stack"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">선생님 관리</h1>' +
+  $('view').innerHTML = '<div class="stack"><h1 class="ttl">선생님 관리</h1>' +
     '<div class="pf card"><h2>함께 쓰는 선생님 · ' + team.length + '명</h2>' +
     '<p class="note">여기에 이메일을 올리면, 그 선생님이 선생님 로그인 화면의 \'처음이에요 · 함께 쓰는 선생님 가입\'으로 직접 가입하고 메일 인증을 해요. 그 뒤로는 <b>자기가 만든 반과 그 반 학생·패들렛·문제만</b> 보여요. 서로의 반은 보이지 않아요.</p>' +
     '<ul class="list" id="tmL">' + (team.length ? team.map((t) => '<li><b class="sp">' + esc(t.name || '') + '</b><span>' + esc(t.email || t.id) + '</span><button class="btn sm red" type="button" data-tdel="' + esc(t.id) + '">빼기</button></li>').join('') : '<li>아직 없어요.</li>') + '</ul>' +

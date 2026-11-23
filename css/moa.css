@@ -13,6 +13,13 @@ img{max-width:100%}
 [hidden]{display:none!important}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
+/* 선생님 화면(진행판·내 패들렛): 꽃밭 그림 없이 깔끔한 바탕 */
+body.tpage{background:#EEF2F7}
+body.tpage .ground{display:none}
+body.tpage footer{color:var(--sub);text-shadow:none;background:rgba(255,255,255,.75);border-color:rgba(27,31,59,.15);-webkit-backdrop-filter:none;backdrop-filter:none}
+body.tpage footer a{color:var(--sub)}body.tpage footer a:hover{color:var(--ink)}
+.ttl{font-size:30px;color:var(--ink)}
+
 /* 상자 */
 .pf{background:var(--paper);border:4px solid var(--ink);box-shadow:inset -4px -4px 0 #E2D6B8,inset 4px 4px 0 #fff,6px 6px 0 var(--ink)}
 .pf.white{background:#fff}
