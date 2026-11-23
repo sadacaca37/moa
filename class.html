@@ -55,6 +55,7 @@
 .opts.ox .btn{min-height:110px;font-size:54px}
 .opts .btn.right{background:var(--grn);color:var(--ink)}
 .opts .btn.wrong{background:#ffb4a8}
+.quiz .why{margin:0;padding:10px 12px;background:#FFF1C2;border:3px solid var(--ink);font:500 16px/1.6 'Noto Sans KR',sans-serif;overflow-wrap:anywhere}
 .res{font:400 22px/1.4 'Jua',sans-serif;text-align:center;padding:10px;border:4px solid var(--ink);background:#fff}
 @media (max-width:900px){.room{grid-template-columns:minmax(0,1fr)}.chat{height:340px}}
 /* 선생님 진행판에 넣은 교실 화면 (?teach=반&embed=1): 지도만 */
@@ -137,6 +138,7 @@ html.embed .mapbox{border:0;box-shadow:none}
     <p class="q" id="quizQ"></p>
     <div class="opts" id="quizO"></div>
     <p class="res" id="quizR" hidden></p>
+    <p class="why" id="quizW" hidden></p>
     <button class="btn" type="button" id="quizX">닫기</button>
   </div>
 </div>
@@ -295,12 +297,14 @@ async function quizUpdate() {
     try { const s = await rget(ref(rt, 'live/' + ses.cid + '/answers/' + q.qid + '/' + user.uid)); if (s.exists()) answered = s.val().a; } catch (e) { /* 무시 */ }
     if (quizSeen !== q.qid) { quizSeen = q.qid; $('quiz').hidden = false; }
   }
+  const rv = q.ans !== undefined && q.ans !== null;
+  if (rv && quizState.rev !== true) { quizState.rev = true; $('quiz').hidden = false; } // 정답·해설 공개 → 다시 보여 줌
   drawQuiz();
 }
 function drawQuiz() {
   const q = st.quiz; if (!q) return;
   const ox = q.k === 'ox', opts = ox ? ['O', 'X'] : (q.o || []);
-  $('quizH').textContent = ox ? '선생님 OX 퀴즈' : '선생님 퀴즈';
+  $('quizH').textContent = (q.total ? (q.name ? q.name + ' · ' : '') + (q.n + 1) + ' / ' + q.total + '번 ' : '선생님 ') + (ox ? 'OX 퀴즈' : '퀴즈');
   $('quizQ').textContent = q.q || '';
   const rev = q.ans !== undefined && q.ans !== null;
   $('quizO').className = 'opts' + (ox ? ' ox' : '');
@@ -313,9 +317,11 @@ function drawQuiz() {
   const R = $('quizR');
   if (rev) {
     const ok = answered !== null && String(answered) === String(q.ans);
-    R.hidden = false; R.textContent = answered === null ? '정답은 ' + (ox ? q.ans : (+q.ans + 1) + '번 ' + (opts[q.ans] || '')) + ' 이에요.' : ok ? '정답! +1점 🎉' : '아쉬워요! 정답은 ' + (ox ? q.ans : (+q.ans + 1) + '번') + ' 이에요.' + (q.why ? ' ' + q.why : '');
+    const right = ox ? q.ans : (+q.ans + 1) + '번 ' + (opts[q.ans] || '');
+    R.hidden = false; R.textContent = answered === null ? '정답은 ' + right + ' 이에요.' : ok ? '정답! +1점 🎉 (정답 ' + right + ')' : '아쉬워요! 정답은 ' + right + ' 이에요.';
+    $('quizW').hidden = !q.why; $('quizW').textContent = q.why ? '💡 해설: ' + q.why : '';
     if (ok && !PV && !scored.has(q.qid)) { scored.add(q.qid); sessionStorage.setItem('moa_scored', JSON.stringify([...scored])); updateDoc(doc(fs, 'classes', ses.cid, 'students', ses.key), { score: increment(1) }).catch(() => {}); }
-  } else { R.hidden = answered === null; R.textContent = '제출했어요! 선생님이 정답을 공개하면 알려 줄게요.'; }
+  } else { R.hidden = answered === null; R.textContent = '제출했어요! 선생님이 정답을 공개하면 정답과 해설을 보여 줄게요.'; $('quizW').hidden = true; }
   $('quizStrip').hidden = !$('quiz').hidden || (answered !== null && !rev);
 }
 $('quizO').addEventListener('click', async (e) => {
@@ -539,7 +545,8 @@ function wrapText(text, maxW) {
 }
 function screenText() {
   const r = M.screen; if (!r) return;
-  const txt = st.quiz && st.quiz.q ? 'Q. ' + st.quiz.q : st.notice && st.notice.m ? st.notice.m : st.phase === 'class' ? '' : '곧 수업을 시작해요!';
+  const qa = st.quiz && st.quiz.q && st.quiz.ans !== undefined && st.quiz.ans !== null ? '정답 ' + (st.quiz.k === 'ox' ? st.quiz.ans : (+st.quiz.ans + 1) + '번 ' + ((st.quiz.o || [])[st.quiz.ans] || '')) + (st.quiz.why ? ' · ' + st.quiz.why : '') : '';
+  const txt = qa ? qa : st.quiz && st.quiz.q ? 'Q. ' + st.quiz.q : st.notice && st.notice.m ? st.notice.m : st.phase === 'class' ? '' : '곧 수업을 시작해요!';
   if (!txt) return;
   const [x0, y0, x1, y1] = r, w = x1 - x0 - 24, h = y1 - y0;
   let size = Math.min(34, h / 2.6);

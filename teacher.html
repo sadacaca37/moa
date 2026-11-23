@@ -342,14 +342,13 @@ function drawLive(cid) {
   if (!c) { $('view').innerHTML = '<p class="pf pad">반을 찾을 수 없어요. <a href="#classes">우리 반 목록</a></p>'; return; }
   if (!L || L.cid !== cid) {
     stopLive();
-    L = { cid, st: {}, players: {}, chat: [], answers: {}, results: {}, students: [], key: {}, qkind: 'ox', bank: { ox: [], mc: [] }, saved: { ox: false, mc: false } };
+    L = { cid, st: {}, players: {}, chat: [], answers: {}, results: {}, students: [], key: {} };
     const base = 'live/' + cid;
     liveOffs.push(onValue(ref(rt, base + '/state'), (s) => { L.st = s.val() || {}; if (L.st.quiz && L.st.quiz.qid !== L.ansFor) watchAnswers(L.st.quiz.qid); if (L.st.game && L.st.game.run !== L.resFor) watchResults(L.st.game.run); paintLive(); }));
     liveOffs.push(onValue(ref(rt, base + '/players'), (s) => { L.players = s.val() || {}; paintLive(); }));
     liveOffs.push(onValue(rquery(ref(rt, base + '/chat'), limitToLast(40)), (s) => { L.chat = []; s.forEach((x) => { L.chat.push(x.val()); }); paintChat(); }));
     liveOffs.push(onValue(ref(rt, base + '/lastRun'), (s) => { const r = s.val(); if (r && r !== L.resFor && !(L.st.game && L.st.game.run)) watchResults(r); }));
     liveOffs.push(onSnapshot(collection(fs, 'classes', cid, 'students'), (s) => { L.students = s.docs.map((d) => Object.assign({ id: d.id }, d.data())); paintStudents(); }, () => {}));
-    Promise.all(['ox', 'mc'].map(async (k) => { const qz = (c.qz || {})[k]; if (qz && Array.isArray(qz.list) && qz.list.length) { L.saved[k] = true; L.bank[k] = qz.list; return; } let l = []; try { const s = await getDoc(doc(fs, 'banks', bankId(c.owner, k))); l = s.exists() ? s.data().list || [] : []; } catch (e) { l = []; } L.saved[k] = l.length > 0; L.bank[k] = l.length ? l : (k === 'ox' ? DEF_OX : DEF_MC); })).then(() => paintQuiz());
   }
   $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 class="ttl">' + esc(c.name) + ' 진행판</h1><div class="row"><span class="badge">방번호 ' + esc(c.room) + '</span><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><a class="btn sm grn" href="' + esc(previewUrl(c)) + '" title="학생에게 보이는 첫 화면·교실·패들렛·게임을 그대로 봐요 (기록은 남지 않아요)">👀 학생 화면으로 보기</a><a class="btn sm" href="#classes">◀ 우리 반</a></div></div>' +
     // 교실 화면: 선생님도 캐릭터(👑)로 들어가서 학생들과 같이 보임
@@ -373,6 +372,7 @@ function drawLive(cid) {
   bindLinks('clsL', () => (classes.find((x) => x.id === cid) || {}).links || [], (list) => setDoc(doc(fs, 'classes', cid), { links: list }, { merge: true }));
   paintLive(); paintChat(); paintStudents(); paintQuiz();
 }
+const rset = (r, v) => set(r, v); // sendSetQ 안에서 'set'(세트) 이름과 헷갈리지 않게
 const stRef = () => ref(rt, 'live/' + L.cid + '/state');
 const setSt = (patch) => update(stRef(), patch).catch((err) => toast(errText(err), true));
 function bindLive(c) {
@@ -433,30 +433,35 @@ function paintStudents() {
   };
 }
 
-/* 퀴즈 (동시 풀이) */
+/* 퀴즈 (동시 풀이) — 📚 퀴즈 보관함에서 이 반으로 보낸 세트만 낸다 (진행판에서는 문제를 만들거나 고치지 않음)
+ * 한 문제씩: 내기 → 학생이 답함 → 정답·해설 공개(학생 화면·교실 스크린에 보임) → 다음 문제 */
+function classSets(cid) {
+  const c = classes.find((x) => x.id === cid) || {};
+  return ['ox', 'mc'].map((k) => { const q = c.qz && c.qz[k]; return q && Array.isArray(q.list) && q.list.length ? { k, sid: q.sid, name: q.name || KN[k], list: q.list } : null; }).filter(Boolean);
+}
 function paintQuiz() {
   if (!L || !$('quizC')) return;
-  const k = L.qkind, bank = L.bank[k] || [];
-  $('quizC').innerHTML = '<h2>퀴즈 <span class="badge" id="qzB"></span></h2><div id="qzLive"></div><details id="qzNew" open><summary>새 퀴즈 내기</summary><div class="stack" style="margin-top:10px">' +
-    '<div class="seg" id="qzK"><button type="button" class="btn sm" data-k="ox" aria-pressed="' + (k === 'ox') + '">OX 퀴즈</button><button type="button" class="btn sm" data-k="mc" aria-pressed="' + (k === 'mc') + '">객관식</button></div>' +
-    '<div class="row qtools"><button type="button" class="btn sm" id="qzXl">📥 엑셀로 문제 올리기</button><button type="button" class="btn sm" id="qzTpl">엑셀 양식 받기</button><button type="button" class="btn sm yel" id="qzAi">🤖 AI로 문제 만들기</button><input type="file" id="qzFile" accept=".xlsx,.csv" hidden></div>' +
-    '<p class="note" style="margin:0">' + (setOf(L.cid, k) ? '📚 이 반에 보낸 퀴즈 세트 \'' + esc(setOf(L.cid, k).name) + '\' ' + bank.length + '문제 · 엑셀이나 AI로 넣으면 이 세트에 더해져요 (<a href="#quiz">퀴즈 보관함</a>)' : (k === 'ox' ? 'OX' : '객관식') + ' 문제 상자 ' + bank.length + '문제' + (L.saved[k] ? '' : ' (아직 기본 문제예요)') + ' · 엑셀이나 AI로 넣은 문제는 문제 상자에 저장돼서 미니 게임에서도 같이 써요. 반마다 다른 문제를 내려면 <a href="#quiz">📚 퀴즈 보관함</a>에서 반에 보내요.') + '</p>' +
-    '<label class="lb">문제 상자에서 고르기<select class="field" id="qzPick"><option value="">' + (bank.length ? '직접 쓰기 (아래 칸)' : '저장된 문제가 없어요 — 아래에 직접 써요') + '</option>' + bank.map((x, i) => '<option value="' + i + '">' + esc(String(x.q).slice(0, 60)) + '</option>').join('') + '</select></label>' +
-    '<label class="lb">문제<input class="field" id="qzQ" maxlength="120"></label>' +
-    (k === 'ox' ? '<div class="lb">정답<div class="seg" id="qzA"><button type="button" class="btn sm" data-a="O" aria-pressed="true">O</button><button type="button" class="btn sm" data-a="X" aria-pressed="false">X</button></div></div><label class="lb">해설 (없어도 돼요)<input class="field" id="qzW" maxlength="80"></label>'
-      : '<div class="lform">' + [0, 1, 2, 3].map((i) => '<label class="lb">보기 ' + (i + 1) + '<input class="field" data-o="' + i + '" maxlength="40"></label>').join('') + '</div><label class="lb">정답 번호<select class="field" id="qzMA">' + [1, 2, 3, 4].map((n) => '<option value="' + (n - 1) + '">' + n + '번</option>').join('') + '</select></label>') +
-    '<div><button class="btn blue" type="button" id="qzGo">퀴즈 내기 ▶</button></div></div></details>';
-  $('qzK').addEventListener('click', (e) => { const b = e.target.closest('[data-k]'); if (b) { L.qkind = b.dataset.k; paintQuiz(); } });
-  if (k === 'ox') $('qzA').addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b) $('qzA').querySelectorAll('[data-a]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); });
-  $('qzPick').addEventListener('change', () => {
-    const x = bank[+$('qzPick').value]; if ($('qzPick').value === '' || !x) return;
-    $('qzQ').value = x.q || '';
-    if (k === 'ox') { $('qzA').querySelectorAll('[data-a]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.a === x.a))); $('qzW').value = x.why || ''; }
-    else { document.querySelectorAll('#quizC [data-o]').forEach((inp) => { inp.value = (x.o || [])[+inp.dataset.o] || ''; }); $('qzMA').value = String(x.a || 0); }
-  });
-  $('qzGo').addEventListener('click', sendQuiz);
-  bindQuizTools(k);
+  const sets = classSets(L.cid);
+  $('quizC').innerHTML = '<h2>퀴즈 <span class="badge" id="qzB"></span></h2><div id="qzLive"></div>' +
+    (sets.length ? '<div class="stack" id="qzSets">' + sets.map((st) => '<div class="pf white pad stack" style="padding:12px;box-shadow:none"><div class="row"><span class="tag" style="background:' + (st.k === 'ox' ? '#FFD23F' : '#9DB8FF') + '">' + KN[st.k] + '</span><b style="flex:1">📚 ' + esc(st.name) + ' · ' + st.list.length + '문제</b></div>' +
+      '<div class="mapsel"><select class="field" data-qsel="' + st.k + '" aria-label="' + esc(st.name) + ' 문제 고르기">' + st.list.map((x, i) => '<option value="' + i + '">' + (i + 1) + '. ' + esc(String(x.q).slice(0, 50)) + '</option>').join('') + '</select><button class="btn blue" type="button" data-qgo="' + st.k + '">이 문제 내기 ▶</button></div></div>').join('') + '</div>'
+      : '<p class="note" style="color:var(--ink)">이 반에 보낸 퀴즈 세트가 없어요. <a href="#quiz">📚 퀴즈 보관함</a>에서 세트를 만들고 이 반으로 보내면 여기서 낼 수 있어요.</p>') +
+    '<p class="note">문제 만들기·고치기는 <a href="#quiz">📚 퀴즈 보관함</a>에서 해요. 정답을 공개하면 학생 화면과 교실 스크린에 정답과 해설이 보여요.</p>';
+  $('quizC').onclick = (e) => {
+    const b = e.target.closest('[data-qgo]'); if (!b) return;
+    const st = classSets(L.cid).find((x) => x.k === b.dataset.qgo), sel = document.querySelector('[data-qsel="' + b.dataset.qgo + '"]');
+    if (st) sendSetQ(st, +(sel ? sel.value : 0));
+  };
   paintQuizLive();
+}
+async function sendSetQ(set, i) {
+  const x = set.list[i]; if (!x) return;
+  const qid = 'q' + Date.now().toString(36), k = set.k;
+  const quiz = { qid, k, q: String(x.q || ''), t: Date.now(), n: i, total: set.list.length, sid: set.sid || '', name: set.name || '' };
+  if (k === 'mc') quiz.o = (x.o || []).slice(0, 4);
+  const key = { a: k === 'ox' ? (x.a === 'X' ? 'X' : 'O') : +x.a || 0, why: String(x.why || '') };
+  try { await rset(ref(rt, 'live/' + L.cid + '/key/' + qid), key); await setSt({ quiz }); toast((i + 1) + '번 문제를 냈어요!'); }
+  catch (err) { toast(errText(err), true); }
 }
 /* 퀴즈 문제: 엑셀로 올리기 · AI로 만들기 → 문제 상자(banks)에 저장 */
 const qClean = (v) => String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim();
@@ -469,27 +474,18 @@ const QFMT = {
     show: (x) => x.q + ' → ' + x.a + (x.why ? ' (' + x.why + ')' : '')
   },
   mc: {
-    name: '객관식 퀴즈', head: ['문제', '보기1', '보기2', '보기3', '보기4', '정답 번호 (1~4)'], widths: [46, 16, 16, 16, 16, 15],
-    sample: [['컴퓨터에게 시킬 일을 순서대로 적은 것은?', '그림책', '프로그램', '노래', '지도', 2], ['로봇이 주변을 느끼게 해 주는 부품은?', '센서', '바퀴', '리본', '연필', 1]],
+    name: '객관식 퀴즈', head: ['문제', '보기1', '보기2', '보기3', '보기4', '정답 번호 (1~4)', '해설 (없어도 돼요)'], widths: [46, 16, 16, 16, 16, 15, 40],
+    sample: [['컴퓨터에게 시킬 일을 순서대로 적은 것은?', '그림책', '프로그램', '노래', '지도', 2, '컴퓨터가 할 일을 순서대로 적은 것이 프로그램이에요'], ['로봇이 주변을 느끼게 해 주는 부품은?', '센서', '바퀴', '리본', '연필', 1, '센서는 로봇의 눈·귀 같은 부품이에요']],
     fromRow: (r) => {
       const q = qClean(r[0]), raw = [1, 2, 3, 4].map((i) => qClean(r[i]).slice(0, 40)), o = raw.filter(Boolean);
       let a = parseInt(r[5], 10) - 1; a = a >= 0 && a < 4 && raw[a] ? o.indexOf(raw[a]) : o.indexOf(qClean(r[5]));
-      return q && o.length >= 2 && a >= 0 ? { q: q.slice(0, 120), o, a } : null;
+      return q && o.length >= 2 && a >= 0 ? { q: q.slice(0, 120), o, a, why: qClean(r[6]).slice(0, 80) } : null;
     },
-    show: (x) => x.q + ' → ' + (x.o[x.a] || '')
+    show: (x) => x.q + ' → ' + (x.o[x.a] || '') + (x.why ? ' (' + x.why + ')' : '')
   }
 };
-async function saveQuizBank(k, list) {
-  const c = classes.find((x) => x.id === L.cid); if (!c) return;
-  const set = setOf(c.id, k);
-  if (set) await saveSet(Object.assign({}, set, { list }));
-  else await setDoc(doc(fs, 'banks', bankId(c.owner, k)), { list, at: Date.now() });
-  L.bank[k] = list; L.saved[k] = true; paintQuiz();
-}
 // 새 문제를 문제 상자에 넣기: 더하기 또는 바꾸기 (기본 문제만 있을 때는 바로 바꾸기)
-const liveTarget = (k) => ({ cur: () => L.saved[k] ? (L.bank[k] || []) : [], save: (list) => saveQuizBank(k, list), after: () => {} });
 function putQuizItems(k, items, from, tg) {
-  tg = tg || liveTarget(k);
   const cur = tg.cur();
   const go = async (replace) => {
     closeDlg();
@@ -522,7 +518,6 @@ function bindQuizTools(k, tg) {
 }
 let aiAbort = null, aiItems = [];
 function aiQuizDlg(k, tg) {
-  tg = tg || liveTarget(k);
   const F = QFMT[k], last = (() => { try { return JSON.parse(localStorage.getItem('moaAiQuiz')) || {}; } catch (e) { return {}; } })();
   const opt = (list, v) => list.map((x) => '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
   openDlg(dlgTop('🤖 AI로 ' + F.name + ' 만들기') +
@@ -558,24 +553,10 @@ function aiQuizDlg(k, tg) {
   $('aiPut').addEventListener('click', () => {
     const pick = [...document.querySelectorAll('#aiOut [data-ai]')].filter((c) => c.checked).map((c) => aiItems[+c.dataset.ai]);
     if (!pick.length) { $('aiMsg').textContent = '넣을 문제를 하나 이상 골라 주세요.'; return; }
-    const items = pick.map((x) => (k === 'ox' ? { q: x.q, a: x.a, why: x.why || '' } : { q: x.q, o: x.o, a: x.a }));
+    const items = pick.map((x) => (k === 'ox' ? { q: x.q, a: x.a, why: x.why || '' } : { q: x.q, o: x.o, a: x.a, why: x.why || '' }));
     if (aiAbort) aiAbort.abort();
     putQuizItems(k, items, 'AI가 만든', tg);
   });
-}
-async function sendQuiz() {
-  const k = L.qkind, q = $('qzQ').value.trim(); if (!q) { $('qzQ').focus(); return; }
-  const qid = 'q' + Date.now().toString(36);
-  let quiz, key;
-  if (k === 'ox') { const a = ($('qzA').querySelector('[aria-pressed=true]') || {}).dataset.a || 'O'; quiz = { qid, k, q, t: Date.now() }; key = { a, why: $('qzW').value.trim() }; }
-  else {
-    const raw = [...document.querySelectorAll('#quizC [data-o]')].map((i) => i.value.trim()), ai = +$('qzMA').value;
-    const keep = raw.map((s, i) => [s, i]).filter((p) => p[0]); const a = keep.findIndex((p) => p[1] === ai);
-    if (keep.length < 2 || a < 0) { toast('보기를 2개 이상 쓰고, 정답 번호의 보기도 써 주세요.', true); return; }
-    quiz = { qid, k, q, o: keep.map((p) => p[0]), t: Date.now() }; key = { a, why: '' };
-  }
-  try { await set(ref(rt, 'live/' + L.cid + '/key/' + qid), key); await setSt({ quiz }); toast('퀴즈를 냈어요!'); $('qzQ').value = ''; }
-  catch (err) { toast(errText(err), true); }
 }
 function watchAnswers(qid) {
   L.ansFor = qid; L.answers = {};
@@ -592,11 +573,17 @@ function paintQuizLive() {
   const key = L.key[q.qid], opts = q.k === 'ox' ? ['O', 'X'] : q.o || [], ans = Object.values(L.answers || {});
   const total = Object.values(L.players || {}).filter((p) => !(p && p.tc)).length;
   const rev = q.ans !== undefined && q.ans !== null;
-  $('qzLive').innerHTML = '<p style="font:400 20px/1.4 Jua,sans-serif;margin:0">' + esc(q.q) + '</p><p class="note">' + ans.length + ' / ' + total + '명이 답했어요' + (key ? ' · 정답 ' + esc(q.k === 'ox' ? key.a : (key.a + 1) + '번') : '') + '</p>' +
-    '<div class="bars">' + opts.map((o, i) => { const v = q.k === 'ox' ? o : i, n = ans.filter((x) => String(x.a) === String(v)).length, ok = key && String(key.a) === String(v); return '<div class="' + (ok ? 'ok' : '') + '"><span>' + (q.k === 'ox' ? '' : (i + 1) + '. ') + esc(o) + (ok ? ' ✓' : '') + '</span><i style="width:' + (ans.length ? n / ans.length * 100 : 0) + '%"></i><b>' + n + '</b></div>'; }).join('') + '</div>' +
-    '<div class="row"><button class="btn yel" type="button" id="qzRev"' + (rev || !key ? ' disabled' : '') + '>정답 공개</button><button class="btn" type="button" id="qzEnd">퀴즈 닫기</button></div>' +
-    (rev ? '<p class="note">맞힌 학생: ' + esc(ans.filter((x) => String(x.a) === String(q.ans)).map((x) => x.n).join(', ') || '없음') + '</p>' : '');
+  const set = classSets(L.cid).find((x) => x.k === q.k && (!q.sid || x.sid === q.sid)), hasNext = set && q.total && q.n + 1 < set.list.length;
+  $('qzLive').innerHTML = '<div class="pf white pad stack" style="padding:12px;box-shadow:none;border-color:var(--blue)">' +
+    (q.total ? '<small style="font-weight:700;color:var(--sub)">📚 ' + esc(q.name || '') + ' · ' + (q.n + 1) + ' / ' + q.total + '번</small>' : '') +
+    '<p style="font:400 20px/1.4 Jua,sans-serif;margin:0">' + esc(q.q) + '</p><p class="note">' + ans.length + ' / ' + total + '명이 답했어요' + (key ? ' · 정답 ' + esc(q.k === 'ox' ? key.a : (key.a + 1) + '번') : '') + '</p>' +
+    '<div class="bars">' + opts.map((o, i) => { const v = q.k === 'ox' ? o : i, n = ans.filter((x) => String(x.a) === String(v)).length, ok = key && String(key.a) === String(v); return '<div class="' + (ok ? 'ok' : '') + '"><span>' + (q.k === 'ox' ? '' : (i + 1) + '. ') + esc(o) + (ok ? ' ✓' : '') + '</span><i style="width:' + (ans.length ? Math.round(n / ans.length * 100) : 0) + '%"></i><b>' + n + '</b></div>'; }).join('') + '</div>' +
+    (rev ? '<p class="note" style="color:var(--ink)">💡 해설: ' + esc(q.why || '(해설 없음)') + '</p><p class="note">맞힌 학생: ' + esc(ans.filter((x) => String(x.a) === String(q.ans)).map((x) => x.n).join(', ') || '없음') + '</p>' : '') +
+    '<div class="row"><button class="btn yel" type="button" id="qzRev"' + (rev || !key ? ' disabled' : '') + '>정답·해설 공개</button>' +
+    (hasNext ? '<button class="btn blue" type="button" id="qzNext">다음 문제 ▶ (' + (q.n + 2) + '번)</button>' : '') +
+    '<button class="btn" type="button" id="qzEnd">' + (set && q.total && !hasNext && rev ? '퀴즈 끝내기' : '퀴즈 닫기') + '</button></div></div>';
   $('qzRev').addEventListener('click', () => { if (key) setSt({ 'quiz/ans': key.a, 'quiz/why': key.why || '' }); });
+  if ($('qzNext')) $('qzNext').addEventListener('click', () => sendSetQ(set, q.n + 1));
   $('qzEnd').addEventListener('click', () => setSt({ quiz: null }));
 }
 
@@ -767,7 +754,7 @@ function start(u) {
     watchCounts();
     if (view === 'classes') drawClasses();
     else if (view === 'quiz') drawQuizLib();
-    else if (view === 'live' && L) { const c = classes.find((x) => x.id === L.cid); if (!c) route(); else refreshList('clsL', c.links || [], () => (classes.find((x) => x.id === c.id) || {}).links || [], (list) => setDoc(doc(fs, 'classes', c.id), { links: list }, { merge: true })); }
+    else if (view === 'live' && L) { const c = classes.find((x) => x.id === L.cid); if (!c) route(); else refreshList('clsL', c.links || [], () => (classes.find((x) => x.id === c.id) || {}).links || [], (list) => setDoc(doc(fs, 'classes', c.id), { links: list }, { merge: true }));  paintQuiz(); }
     else if (!view) route();
   }, (err) => { $('view').innerHTML = '<p class="pf pad">' + esc(errText(err)) + '</p>'; });
   onSnapshot(doc(fs, 'banks', bankId(myOwner(), 'lib')), (s) => { LIB.sets = s.exists() ? s.data().sets || [] : []; LIB.ok = true; if (view === 'quiz') drawQuizLib(); }, () => { LIB.ok = true; });
