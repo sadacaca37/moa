@@ -213,13 +213,16 @@ async function goMap(id, announce) {
 /* ---------- 실시간: 내 자리 ---------- */
 let myRef = null, lastSend = 0, sentMoving = false, online = false;
 function rec() { const r = { n: me.name, k: me.key, o: me.o, x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 0, mp: mapId || '', t: rnow() }; if (TEACH) r.tc = 1; return r; }
-function sendAll() { if (myRef && online && mapId) set(myRef, rec()).catch(() => {}); }
+// 선생님이 게임에 같이 들어가 있는 동안(같은 브라우저)에는 교실 화면이 선생님 자리를 덮어쓰지 않음
+const tInGame = () => { if (!TEACH) return false; try { return Date.now() - (+localStorage.getItem('moaTeacherGame') || 0) < 8000; } catch (e) { return false; } };
+function sendAll() { if (myRef && online && mapId && !tInGame()) set(myRef, rec()).catch(() => {}); }
 function syncMove(now) {
-  if (!myRef || !online || !mapId) return;
+  if (!myRef || !online || !mapId || tInGame()) return;
   if (me.moving && now - lastSend > 180) { lastSend = now; sentMoving = true; update(myRef, { x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 1, t: rnow() }).catch(() => {}); }
   else if (!me.moving && sentMoving) { lastSend = now; sentMoving = false; update(myRef, { x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 0, t: rnow() }).catch(() => {}); }
 }
 setInterval(() => { if (myRef && online) update(myRef, { t: rnow() }).catch(() => {}); }, 40000);
+if (TEACH) setInterval(() => { if (document.visibilityState === 'visible') sendAll(); }, 15000); // 선생님: 게임 창을 닫아 자리가 지워져도 다시 나타나게
 
 /* ---------- 친구들 ---------- */
 function upsert(uid, v) {

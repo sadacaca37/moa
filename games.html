@@ -229,6 +229,7 @@ ol.rank li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
     <div id="gExtra"></div>
     <h3 id="rankH">지금 순위</h3>
     <ol class="rank" id="rank"></ol>
+    <div id="netBox" hidden><h3>함께 하는 친구들 <span id="netN"></span></h3><ol class="rank" id="netList"></ol><p class="note">파란 이름표가 같은 반 친구, 👑 주황 이름표가 선생님이에요. 🤖는 컴퓨터예요.</p></div>
     <p class="note" id="sideNote">연습 게임이에요. 선생님이 반 진행판에서 게임을 시작하면 결과가 선생님께 모여요.</p>
   </aside>
 </main>
@@ -289,7 +290,7 @@ ol.rank li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
 
 <script src="js/avatar.js"></script>
 <script type="module">
-import { fs, rt, whenAuth, ensureUser, isTeacher, teacherRole, bankId, doc, getDoc, setDoc, ref, set, rget, rnow, getSession } from './js/fb.js';
+import { fs, rt, whenAuth, ensureUser, isTeacher, teacherRole, bankId, doc, getDoc, setDoc, ref, set, update, rget, rnow, getSession, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect } from './js/fb.js';
 import { readXlsx, readCSV, makeXlsx } from './js/xlsx.js';
 import { aiJSON } from './js/ai.js';
 {
@@ -304,9 +305,18 @@ const T = 32, F = 128, ROWS = { down: 0, up: 1, left: 2, right: 3 }, WALK = [1, 
 /* ---------- 옷 입히기 (js/avatar.js — 캐릭터 꾸미기와 같은 그림) ---------- */
 const AV = window.MoaAvatar, RAW = AV.raw;
 const sheetFor = (o) => AV.sheet(o);
-const SES = getSession(), PARAMS = new URLSearchParams(location.search);
+const PARAMS = new URLSearchParams(location.search), SES = PARAMS.get('teach') ? null : getSession(); // 선생님이 같이 하기로 들어오면 학생 세션은 쓰지 않음
 const RUN = PARAMS.get('run') || '', WANT = PARAMS.get('g') || '';
-const MY_O = SES && SES.outfit ? AV.clean(SES.outfit) : null;
+// 같은 반 친구들과 함께: 선생님이 시작한 게임(run)이면 친구들·선생님 캐릭터가 실제로 함께 보여요
+//  - 각자 자기 게임을 하면서, 자기 캐릭터 자리·점수를 live/반/players/내uid 에 올리고 친구 것을 받아 그려요
+//  - 선생님은 진행판의 '나도 같이 하기'로 들어와요 (?teach=반)
+const TEACH_CID = PARAMS.get('teach') || '';
+const T_OUTFIT = { hair: 'hair_long', top: 'top_shirt_tie', bottom: 'bottom_slacks', shoes: 'shoes_loafers', outer: 'outer_blazer', hand: 'hand_book' };
+const teacherOutfit = () => { try { return JSON.parse(localStorage.getItem('moaTeacherOutfit')) || T_OUTFIT; } catch (e) { return T_OUTFIT; } };
+const MY_O = SES && SES.outfit ? AV.clean(SES.outfit) : TEACH_CID ? AV.clean(teacherOutfit()) : null;
+let NET_CID = RUN && SES ? SES.cid : ''; // 선생님은 확인한 뒤에 정함
+const ghosts = new Map();
+let netRef = null, netOn = false, netFull = false, netLast = 0, netSentMoving = false, netGs = '', ghostN = -1;
 let POOL = [], MATES = [];
 function randomOutfit() { return POOL.length ? pick(POOL) : AV.random({ plain: true }); }
 
@@ -400,9 +410,10 @@ function setCount(n) {
   const myName = ($('#myName').value.trim() || '나').slice(0, 6);
   if (!me) me = makeActor(myName, true);
   me.name = myName;
-  const bots = actors.filter(a => !a.isMe).slice(0, n - 1);
-  const names = MATES.map(m => m.n).concat(NAMES.filter(x => !MATES.some(m => m.n === x)));
-  while (bots.length < n - 1) { const i = bots.length; bots.push(makeActor(names[i] || NAMES[i % NAMES.length], false, MATES[i])); }
+  const want = NET_CID ? Math.max(2, n - 1 - ghosts.size) : n - 1; ghostN = ghosts.size;
+  const bots = actors.filter(a => !a.isMe && !!a.bot === !!NET_CID).slice(0, want);
+  const names = NET_CID ? NAMES.slice() : MATES.map(m => m.n).concat(NAMES.filter(x => !MATES.some(m => m.n === x)));
+  while (bots.length < want) { const i = bots.length; const b = makeActor(names[i] || NAMES[i % NAMES.length], false, NET_CID ? null : MATES[i]); b.bot = !!NET_CID; bots.push(b); }
   actors = [me, ...bots];
 }
 
@@ -497,10 +508,25 @@ function drawActor(a) {
   if (a.starT > 0) drawImg('icon_sparkle', a.x + 22, a.y - 70 - lift + Math.sin(a.starT * 9) * 4, 26, 0.6 + 0.4 * Math.sin(a.starT * 12));
   if (a.boostT > 0 && a.moving) drawImg('it_bolt', a.x - (a.dir === 'right' ? 30 : a.dir === 'left' ? -30 : 26), a.y - 30 - lift, 16, 0.85);
 }
+function drawGhost(a) {
+  const col = a.moving ? WALK[Math.floor(a.step) % 4] : 1;
+  g.globalAlpha = a.out ? 0.4 : 1;
+  g.drawImage(a.sheet, col * F, (ROWS[a.dir] || 0) * F, F, F, Math.round(a.x - 48), Math.round(a.y - 93), 96, 96);
+  g.globalAlpha = 1;
+}
+function drawGhostTag(a) {
+  const label = (a.tc ? '👑 ' : '') + a.name, fs = 13 * ui;
+  g.font = `700 ${fs}px "Noto Sans KR", sans-serif`;
+  const w = g.measureText(label).width + fs * 0.9, h = fs * 1.55, x = a.x - w / 2, y = a.y - 98 - h;
+  g.globalAlpha = a.out ? 0.6 : 1;
+  g.fillStyle = a.tc ? '#FF6B4A' : '#2F5FE0'; rr(x, y, w, h, h / 2); g.fill(); g.lineWidth = 2 * ui; g.strokeStyle = '#111'; g.stroke();
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, a.x, y + h / 2 + 1);
+  g.globalAlpha = 1;
+}
 function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
 function drawTag(a) {
   const st = (G.tag && G.tag(a)) || {};
-  const label = st.label || a.name, fs = 13 * ui;
+  const label = st.label || ((a.bot ? '🤖 ' : '') + a.name), fs = 13 * ui;
   g.font = `700 ${fs}px "Noto Sans KR", sans-serif`;
   const w = g.measureText(label).width + fs * 0.9, h = fs * 1.55, lift = a.jumpT > 0 ? Math.sin(Math.PI * (1 - a.jumpT / 0.6)) * 34 : 0;
   const x = a.x - w / 2, y = a.y - 98 - h - lift;
@@ -532,11 +558,13 @@ function render() {
   g.drawImage(M.img, 0, 0, M.size[0], M.size[1]);
   if (G.drawUnder) G.drawUnder();
   const list = actors.map(a => ({ y: a.y, f: () => drawActor(a) }));
+  for (const gh of ghosts.values()) if (gh.sheet && gh.gid === cur.id) list.push({ y: gh.y, f: () => drawGhost(gh) });
   if (G.sprites) list.push(...G.sprites());
   list.push(...itemSprites());
   list.sort((p, q) => p.y - q.y).forEach(p => p.f());
   if (G.drawOver) G.drawOver();
   actors.forEach(drawTag);
+  for (const gh of ghosts.values()) if (gh.sheet && gh.gid === cur.id) drawGhostTag(gh);
   for (const e of fx) {
     const k = e.t / e.life, up = k * 40;
     if (e.img) drawImg(e.img, e.x, e.y - up, (e.w || 34) * ui ** 0.5, 1 - k * k);
@@ -1732,6 +1760,7 @@ function resetGame() {
 }
 function startGame() {
   readSettings(); if (state !== 'ready') resetGame();
+  if (NET_CID && ghosts.size !== ghostN) { setCount(+$('#count').value); resetGame(); } // 같이 들어온 친구 수만큼 컴퓨터를 줄여요
   state = 'count'; countT = 3.2; lastCount = 0; lastHurry = 0; sfx('ui_click'); $('#gSet').hidden = true; startBtn.disabled = true; endBtn.disabled = false; cv.focus({ preventScroll: true });
   if (innerWidth < 960) $('#screen').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
@@ -1801,6 +1830,11 @@ function showResult() {
   }
 }
 function updateSide(force) {
+  if (NET_CID) {
+    const gs = [...ghosts.values()].filter(x => x.gid === cur.id).sort((p, q) => (q.tc ? 1 : 0) - (p.tc ? 1 : 0) || p.name.localeCompare(q.name));
+    $('#netBox').hidden = false; $('#netN').textContent = gs.length + '명';
+    $('#netList').innerHTML = gs.map(x => `<li><b>${x.tc ? '👑' : '👫'}</b><span>${esc(x.name)}</span><span>${esc(x.gs || '하는 중')}</span></li>`).join('') || '<li><span>아직 들어온 친구가 없어요</span></li>';
+  }
   const rows = G.rank();
   $('#rank').innerHTML = rows.map((r, i) => r.team
     ? `<li><b>${i + 1}</b><span><span class="dot" style="background:${r.team.c}"></span>${teamLabel(r.team)}</span><span>${esc(r.v)}</span></li>`
@@ -1859,6 +1893,12 @@ function drawMe() { const x = $('#meCv').getContext('2d'); x.clearRect(0, 0, 128
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  for (const gh of ghosts.values()) {
+    const ddx = gh.tx - gh.x, ddy = gh.ty - gh.y, d = Math.hypot(ddx, ddy);
+    if (d > 0.5) { const sp = Math.min(d, Math.max(175, d * 4) * dt); gh.x += ddx / d * sp; gh.y += ddy / d * sp; gh.moving = true; gh.step += dt * 8.5; }
+    else gh.moving = gh.rm && d > 0.1;
+  }
+  netTick(now);
   if (G && M && M.img && state !== 'load') {
     if (state === 'count') {
       countT -= dt; const cn = countT > 0.2 ? Math.ceil(countT - 0.2) : 0; $('#countdown').textContent = cn ? String(cn) : '시작!';
@@ -1897,6 +1937,53 @@ function frame(now) {
   }
 }
 
+/* ---------- 같은 반 친구들과 함께 (실시간) ---------- */
+function netRec() {
+  const r = { n: String(me.name || '나').slice(0, 10), k: SES ? SES.key : 'teacher', o: me.o, x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: me.moving ? 1 : 0, mp: 'game:' + RUN, gid: cur ? cur.id : '', gs: netGs, go: me.out ? 1 : 0, t: rnow() };
+  if (!SES) r.tc = 1;
+  return r;
+}
+function myGs() {
+  if (!cur) return '';
+  if (state === 'ready' || state === 'count' || state === 'load') return '준비 중';
+  const B = BEST[cur.id]; let v = null; try { v = B ? B.v() : null; } catch (e) { v = null; }
+  if (v === null || v === undefined || (B && B.hi && !v)) return state === 'over' ? '끝!' : '하는 중';
+  return (state === 'over' ? '끝 · ' : '') + B.f(v);
+}
+function netTick(now) {
+  if (!netRef || !netOn || !me || !cur) return;
+  if (!SES && now - (netTick.mark || 0) > 2500) { netTick.mark = now; try { localStorage.setItem('moaTeacherGame', String(Date.now())); } catch (e) { /* 무시 */ } } // 선생님: 진행판의 교실 화면이 내 자리를 덮어쓰지 않게
+  if (!netFull) { netFull = true; netLast = now; netGs = myGs(); set(netRef, netRec()).catch(() => { netFull = false; }); return; } // 처음 한 번은 전체
+  const gs = myGs(), moved = me.moving && now - netLast > 200, stop = !me.moving && netSentMoving, gsNew = gs !== netGs && now - netLast > 400;
+  if (!moved && !stop && !gsNew) return;
+  netLast = now; netSentMoving = me.moving; netGs = gs;
+  update(netRef, { x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: me.moving ? 1 : 0, gid: cur.id, gs, go: me.out ? 1 : 0, t: rnow() }).catch(() => {});
+}
+function ghostUp(uid, v) {
+  if (!v || !USER || uid === USER.uid) return;
+  if (v.mp !== 'game:' + RUN) { ghosts.delete(uid); return; }
+  let gh = ghosts.get(uid);
+  if (!gh) { gh = { uid, x: +v.x || 0, y: +v.y || 0, tx: +v.x || 0, ty: +v.y || 0, dir: 'down', moving: false, step: Math.random() * 4, sheet: null, okey: '' }; ghosts.set(uid, gh); }
+  gh.name = String(v.n || '친구').slice(0, 10); gh.tc = !!v.tc; gh.tx = +v.x || 0; gh.ty = +v.y || 0; gh.dir = ROWS[v.d] !== undefined ? v.d : 'down';
+  gh.rm = !!v.m; gh.gs = String(v.gs || '').slice(0, 24); gh.out = !!v.go; gh.gid = v.gid || '';
+  if (Math.abs(gh.x - gh.tx) > 300 || Math.abs(gh.y - gh.ty) > 300) { gh.x = gh.tx; gh.y = gh.ty; }
+  const ok = JSON.stringify(v.o || {});
+  if (ok !== gh.okey) { gh.okey = ok; const o = AV.clean(v.o); AV.ensureMany([o]).then(() => { gh.sheet = sheetFor(o); }); }
+}
+function netStart() {
+  if (!NET_CID || !USER) return;
+  netRef = ref(rt, 'live/' + NET_CID + '/players/' + USER.uid);
+  onValue(ref(rt, '.info/connected'), async (s) => {
+    netOn = !!s.val();
+    if (netOn) { try { await onDisconnect(netRef).remove(); } catch (e) { /* 무시 */ } netFull = false; } // 다음 프레임에 전체를 다시 보냄
+  });
+  const base = ref(rt, 'live/' + NET_CID + '/players');
+  onChildAdded(base, (s) => ghostUp(s.key, s.val()));
+  onChildChanged(base, (s) => ghostUp(s.key, s.val()));
+  onChildRemoved(base, (s) => ghosts.delete(s.key));
+  setInterval(() => { netFull = false; }, 20000); // 가끔 전체를 다시 보내서 빠진 칸을 채움
+}
+
 /* ---------- 시작 ---------- */
 let USER = null, sentRun = false;
 (async () => {
@@ -1906,10 +1993,11 @@ let USER = null, sentRun = false;
   // 학생: 우리 반 선생님의 문제 상자 (반 문서의 owner)
   if (SES && !TEACHER && USER) { try { const c = await getDoc(doc(fs, 'classes', SES.cid)); OWN = (c.exists() && c.data().owner) || ''; } catch (e) { OWN = SES.tid || ''; } }
   if (SES) { $('#backCls').hidden = false; $('#resBack').hidden = false; $('#myName').value = SES.name; $('#myName').readOnly = true; }
+  if (RUN && TEACH_CID && TEACHER && !SES) { NET_CID = TEACH_CID; $('#myName').value = '선생님'; $('#myName').readOnly = true; }
   if (TEACHER) { $('#backT').hidden = false; $('#sideNote').textContent = (OWN ? '선생님 계정이에요. 문제 만들기에서 저장한 문제는 내가 만든 반의 게임과 퀴즈에서 함께 써요.' : '선생님 계정이에요. 문제 만들기에서 저장한 문제는 모든 반의 게임과 퀴즈에서 함께 써요.'); }
   if (RUN) {
-    $('#subT').textContent = '선생님이 시작한 게임이에요! 끝나면 내 기록이 선생님께 가요.';
-    $('#sideNote').textContent = '선생님이 시작한 게임이에요. 같이 노는 친구들은 컴퓨터가 움직여요.';
+    $('#subT').textContent = SES ? '선생님이 시작한 게임이에요! 끝나면 내 기록이 선생님께 가요.' : '👑 선생님도 같이 하는 중이에요.';
+    $('#sideNote').textContent = '선생님이 시작한 게임이에요. 파란 이름표는 진짜 우리 반 친구, 🤖는 컴퓨터예요.';
     try { const r = JSON.parse(sessionStorage.getItem('moa_runs') || '[]'); if (!r.includes(RUN)) { r.push(RUN); sessionStorage.setItem('moa_runs', JSON.stringify(r.slice(-20))); } } catch (e) { /* 무시 */ }
   }
   if (USER) {
@@ -1923,6 +2011,8 @@ let USER = null, sentRun = false;
   for (let i = 0; i < 12; i++) POOL.push(AV.random({ plain: true }));
   await Promise.all([AV.ensureMany(POOL.concat(MATES.map(m => m.o), MY_O ? [MY_O] : [], [AV.withHand(AV.START, 'hand_umbrella', 'yellow')])), ...OBJ.map(async id => { IMG[id] = await loadImg('assets/obj/' + id + '.png'); })]);
   if (!RAW.body) { $('#loading').textContent = '캐릭터 그림을 불러오지 못했어요.'; return; }
+  netStart();
+  await new Promise(r => setTimeout(r, NET_CID ? 600 : 0)); // 먼저 들어온 친구들 받기
   setCount(+$('#count').value); drawMe();
   const first = GAMES.find(x => x.id === (WANT || location.hash.slice(1))) || GAMES[0];
   await selectGame(first);

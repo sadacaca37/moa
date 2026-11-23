@@ -359,8 +359,8 @@ function drawLive(cid) {
       '<section class="pf card"><h2>공지</h2><div class="row"><input class="field" id="ntI" maxlength="80" placeholder="학생 화면 맨 위와 교실 스크린에 떠요" style="flex:1;min-width:200px"><button class="btn yel" type="button" id="ntB">띄우기</button><button class="btn" type="button" id="ntX">내리기</button></div>' +
       '<div class="chips" id="ntP"><button class="btn sm" type="button" data-nt="자리에 앉아서 선생님을 봐요 👀">자리에 앉아요</button><button class="btn sm" type="button" data-nt="잠깐! 손을 멈추고 화면을 봐요 ✋">잠깐 멈춤</button><button class="btn sm" type="button" data-nt="오늘 수업 끝! 정리하고 안전하게 집에 가요 👋">수업 끝 · 안전 귀가</button></div><p class="note" id="ntNow"></p></section>' +
       '<section class="pf card" id="quizC"></section>' +
-      '<section class="pf card"><h2>미니 게임 <span class="badge" id="gmB"></span></h2><div class="mapsel"><select class="field" id="gmS" aria-label="게임 고르기">' + GAMES.map(([id, n]) => '<option value="' + id + '">' + n + '</option>').join('') + '</select><button class="btn blue" type="button" id="gmGo">게임 시작 ▶</button><button class="btn red" type="button" id="gmEnd">게임 끝</button></div>' +
-      '<p class="note">게임을 시작하면 반에 들어와 있는 학생 화면이 게임으로 넘어가요. 학생마다 컴퓨터 친구들과 함께 하고, 끝나면 기록이 여기로 모여요. 문제(보물찾기·OX·초성)는 미니 게임 화면의 \'문제 만들기\'에서 저장해요.</p><div id="gmR"></div></section>' +
+      '<section class="pf card"><h2>미니 게임 <span class="badge" id="gmB"></span></h2><div class="mapsel"><select class="field" id="gmS" aria-label="게임 고르기">' + GAMES.map(([id, n]) => '<option value="' + id + '">' + n + '</option>').join('') + '</select><button class="btn blue" type="button" id="gmGo">게임 시작 ▶</button><button class="btn red" type="button" id="gmEnd">게임 끝</button><a class="btn yel" id="gmJoin" target="_blank" rel="noopener" hidden>🎮 나도 같이 하기</a></div>' +
+      '<p class="note">게임을 시작하면 반에 들어와 있는 학생 화면이 게임으로 넘어가요. 같은 반 친구들이 한 게임에 함께 보이고(모자라면 🤖 컴퓨터가 채워요), \'나도 같이 하기\'로 선생님도 들어갈 수 있어요. 끝나면 기록이 여기로 모여요. 문제(보물찾기·OX·초성)는 미니 게임 화면의 \'문제 만들기\'에서 저장해요.</p><div id="gmR"></div></section>' +
     '</div><div class="stack">' +
       '<section class="pf card"><h2 id="plH">들어온 학생</h2><div class="chips" id="plL"></div></section>' +
       '<section class="pf card"><h2>채팅</h2><div class="row"><button class="btn sm" type="button" id="chOff"></button><button class="btn sm red" type="button" id="chClr">채팅 지우기</button></div><div id="chatLog" aria-live="polite"></div></section>' +
@@ -405,9 +405,10 @@ function paintLive() {
   $('chOff').textContent = st.chatOff ? '채팅 켜기' : '채팅 끄기';
   const g = st.game; $('gmB').textContent = g ? g.name + ' 하는 중' : '쉬는 중'; $('gmB').className = 'badge' + (g ? ' go' : '');
   $('gmEnd').disabled = !g;
+  const jn = $('gmJoin'); if (jn) { jn.hidden = !(g && g.run && g.id); if (g && g.run) jn.href = 'games.html?g=' + encodeURIComponent(g.id) + '&run=' + encodeURIComponent(g.run) + '&teach=' + encodeURIComponent(L.cid); }
   const ps = Object.entries(L.players || {}).filter(([, p]) => !(p && p.tc)); // 선생님 캐릭터(👑)는 학생 수에서 뺌
   $('plH').textContent = '들어온 학생 ' + ps.length + '명';
-  $('plL').innerHTML = ps.map(([, p]) => '<span>' + esc(p.n || '?') + (p.mp && p.mp !== (on ? m : 'playground') ? ' (이동 중)' : '') + '</span>').join('') || '<span>아직 아무도 없어요</span>';
+  $('plL').innerHTML = ps.map(([, p]) => '<span>' + esc(p.n || '?') + (String(p.mp || '').startsWith('game:') ? ' 🎮' : p.mp && p.mp !== (on ? m : 'playground') ? ' (이동 중)' : '') + '</span>').join('') || '<span>아직 아무도 없어요</span>';
   paintQuizLive(); paintResults();
 }
 function paintChat() {
