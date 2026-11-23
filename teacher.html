@@ -460,7 +460,13 @@ async function sendSetQ(set, i) {
   const quiz = { qid, k, q: String(x.q || ''), t: Date.now(), n: i, total: set.list.length, sid: set.sid || '', name: set.name || '' };
   if (k === 'mc') quiz.o = (x.o || []).slice(0, 4);
   const key = { a: k === 'ox' ? (x.a === 'X' ? 'X' : 'O') : +x.a || 0, why: String(x.why || '') };
-  try { await rset(ref(rt, 'live/' + L.cid + '/key/' + qid), key); await setSt({ quiz }); toast((i + 1) + '번 문제를 냈어요!'); }
+  // 한 판(qrun): 같은 세트를 이어서 내는 동안의 문제들 → 끝나면 이 문제들로 순위를 매김
+  const old = L.st.qrun, qrun = old && old.sid === quiz.sid && old.k === k ? old : { id: 'r' + Date.now().toString(36), sid: quiz.sid, k, name: quiz.name };
+  try {
+    await rset(ref(rt, 'live/' + L.cid + '/key/' + qid), key);
+    await rset(ref(rt, 'live/' + L.cid + '/qruns/' + qrun.id + '/' + qid), quiz.t);
+    await setSt({ quiz, qrun, qrank: null }); toast((i + 1) + '번 문제를 냈어요!');
+  }
   catch (err) { toast(errText(err), true); }
 }
 /* 퀴즈 문제: 엑셀로 올리기 · AI로 만들기 → 문제 상자(banks)에 저장 */
@@ -565,11 +571,42 @@ function watchAnswers(qid) {
   liveOffs.push(L.ansOff);
   rget(ref(rt, 'live/' + L.cid + '/key/' + qid)).then((s) => { L.key[qid] = s.val(); paintQuizLive(); }).catch(() => {});
 }
+// 🏆 순위: 이 판에 낸 문제마다 정답이면 1개, 같으면 빨리 답한 순 (5등까지 발표, 모두의 맞힌 수도 함께 보냄)
+const MEDAL = ['🥇', '🥈', '🥉', '4등', '5등'];
+const rankHTML = (rk) => '<ol class="list" style="max-height:none;padding-left:0">' + (rk.top || []).map((r, i) => '<li><b style="width:44px;text-align:center">' + MEDAL[i] + '</b><span class="sp">' + esc(r.n) + '</span><span>' + r.s + ' / ' + rk.total + '개</span></li>').join('') + (rk.top && rk.top.length ? '' : '<li>답한 학생이 없어요.</li>') + '</ol>';
+async function announceRank() {
+  const run = L.st.qrun; if (!run) return;
+  const base = 'live/' + L.cid;
+  try {
+    const qs = (await rget(ref(rt, base + '/qruns/' + run.id))).val() || {};
+    const sc = {};
+    for (const [qid, qt] of Object.entries(qs)) {
+      const [ks, as] = await Promise.all([rget(ref(rt, base + '/key/' + qid)), rget(ref(rt, base + '/answers/' + qid))]);
+      const key = ks.val(); if (!key) continue;
+      for (const [u, v] of Object.entries(as.val() || {})) {
+        if (!v) continue; const o = sc[u] || (sc[u] = { n: String(v.n || '?').slice(0, 10), k: v.k || '', s: 0, tm: 0 });
+        if (String(v.a) === String(key.a)) { o.s++; o.tm += Math.max(0, (+v.t || 0) - (+qt || 0)); }
+      }
+    }
+    const list = Object.values(sc).sort((a, b) => b.s - a.s || a.tm - b.tm || a.n.localeCompare(b.n));
+    const rk = { id: run.id, name: run.name || '', total: Object.keys(qs).length, top: list.slice(0, 5).map((o) => ({ n: o.n, s: o.s })), list: list.map((o) => ({ n: o.n, k: o.k, s: o.s })), t: Date.now() };
+    await setSt({ quiz: null, qrun: null, qrank: rk });
+    remove(ref(rt, base + '/qruns/' + run.id)).catch(() => {});
+    toast('🏆 순위를 발표했어요! 학생 화면에 5등까지 떠요.');
+  } catch (err) { toast(errText(err), true); }
+}
 function paintQuizLive() {
   if (!L || !$('qzLive')) return;
   const q = L.st.quiz;
   $('qzB').textContent = q ? '푸는 중' : '쉬는 중'; $('qzB').className = 'badge' + (q ? ' go' : '');
-  if (!q) { $('qzLive').innerHTML = ''; return; }
+  if (!q) {
+    const rk = L.st.qrank, run = L.st.qrun;
+    $('qzLive').innerHTML = (rk && rk.top ? '<div class="pf white pad stack" style="padding:12px;box-shadow:none;border-color:#E0A800"><b>🏆 ' + esc(rk.name || '퀴즈') + ' 순위 · ' + rk.total + '문제 · ' + (rk.list || []).length + '명</b>' + rankHTML(rk) + '<div class="row"><button class="btn sm" type="button" id="qzRankX">발표 창 내리기</button></div></div>' : '') +
+      (run && !rk ? '<div class="row"><button class="btn grn" type="button" id="qzRank">🏆 \'' + esc(run.name || '퀴즈') + '\' 지금까지 순위 발표</button></div>' : '');
+    if ($('qzRank')) $('qzRank').addEventListener('click', announceRank);
+    if ($('qzRankX')) $('qzRankX').addEventListener('click', () => setSt({ qrank: null }));
+    return;
+  }
   const key = L.key[q.qid], opts = q.k === 'ox' ? ['O', 'X'] : q.o || [], ans = Object.values(L.answers || {});
   const total = Object.values(L.players || {}).filter((p) => !(p && p.tc)).length;
   const rev = q.ans !== undefined && q.ans !== null;
@@ -581,10 +618,12 @@ function paintQuizLive() {
     (rev ? '<p class="note" style="color:var(--ink)">💡 해설: ' + esc(q.why || '(해설 없음)') + '</p><p class="note">맞힌 학생: ' + esc(ans.filter((x) => String(x.a) === String(q.ans)).map((x) => x.n).join(', ') || '없음') + '</p>' : '') +
     '<div class="row"><button class="btn yel" type="button" id="qzRev"' + (rev || !key ? ' disabled' : '') + '>정답·해설 공개</button>' +
     (hasNext ? '<button class="btn blue" type="button" id="qzNext">다음 문제 ▶ (' + (q.n + 2) + '번)</button>' : '') +
-    '<button class="btn" type="button" id="qzEnd">' + (set && q.total && !hasNext && rev ? '퀴즈 끝내기' : '퀴즈 닫기') + '</button></div></div>';
+    (!hasNext && rev ? '<button class="btn grn" type="button" id="qzRank">🏆 순위 발표하고 끝내기</button>' : '') +
+    '<button class="btn" type="button" id="qzEnd">퀴즈 닫기</button></div></div>';
   $('qzRev').addEventListener('click', () => { if (key) setSt({ 'quiz/ans': key.a, 'quiz/why': key.why || '' }); });
   if ($('qzNext')) $('qzNext').addEventListener('click', () => sendSetQ(set, q.n + 1));
   $('qzEnd').addEventListener('click', () => setSt({ quiz: null }));
+  if ($('qzRank')) $('qzRank').addEventListener('click', announceRank);
 }
 
 /* 게임 결과 */
