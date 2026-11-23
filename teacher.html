@@ -87,6 +87,7 @@ import {
   ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast
 } from './js/fb.js';
 import { DEF_OX, DEF_MC } from './js/questions.js';
+import { trashBoard, inTrash, TRASH_DAYS } from './js/trash.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
 const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
@@ -239,18 +240,15 @@ async function classDlg(c) {
       closeDlg(); toast(isNew ? '\'' + name + '\' 반을 만들었어요. 방번호 ' + d.room : '저장했어요.');
     } catch (err) { toast(errText(err), true); }
   });
-  if (!isNew) $('cDel').addEventListener('click', () => confirmDlg('클래스 지우기', '\'' + c.name + '\' 반과 그 반의 학생 기록·패들렛·실시간 기록을 모두 지워요. 되돌릴 수 없어요.', '모두 지우기', () => deleteClass(c)));
+  if (!isNew) $('cDel').addEventListener('click', () => confirmDlg('클래스 지우기', '\'' + c.name + '\' 반과 그 반의 학생 기록·실시간 기록을 모두 지워요. 되돌릴 수 없어요. (그 반의 패들렛은 휴지통으로 옮겨져서 ' + TRASH_DAYS + '일 안에는 내 패들렛 → 휴지통에서 되살릴 수 있어요)', '모두 지우기', () => deleteClass(c)));
 }
 async function deleteClass(c) {
   try {
     toast('지우는 중…');
     const own = isAdmin() ? [] : [where('owner', '==', user.uid)];
     const bs = await getDocs(query(collection(fs, 'boards'), where('cid', '==', c.id), ...own));
-    for (const b of bs.docs) {
-      const ps = await getDocs(query(collection(fs, 'parts'), where('bid', '==', b.id), ...own)); for (const p of ps.docs) await deleteDoc(p.ref);
-      for (const sub of ['posts', 'comments']) { try { const xs = await getDocs(collection(fs, 'boards', b.id, sub)); for (const x of xs.docs) await deleteDoc(x.ref); } catch (e) { /* 없으면 넘어감 */ } }
-      await deleteDoc(b.ref);
-    }
+    // 패들렛은 휴지통으로 (30일 동안 되살릴 수 있음)
+    for (const b of bs.docs) { const bd = Object.assign({ id: b.id }, b.data()); if (!inTrash(bd)) await trashBoard(bd, { own, homeRef: homeRef() }); }
     const ss = await getDocs(collection(fs, 'classes', c.id, 'students'));
     for (const s of ss.docs) await deleteDoc(s.ref);
     if (c.room) await deleteDoc(doc(fs, 'rooms', c.room));

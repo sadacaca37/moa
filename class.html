@@ -475,7 +475,7 @@ function frame(now) {
   }, () => {});
   // 수업 보드 (학생에게 보이기로 한 것)
   onSnapshot(query(collection(fs, 'boards'), where('cid', '==', ses.cid), where('public', '==', true)), (snap) => {
-    const bs = snap.docs.map((d) => Object.assign({ id: d.id }, d.data())).sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
+    const bs = snap.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((b) => !b.trash).sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
     $('clsBoards').innerHTML = bs.map((b, i) => card({ bid: b.id, t: b.title, d: (b.postCount || 0) + '개의 글', c: b.color }, i)).join('') || '<p class="empty">아직 열린 수업 보드가 없어요.</p>';
   }, () => { $('clsBoards').innerHTML = '<p class="empty">수업 보드를 불러오지 못했어요.</p>'; });
 

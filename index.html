@@ -65,6 +65,12 @@ footer .studio{letter-spacing:.08em}
 @media (max-width:700px){.walkers{display:none}}
 .ground::after{content:'';position:absolute;left:0;right:0;top:14px;height:8px;background:repeating-linear-gradient(90deg,#4FAE2F 0 8px,transparent 8px 24px,#3F9A24 24px 32px,#4FAE2F 32px 40px,transparent 40px 56px,#3F9A24 56px 64px)}
 @media (max-width:700px){.left{max-width:none}footer{position:static;justify-content:center;width:fit-content;max-width:calc(100% - 32px);margin:0 auto 50px}}
+/* 내 패들렛 카드: 선생님만 오른쪽 위 🗑 (휴지통으로) */
+.lkw{position:relative;display:flex}
+.lkw .lk{flex:1}
+.lkdel{position:absolute;top:6px;right:6px;width:36px;height:36px;display:grid;place-items:center;padding:0;border:3px solid var(--ink);background:#fff;font-size:17px;cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+.lkdel:hover{background:#FF8F8F}
+.lkdel:focus-visible{outline:4px solid #FF8A3D;outline-offset:2px}
 </style>
 </head>
 <body>
@@ -124,6 +130,7 @@ footer .studio{letter-spacing:.08em}
 
 <script src="js/avatar.js"></script>
 <script type="module">
+import { trashBoard, purgeExpired, inTrash, TRASH_DAYS } from './js/trash.js';
 import { fs, rt, auth, ensureUser, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, ref, rget, nameKey, cleanName, getSession, setSession, esc, safeUrl, hostOf, errText } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
@@ -254,6 +261,18 @@ async function loadHome() {
 }
 loadHome();
 
+/* ---------- 패들렛 삭제 (선생님, 휴지통으로) ---------- */
+const PADS = { own: [], home: null, list: [] };
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-del]'); if (!btn) return;
+  e.preventDefault();
+  const b = PADS.list.find((x) => x.id === btn.dataset.del); if (!b) return;
+  if (!confirm('\'' + (b.title || '패들렛') + '\'을 삭제할까요?\n\n휴지통으로 옮겨져서 학생 화면에서는 바로 사라지고, ' + TRASH_DAYS + '일 안에는 \'내 패들렛 관리 → 휴지통\'에서 되살릴 수 있어요. ' + TRASH_DAYS + '일이 지나면 영구 삭제돼요.')) return;
+  btn.disabled = true;
+  try { await trashBoard(b, { own: PADS.own, homeRef: PADS.home }); loadHome(); }
+  catch (err) { btn.disabled = false; alert(errText(err)); }
+});
+
 /* ---------- 내 패들렛 바로가기 (학생에게 보이기로 한 패들렛 · 선생님은 모두) ---------- */
 async function loadPads() {
   try {
@@ -263,8 +282,10 @@ async function loadPads() {
     const own = r === 'teacher' ? [where('owner', '==', user.uid)] : [];
     const mineOf = (b) => r === 'teacher' ? b.owner === user.uid : r === 'admin' ? !b.owner : (b.owner || '') === HOME;
     const bq = t ? query(collection(fs, 'boards'), ...own) : query(collection(fs, 'boards'), where('public', '==', true));
-    const bs = (await getDocs(bq)).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter(mineOf)
-      .sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')));
+    const all = (await getDocs(bq)).docs.map((d) => Object.assign({ id: d.id }, d.data())).filter(mineOf);
+    const bs = all.filter((b) => !inTrash(b)).sort((a, b) => String(b.created || '').localeCompare(String(a.created || '')));
+    const nTrash = all.filter(inTrash).length;
+    if (t) { PADS.own = own; PADS.home = doc(fs, 'config', r === 'teacher' ? 'home_' + user.uid : 'home'); PADS.list = bs; purgeExpired(all, { own }); }
     // 반 이름·색 (학생은 반 문서를 하나씩 읽을 수 있음)
     const cls = new Map();
     if (t) (await getDocs(query(collection(fs, 'classes'), ...own))).docs.forEach((d) => cls.set(d.id, d.data()));
@@ -272,12 +293,14 @@ async function loadPads() {
     const cards = bs.map((b, i) => {
       const c = cls.get(b.cid) || {};
       const state = !b.public ? '학생에게 안 보여요 (선생님만)' : b.lock ? '읽기만 해요' : '글·사진·댓글 함께 쓰기';
-      return '<a class="lk" href="board.html?b=' + encodeURIComponent(b.id) + '">' +
+      const a = '<a class="lk" href="board.html?b=' + encodeURIComponent(b.id) + '">' +
         '<span class="band" style="background:' + esc(c.color || COLORS[i % COLORS.length]) + '"><b>' + esc(c.name || '패들렛') + '</b></span>' +
         '<span class="body"><span class="t">' + esc(b.title || '패들렛') + '</span><span class="d">' + esc(state) + '</span>' +
         '<span class="h"><span>' + esc(b.date || '') + '</span><span>열기 ▶</span></span></span></a>';
+      // 선생님: 카드 오른쪽 위 🗑 (휴지통으로)
+      return t ? '<div class="lkw">' + a + '<button type="button" class="lkdel" data-del="' + esc(b.id) + '" aria-label="' + esc(b.title || '패들렛') + ' 삭제 (휴지통으로)" title="삭제 (휴지통으로)">🗑</button></div>' : a;
     }).join('');
-    const manage = t ? '<a class="lk" href="padlet.html" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 내 패들렛 관리</span></a>' : '';
+    const manage = t ? '<a class="lk" href="padlet.html" style="border-style:dashed;align-items:center;justify-content:center;min-height:150px"><span class="t" style="font:400 18px Jua,sans-serif">＋ 내 패들렛 관리</span>' + (nTrash ? '<span class="d" style="text-align:center">🗑 휴지통 ' + nTrash + '개</span>' : '') + '</a>' : '';
     $('pads').innerHTML = manage + cards || '<p class="empty">아직 열린 패들렛이 없어요.</p>';
   } catch (err) {
     $('pads').innerHTML = '<p class="empty">' + esc(errText(err)) + '</p>';
