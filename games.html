@@ -183,6 +183,9 @@ ol.rank li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
 @keyframes hop{to{transform:translateY(-12px)}}
 .best{margin:8px 0 0;text-align:center;font:400 18px/1.3 var(--f-t)}
 .best .new{display:inline-block;background:var(--red);color:#fff;border:2px solid var(--edge);border-radius:0;padding:1px 10px;margin-left:6px;font-size:16px}
+/* 학생 화면: 게임 고르기·설정·시작은 선생님만 */
+body.stu #picker,body.stu #gSet,body.stu #startBtn,body.stu #endBtn,body.stu #countL,body.stu #reroll,body.live #again{display:none!important}
+.hostbox label{color:var(--ink)}.hostbox input[type=checkbox]{width:22px;height:22px;min-height:0;accent-color:#2fbf5b;margin:0}
 @media (prefers-reduced-motion:reduce){.cell.no{animation:none}.pod.first canvas{animation:none}}
 </style>
 </head>
@@ -200,7 +203,7 @@ ol.rank li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
       <canvas id="meCv" width="128" height="128" aria-label="내 캐릭터"></canvas>
       <label>내 이름 <input id="myName" maxlength="6" value="나" autocomplete="off"></label>
       <button class="btn" type="button" id="reroll">옷 바꾸기</button>
-      <label>같이 하는 사람 <select id="count"><option value="12">12명</option><option value="20">20명</option><option value="30">30명</option></select></label>
+      <label id="countL"><span id="countT">같이 하는 사람</span> <select id="count"><option value="12">12명</option><option value="20">20명</option><option value="30">30명</option></select></label>
       <button class="btn snd" type="button" id="sndBtn" aria-pressed="true">효과음</button>
       <button class="btn snd" type="button" id="bgmBtn" aria-pressed="true">음악</button>
     </div>
@@ -254,6 +257,14 @@ ol.rank li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
     <p class="best" id="resBest"></p>
     <ol id="resList"></ol>
     <div class="row" style="margin-top:14px"><button class="btn y" type="button" id="again">다시 하기</button><button class="btn" type="button" id="closeRes">닫기</button><a class="btn" href="class.html" id="resBack" hidden>반으로 돌아가기 ▶</a></div>
+  </div>
+</div>
+
+<div class="modal" id="gate" hidden>
+  <div class="result box" role="dialog" aria-modal="true" aria-labelledby="gateH">
+    <h2 id="gateH">미니 게임</h2>
+    <p id="gateP" style="font-size:18px;text-align:center"></p>
+    <div class="row" style="margin-top:14px;justify-content:center"><button class="btn y" type="button" id="gateRe" hidden>다시 초대하기</button><a class="btn y" id="gateGo" href="class.html">반으로 돌아가기 ▶</a></div>
   </div>
 </div>
 
@@ -319,16 +330,20 @@ let T = 32; const F = 128, ROWS = { down: 0, up: 1, left: 2, right: 3 }, WALK = 
 const AV = window.MoaAvatar, RAW = AV.raw;
 const sheetFor = (o) => AV.sheet(o);
 const PARAMS = new URLSearchParams(location.search), SES = PARAMS.get('teach') ? null : getSession(); // 선생님이 같이 하기로 들어오면 학생 세션은 쓰지 않음
-const RUN = PARAMS.get('run') || '', WANT = PARAMS.get('g') || '';
+let RUN = PARAMS.get('run') || ''; const WANT = PARAMS.get('g') || '';
 // 같은 반 친구들과 함께: 선생님이 시작한 게임(run)이면 친구들·선생님 캐릭터가 실제로 함께 보여요
 //  - 각자 자기 게임을 하면서, 자기 캐릭터 자리·점수를 live/반/players/내uid 에 올리고 친구 것을 받아 그려요
 //  - 선생님은 진행판의 '나도 같이 하기'로 들어와요 (?teach=반)
 const TEACH_CID = PARAMS.get('teach') || '';
 const T_OUTFIT = { hair: 'hair_long', top: 'top_shirt_tie', bottom: 'bottom_slacks', shoes: 'shoes_loafers', outer: 'outer_blazer', hand: 'hand_book' };
 const teacherOutfit = () => { try { return JSON.parse(localStorage.getItem('moaTeacherOutfit')) || T_OUTFIT; } catch (e) { return T_OUTFIT; } };
-const MY_O = SES && SES.outfit ? AV.clean(SES.outfit) : TEACH_CID ? AV.clean(teacherOutfit()) : null;
+const HOST_CID = PARAMS.get('host') || ''; // 선생님이 학생들을 초대해서 이 탭이 게임을 돌림 (?host=반)
+const MY_O = SES && SES.outfit ? AV.clean(SES.outfit) : (TEACH_CID || HOST_CID) ? AV.clean(teacherOutfit()) : null;
 let NET_CID = RUN && SES && !PREVIEW ? SES.cid : ''; // 미리보기: 친구들과 연결하지 않고 혼자(🤖와) 해 봄 // 선생님은 확인한 뒤에 정함
 const ghosts = new Map();
+/* 다 같이 하기: MODE = 'host'(선생님 탭이 게임을 돌림) · 'client'(초대받은 학생: 화면만 받고 내 캐릭터만 움직임) · 'local'(혼자 연습·보물찾기·채팅·빙고) */
+const LIVE_IDS = ['dodge', 'tag', 'race', 'paint', 'zombie', 'bomb', 'ox'];
+let MODE = 'local', SIM = false, EVQ = [], evSeq = 0;
 let netRef = null, netOn = false, netFull = false, netLast = 0, netSentMoving = false, netGs = '', ghostN = -1;
 let POOL = [], MATES = [];
 function randomOutfit() { return POOL.length ? pick(POOL) : AV.random({ plain: true }); }
@@ -366,6 +381,8 @@ function audioInit() {
   } catch (e) { AC = null; }
 }
 function sfx(n, vol = 1, rate = 1) {
+  if (SIM) rec({ k: 's', n, v: Number.isFinite(vol) ? Math.round(vol * 100) / 100 : 0.4, r: rate });
+  if (!Number.isFinite(vol)) vol = 0.4;
   if (!soundOn || !AC || !SND[n]) return;
   const now = performance.now(); if (vol < 0.6 && now - (sndLast[n] || 0) < 120) return; sndLast[n] = now;
   try { const s = AC.createBufferSource(), gn = AC.createGain(); s.buffer = SND[n]; s.playbackRate.value = rate; gn.gain.value = vol; s.connect(gn); gn.connect(sfxGain); s.start(); } catch (e) { /* 무시 */ }
@@ -413,7 +430,11 @@ function itemSprites() {
 function umbSheet(a) { return a._u || (a._u = sheetFor(Object.assign({}, a.o, { hand: 'hand_umbrella', handColor: 'yellow' }))); }
 const CHEER = ['화이팅!', '가즈아!', '할 수 있다!', '으쌰으쌰!', 'ㅋㅋㅋ', '야호!', '재밌다!'];
 const EMO = ['화이팅!', 'ㅋㅋㅋ', '도와줘!', '고마워!', '야호!'];
-function emote(i) { if (!me || !EMO[i]) return; say(me, EMO[i], '#fff6c8', 2.2); sfx('chat_pop', 0.8); }
+function emote(i) {
+  if (!me || me.spec || !EMO[i]) return;
+  if (MODE === 'host') { SIM = true; try { say(me, EMO[i], '#fff6c8', 2.2); } finally { SIM = false; } } else say(me, EMO[i], '#fff6c8', 2.2); // 선생님 말풍선은 학생들에게도
+  sfx('chat_pop', 0.8); if (MODE === 'client') { EMN = (++emN) + ':' + i; CN.force = true; }
+}
 
 /* ---------- 사람들 ---------- */
 const NAMES = ['하준', '서윤', '도윤', '지우', '민준', '하은', '예준', '지아', '시우', '수아', '주원', '서아', '지호', '하윤', '건우', '아린', '우진', '채원', '선우', '지민', '유준', '소율', '연우', '다은', '은우', '예린', '정우', '윤서', '이안'];
@@ -505,10 +526,10 @@ function steerBest(a, dt, score, mul = 1, n1 = 26, n2 = 52) {
   }
   if (best) moveActor(a, best[1], best[2], dt, mul); else a.moving = false;
 }
-function say(a, text, color, t = 2.6) { a.bubble = String(text).slice(0, 24); a.bubbleT = t; a.bubbleC = color || null; }
-function addFx(x, y, o) { fx.push(Object.assign({ x, y, t: 0, life: 1 }, o)); }
+function say(a, text, color, t = 2.6) { a.bubble = String(text).slice(0, 24); a.bubbleT = t; a.bubbleC = color || null; if (SIM) rec({ k: 'b', i: actors.indexOf(a), m: a.bubble, c: color || '', d: t }); }
+function addFx(x, y, o) { fx.push(Object.assign({ x, y, t: 0, life: 1 }, o)); if (SIM) rec({ k: 'f', x: Math.round(x) || 0, y: Math.round(y) || 0, o }); }
 const toastEl = $('#toast');
-function toast(msg) { const s = document.createElement('span'); s.textContent = msg; toastEl.append(s); while (toastEl.children.length > 3) toastEl.firstChild.remove(); setTimeout(() => s.remove(), 2200); }
+function toast(msg) { if (SIM) rec({ k: 't', m: String(msg) }); const s = document.createElement('span'); s.textContent = msg; toastEl.append(s); while (toastEl.children.length > 3) toastEl.firstChild.remove(); setTimeout(() => s.remove(), 2200); }
 
 /* ---------- 탈락 대기석 ----------
  * 탈락하면 경기장 밖 대기석에 앉아서 친구들을 응원한다. 놀이터(똥 피하기·폭탄 돌리기)는 경기장 아래 주황 마당에
@@ -574,7 +595,7 @@ function drawGhostTag(a) {
 function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
 function drawTag(a) {
   const st = (G.tag && G.tag(a)) || {};
-  const label = st.label || ((a.bot ? '🤖 ' : '') + a.name), fs = 13 * ui;
+  const label = st.label || ((a.bot ? '🤖 ' : a.tc ? '👑 ' : '') + a.name), fs = 13 * ui;
   g.font = `700 ${fs}px "Noto Sans KR", sans-serif`;
   const w = g.measureText(label).width + fs * 0.9, h = fs * 1.55, lift = a.jumpT > 0 ? Math.sin(Math.PI * (1 - a.jumpT / 0.6)) * 34 : 0;
   const zig = a.out && a.sit && a.sit.k % 2 ? 17 * ui : 0; // 대기석: 이름표가 겹치지 않게 한 칸씩 위아래로
@@ -630,6 +651,9 @@ const S = {}; // 진행판 설정 값
 const teamLabel = t => t.label || t.name + ' 모둠';
 const TEAMS = [{ name: '빨강', c: '#ff4d4d' }, { name: '파랑', c: '#3d7bff' }, { name: '노랑', c: '#ffc21a' }, { name: '초록', c: '#2fbf5b' }];
 const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+const r1 = v => Number.isFinite(v) ? Math.round(v * 10) / 10 : 0, r2 = v => Number.isFinite(v) ? Math.round(v * 100) / 100 : 0;
+const gotT = (o, n, k) => (n[k] || 0) > (o[k] || 0) + 0.5; // 아이템을 주워서 시간이 늘었나
+const akey = a => a.uid || 'n:' + a.name; // 술래 고르기 등에 쓰는 사람 열쇠
 
 /* 1. 똥 피하기 — 놀이터 바닥 전체 (놀이기구 자리는 못 감) */
 function Dodge() {
@@ -637,7 +661,7 @@ function Dodge() {
   // r: 맞는 범위, w: 그림 너비, warn: 그림자 시간 배율, fall: 떨어지는 시간
   const POOP = [{ kind: 'poop', r: 34, w: 58, warn: 1, fall: 0.42, p: 0.55 }, { kind: 'poop_s', r: 27, w: 46, warn: 0.85, fall: 0.34, p: 0.25 }, { kind: 'poop_l', r: 44, w: 74, warn: 1.15, fall: 0.5, p: 0.2 }];
   const MIX = ['balloon', 'ball', 'acorn', 'snowball'].map(k => ({ kind: k, r: 34, w: 54, warn: 1, fall: 0.42, p: 0.25 }));
-  let items = [], marks = [], spawnT = 0, seats = [], kinds = POOP, nearT = 0, lastLeft = 0;
+  let items = [], marks = [], spawnT = 0, seats = [], kinds = POOP, nearT = 0, lastLeft = 0, iid = 0;
   const pickKind = () => { let r = Math.random(); for (const k of kinds) if ((r -= k.p) <= 0) return k; return kinds[0]; };
   const G = {
     view: [60 * k, 0, 1220 * k, 690 * k],
@@ -662,7 +686,7 @@ function Dodge() {
           if (!inA(x, y)) { [x, y] = randomSpot(inA, 80); }
           const gold = S.what !== 'mix' && +S.gold && !aim && Math.random() < 0.07;
           const k = gold ? { kind: 'gold', r: 34, w: 60, warn: 1.3, fall: 0.45 } : pickKind();
-          items.push(Object.assign({}, k, { x, y, t: 0, warn: Math.max(0.6, 0.95 - t * 0.006) * k.warn, gold, dx: rand(-1, 1), blind: new Set(alive.filter(b => Math.random() > 0.55 + b.skill * 0.3)) }));
+          items.push(Object.assign({}, k, { id: ++iid, x, y, t: 0, warn: Math.max(0.6, 0.95 - t * 0.006) * k.warn, gold, dx: rand(-1, 1), blind: new Set(alive.filter(b => Math.random() > 0.55 + b.skill * 0.3)) }));
         }
         spawnT = Math.max(0.3, 1.05 - t * 0.011) * rand(0.8, 1.2);
       }
@@ -723,7 +747,30 @@ function Dodge() {
     hud: () => me.out ? '구경하는 중' : me.umbT > 0 ? `우산 쓰는 중! ${Math.ceil(me.umbT)}초` : me.shield ? '황금 똥 덕분에 한 번 봐줘요!' : S.what === 'mix' ? '그림자를 피해요!' : '똥 그림자를 피해요!',
     tag: a => a.out ? { bg: 'rgba(120,120,120,.8)', fg: '#fff' } : a.shield ? { bg: '#ffd23f', fg: '#17181c', label: '★ ' + a.name } : null,
     rank: () => actors.slice().sort((p, q) => (p.out - q.out) || (q.outAt - p.outAt)).map(a => ({ a, v: a.out ? `${a.outAt.toFixed(1)}초` : '버티는 중' })),
-    final: () => G.rank().map(r => ({ a: r.a, v: r.a.out ? `${r.a.outAt.toFixed(1)}초 버팀` : '끝까지 버팀' }))
+    final: () => G.rank().map(r => ({ a: r.a, v: r.a.out ? `${r.a.outAt.toFixed(1)}초 버팀` : '끝까지 버팀' })),
+    // 다 같이 하기: 떨어지는 것만 보내고, 자국·아슬아슬은 학생 화면이 스스로
+    snap: () => ({ it: items.map(it => [it.id, it.kind, Math.round(it.x), Math.round(it.y), r2(G.time - it.t), r2(it.warn), it.fall, it.r, it.w, it.gold ? 1 : 0, r2(it.dx)]) }),
+    load(s) {
+      const old = new Map(items.map(it => [it.id, it]));
+      items = (s.it || []).map(([id, kind, x, y, t0, warn, fall, r, w, gold, dx]) => { const o = old.get(id); if (o) return o; const t = G.time - t0; return { id, kind, x, y, t, warn, fall, r, w, gold: !!gold, dx, landed: t >= warn + fall }; });
+    },
+    ctick(dt, host) {
+      if (host) return;
+      for (const it of items) {
+        it.t += dt;
+        if (it.landed || it.t < it.warn + it.fall) continue;
+        it.landed = true;
+        if (it.kind.startsWith('poop') || it.gold) marks.push({ x: it.x, y: it.y, t: 0, gold: it.gold, w: it.gold ? 70 : it.w * 1.25, r: it.r });
+        if (!me.spec && !me.out && !it.gold && me.umbT <= 0 && performance.now() - nearT > 1300) { const d = hyp((me.x - it.x) / it.r, (me.y - it.y) / (it.r * 0.7)); if (d >= 1 && d < 1.9) { nearT = performance.now(); addFx(me.x, me.y - 120, { text: '아슬아슬!', life: 0.9, color: '#ffd23f' }); } }
+      }
+      items = items.filter(it => it.t < it.warn + it.fall + 0.6);
+      marks = marks.filter(m => (m.t += dt) < 3);
+      if (!me.spec) { me.slowT -= dt; if (!me.out && marks.some(m => !m.gold && m.t < 2.6 && ((me.x - m.x) / (m.w * 0.42)) ** 2 + ((me.y - m.y) / (m.w * 0.24)) ** 2 < 1)) me.slowT = 0.3; }
+    },
+    feel(o, n) {
+      if (n.out && !o.out) { sfx('hit'); setTimeout(() => sfx('wrong', 0.7), 250); toast('으악! 탈락… 대기석에서 친구들을 응원해요'); }
+      if (gotT(o, n, 'umbT')) toast('우산을 주웠어요! 6초 동안 똥을 막아요');
+    }
   };
   function out(a, it) {
     a.out = true; a.outAt = G.time; a.alpha = 0.6; a.path = null; a.shield = 0;
@@ -735,66 +782,135 @@ function Dodge() {
   return G;
 }
 
-/* 2. 술래잡기 — 운동장 */
+/* 2. 술래잡기 — 운동장 · 개인전(닿으면 술래가 바뀜) / 팀전 얼음땡(술래 팀 vs 도망 팀) · 술래는 컴퓨터가 뽑거나 선생님이 골라요 */
+const TT = [{ name: '도망', label: '도망 팀', c: '#3d7bff' }, { name: '술래', label: '술래 팀', c: '#ff3b42' }];
+const iceSheet = a => (a._i && a._is === a.sheet) ? a._i : (a._is = a.sheet, a._i = tintSheet(a.sheet, 'rgba(120,205,255,.55)'));
 function Tag() {
   const k = M.ws || 1, cy = 371.5 * k, X1 = 500.5 * k, X2 = 1050.5 * k, R = 162.5 * k - 18;
   const inS = (x, y) => hyp(x - clamp(x, X1, X2), y - cy) <= R;
+  const team = () => S.tmode === 'team';
+  let endT = 0, lastLeft = 0;
+  const free = () => actors.filter(a => !a.it && !a.ice);
+  const itNames = () => actors.filter(a => a.it).map(a => a.name).join(', ');
+  const pickItems = () => actors.map(a => { const key = akey(a); return `<label><input type="checkbox" value="${esc(key)}"${(S.itSel || []).includes(key) ? ' checked' : ''}>${a.bot ? '🤖 ' : a.tc ? '👑 ' : ''}${esc(a.name)}</label>`; }).join('');
+  const PICK_L = '<legend>술래로 할 사람 · 눌러서 골라요 (안 고르면 컴퓨터가 뽑아요)</legend>';
+  const teamBars = () => { const f = free().length, ic = actors.filter(a => a.ice).length; return `<span style="background:${TT[0].c}">도망 ${f}${ic ? ` · 얼음 ${ic}` : ''}</span><span style="background:${TT[1].c}">술래 ${actors.filter(a => a.it).length}</span>`; };
+  function chase(a, dt, ok) { // 가장 가까운 사람을 쫓아가기
+    let t = a.target;
+    if (!t || !ok(t) || Math.random() < dt * 0.6) { let best = null; for (const o of actors) if (o !== a && ok(o)) { const d = hyp(o.x - a.x, o.y - a.y); if (!best || d < best[0]) best = [d, o]; } t = a.target = best && best[1]; }
+    if (!t) { wander(a, dt, G.canStand, 0.6); return; }
+    const px = t.x + (t.moving ? { left: -1, right: 1 }[t.dir] || 0 : 0) * 40, py = t.y + (t.moving ? { up: -1, down: 1 }[t.dir] || 0 : 0) * 30;
+    steerBest(a, dt, (x, y) => -hyp(x - px, y - py), 0.9 + a.skill * 0.1);
+  }
   const G = {
     view: [300 * k, 60 * k, 1250 * k, 575 * k],
-    settings: [['limit', '시간', [[60, '1분'], [90, '1분 30초']]], ['its', '술래 수', [[0, '알아서'], [1, '1명'], [2, '2명'], [3, '3명']]]],
+    settings: [['tmode', '방식', [['solo', '개인전'], ['team', '팀전 얼음땡']]], ['limit', '시간', [[60, '1분'], [90, '1분 30초'], [120, '2분']]], ['its', '술래 수', [[0, '알아서'], [1, '1명'], [2, '2명'], [3, '3명'], [4, '4명'], [5, '5명']]], ['itpick', '술래', [['rand', '뽑기'], ['pick', '직접 고르기']]]],
+    panelKeys: ['itpick'],
+    settingsExtra: () => S.itpick === 'pick' ? `<fieldset class="kinds" id="itPick">${PICK_L}${pickItems()}</fieldset>` : '',
+    readExtra() { const el = document.querySelectorAll('#itPick input'); if (el.length) S.itSel = [...el].filter(i => i.checked).map(i => i.value); },
+    refreshSet() { const el = $('#itPick'); if (el) el.innerHTML = PICK_L + pickItems(); },
     setup() {
-      G.limit = +S.limit;
+      G.limit = +S.limit; endT = 0; lastLeft = 0; G.team = team(); G.bars = team() ? teamBars : undefined;
+      G.resultSub = '술래 팀 vs 도망 팀 · 시간이 끝날 때 얼지 않은 도망 팀이 한 명이라도 있으면 도망 팀이 이겨요';
       scatter(actors, (x, y) => inS(x, y) && tileWalk(x, y), 60);
-      actors.forEach(a => { a.it = false; a.itTime = 0; a.immune = 0; a.freeze = 0; a.alpha = 1; });
-      const kk = +S.its || clamp(Math.round(actors.length / 7 * (1 + (k - 1) * 0.25)), 1, 5); // 넓은 운동장은 술래를 조금 더
-      shuffle(actors).slice(0, kk).forEach(a => { a.it = true; });
+      actors.forEach(a => { a.it = false; a.itTime = 0; a.immune = 0; a.freeze = 0; a.alpha = 1; a.ice = false; a.iceT = 0; a.saves = 0; a.catches = 0; a.target = null; a.team = team() ? 0 : null; });
+      const want = clamp(+S.its || Math.round(actors.length / (team() ? 5 : 7) * (1 + (k - 1) * (team() ? 0.15 : 0.25))), 1, Math.max(1, actors.length - 1)); // 팀전은 다섯 명에 한 명쯤
+      let its = S.itpick === 'pick' && S.itSel && S.itSel.length ? actors.filter(a => S.itSel.includes(akey(a))) : [];
+      if (!its.length) its = shuffle(actors).slice(0, want);
+      if (its.length >= actors.length) its = its.slice(0, actors.length - 1); // 도망가는 사람이 한 명은 있어야
+      its.forEach(a => { a.it = true; if (team()) a.team = 1; });
+      if (team()) scatter(its, (x, y) => inS(x, y) && tileWalk(x, y) && hyp(x - (X1 + X2) / 2, y - cy) < 150 * k, 50); // 술래 팀은 가운데에서
     },
-    start() { toast('술래: ' + actors.filter(a => a.it).map(a => a.name).join(', ')); actors.forEach(a => { if (a.it) a.freeze = 1.5; }); },
+    start() {
+      toast((team() ? '술래 팀: ' : '술래: ') + itNames());
+      actors.forEach(a => { if (a.it) a.freeze = team() ? 2 : 1.5; });
+    },
+    feelStart: () => toast(me.it ? (team() ? '나는 술래 팀! 도망 팀을 모두 얼려요' : '내가 술래예요! 친구를 잡아요') : team() ? '나는 도망 팀! 얼면 친구가 닿아서 땡 해 줘요' : '술래를 피해 도망가요!'),
+    readyText: () => (team() ? '술래 팀: ' : '술래: ') + itNames(),
     canStand: (x, y) => inS(x, y) && tileWalk(x, y),
-    speedMul: a => a.it ? 1.1 : 1,
-    items: { kinds: ['it_bolt', 'it_star'], every: 6 / k, max: 3 * k, test: (x, y) => inS(x, y) && tileWalk(x, y), pick(a, it) {
+    speedMul: a => a.it ? (team() ? 1.04 : 1.1) : 1,
+    sheet: a => a.ice ? iceSheet(a) : null,
+    items: { kinds: ['it_bolt', 'it_star'], every: 6 / k, max: 3 * k, test: (x, y) => inS(x, y) && tileWalk(x, y), can: a => !a.ice, pick(a, it) {
       if (it.k === 'it_bolt' || a.it) { a.boostT = 3; say(a, '번개 속도!', '#fff6c8', 1.4); if (a.isMe) toast('번개! 3초 동안 빨라져요'); }
       else { a.starT = 4; say(a, '무적!', '#fff6c8', 1.4); if (a.isMe) toast('별! 4초 동안 술래가 못 잡아요'); }
     } },
-    lock: a => a.freeze > 0,
+    lock: a => a.freeze > 0 || !!a.ice,
     update(dt) {
-      for (const a of actors) { if (a.it) a.itTime += dt; a.immune -= dt; a.freeze -= dt; }
+      for (const a of actors) { if (a.it) a.itTime += dt; a.immune -= dt; a.freeze -= dt; if (a.ice) a.iceT += dt; }
+      if (endT > 0) { if ((endT -= dt) <= 0) endGame(); return; }
+      if (!team()) {
+        for (const s of actors) {
+          if (!s.it || s.freeze > 0) continue;
+          for (const p of actors) {
+            if (p.it || p.immune > 0 || p.starT > 0 || Math.abs(s.x - p.x) > 30 || Math.abs(s.y - p.y) > 22) continue;
+            p.it = true; p.freeze = 1.2; s.it = false; s.immune = 2.2; p.starT = 0; sfx('tag', p.isMe || s.isMe ? 1 : 0.35); say(p, pick(['앗!', '으앗!', '잡혔다~']), null, 1.6); say(s, '잡았다!', '#ffd0d1', 1.6);
+            addFx(p.x, p.y - 100, { img: 'icon_alert', life: 1 }); toast(`${p.name} 잡혔다! 이제 술래`);
+            break;
+          }
+        }
+        return;
+      }
+      // 얼음땡: 술래에게 닿으면 얼음, 얼지 않은 같은 팀이 닿으면 땡
       for (const s of actors) {
         if (!s.it || s.freeze > 0) continue;
         for (const p of actors) {
-          if (p.it || p.immune > 0 || p.starT > 0 || Math.abs(s.x - p.x) > 30 || Math.abs(s.y - p.y) > 22) continue;
-          p.it = true; p.freeze = 1.2; s.it = false; s.immune = 2.2; p.starT = 0; sfx('tag', p.isMe || s.isMe ? 1 : 0.35); say(p, pick(['앗!', '으앗!', '잡혔다~']), null, 1.6); say(s, '잡았다!', '#ffd0d1', 1.6);
-          addFx(p.x, p.y - 100, { img: 'icon_alert', life: 1 }); toast(`${p.name} 잡혔다! 이제 술래`);
-          break;
+          if (p.it || p.ice || p.immune > 0 || p.starT > 0 || Math.abs(s.x - p.x) > 30 || Math.abs(s.y - p.y) > 22) continue;
+          p.ice = true; p.iceT = 0; p.path = null; p.boostT = 0; p.moving = false; s.catches++; s.freeze = 0.4;
+          sfx('tag', p.isMe || s.isMe ? 1 : 0.35); say(p, '얼음!', '#cfeeff', 1.6); say(s, pick(['잡았다!', '얼음!', '꼼짝 마!']), '#ffd0d1', 1.2);
+          addFx(p.x, p.y - 100, { text: '얼음!', life: 1, color: '#bfe8ff' }); toast(`${p.name} 얼음!`);
         }
       }
+      for (const f of actors) {
+        if (f.it || f.ice) continue;
+        for (const p of actors) {
+          if (!p.ice || Math.abs(f.x - p.x) > 30 || Math.abs(f.y - p.y) > 22) continue;
+          p.ice = false; p.immune = 1.5; f.saves++;
+          sfx('score_up', p.isMe || f.isMe ? 0.9 : 0.3); say(f, '땡!', '#fff6c8', 1.3); say(p, pick(['고마워!', '살았다!', '땡 고마워!']), null, 1.4);
+          addFx(p.x, p.y - 100, { text: '땡!', life: 1, color: '#ffe28a' }); toast(`${f.name} → ${p.name} 땡!`);
+        }
+      }
+      const left = free().length;
+      if (left !== lastLeft) { if (lastLeft && left < lastLeft && [3, 2, 1].includes(left)) { toast(left === 1 ? '도망 팀 마지막 한 명!' : `얼지 않은 도망 팀 ${left}명!`); sfx('score_up', 0.5); } lastLeft = left; }
+      if (!left) { endT = 1.2; toast('도망 팀이 모두 얼었어요! 술래 팀 승리'); sfx('score_up'); }
     },
     bot(a, dt) {
-      if (a.freeze > 0) { a.moving = false; return; }
-      const its = actors.filter(o => o.it && o !== a);
-      if (a.it) {
-        let t = a.target;
-        if (!t || t.it || t.immune > 0 || Math.random() < dt * 0.6) {
-          let best = null; for (const o of actors) if (!o.it && o.immune <= 0) { const d = hyp(o.x - a.x, o.y - a.y); if (!best || d < best[0]) best = [d, o]; }
-          t = a.target = best && best[1];
-        }
-        if (!t) { wander(a, dt, G.canStand, 0.6); return; }
-        const px = t.x + (t.moving ? { left: -1, right: 1 }[t.dir] || 0 : 0) * 40, py = t.y + (t.moving ? { up: -1, down: 1 }[t.dir] || 0 : 0) * 30;
-        steerBest(a, dt, (x, y) => -hyp(x - px, y - py), 0.9 + a.skill * 0.1);
-      } else {
-        const near = its.filter(o => o.freeze <= 0 && hyp(o.x - a.x, o.y - a.y) < 150 + a.skill * 170);
-        if (!near.length) { const it = a.skill > 0.6 && nearItem(a, 230); if (it) moveActor(a, it.x - a.x, it.y - a.y, dt, 0.8); else wander(a, dt, G.canStand, 0.5); return; }
-        steerBest(a, dt, (x, y) => Math.min(...near.map(o => hyp(o.x - x, o.y - y))) - (inS(x, y) && hyp(x - clamp(x, X1, X2), y - cy) > R - 40 ? 25 : 0), 0.85 + a.skill * 0.15);
+      if (a.freeze > 0 || a.ice) { a.moving = false; return; }
+      if (a.it) { chase(a, dt, o => !o.it && !o.ice && o.immune <= 0 && o.starT <= 0); return; }
+      const its = actors.filter(o => o.it && o !== a && o.freeze <= 0);
+      const near = its.filter(o => hyp(o.x - a.x, o.y - a.y) < 150 + a.skill * 170);
+      if (near.length) { steerBest(a, dt, (x, y) => Math.min(...near.map(o => hyp(o.x - x, o.y - y))) - (inS(x, y) && hyp(x - clamp(x, X1, X2), y - cy) > R - 40 ? 25 : 0), 0.85 + a.skill * 0.15); return; }
+      if (team() && a.skill > 0.4) { // 언 친구를 땡 하러
+        let best = null; for (const o of actors) if (o.ice) { const d = hyp(o.x - a.x, o.y - a.y); if (!best || d < best[0]) best = [d, o]; }
+        if (best) { const t = best[1]; steerBest(a, dt, (x, y) => -hyp(x - t.x, y - t.y) - its.reduce((m, o) => m + Math.max(0, 130 - hyp(o.x - x, o.y - y)), 0) * 0.8, 0.85 + a.skill * 0.15); return; }
       }
+      const it = a.skill > 0.6 && nearItem(a, 230); if (it) moveActor(a, it.x - a.x, it.y - a.y, dt, 0.8); else wander(a, dt, G.canStand, 0.5);
     },
     drawUnder() {
-      for (const a of actors) if (a.it) { g.strokeStyle = a.freeze > 0 ? 'rgba(255,90,95,.55)' : '#ff3b42'; g.lineWidth = 4; g.beginPath(); g.ellipse(a.x, a.y, 26, 10, 0, 0, 7); g.stroke(); }
+      for (const a of actors) {
+        if (a.it) { g.strokeStyle = a.freeze > 0 ? 'rgba(255,90,95,.55)' : '#ff3b42'; g.lineWidth = 4; g.beginPath(); g.ellipse(a.x, a.y, 26, 10, 0, 0, 7); g.stroke(); }
+        else if (a.ice) { g.fillStyle = 'rgba(160,220,255,.55)'; g.beginPath(); g.ellipse(a.x, a.y, 30, 11, 0, 0, 7); g.fill(); g.strokeStyle = '#5cb8ff'; g.lineWidth = 3; g.stroke(); }
+      }
     },
-    status: () => '술래 ' + actors.filter(a => a.it).map(a => a.name).join(', '),
-    hud: () => me.freeze > 0 ? '잠깐! 1초 뒤에 움직여요' : me.starT > 0 ? `무적! ${Math.ceil(me.starT)}초` : me.boostT > 0 ? '번개 속도!' : me.it ? '친구를 잡아요! 번개는 쌩!' : '술래를 피해요! 별은 무적!',
-    tag: a => a.it ? { bg: '#ff3b42', fg: '#fff', label: '술래 ' + a.name } : a.starT > 0 ? { bg: '#ffd23f', fg: '#17181c', label: '무적 ' + a.name } : null,
-    rank: () => actors.slice().sort((p, q) => p.itTime - q.itTime).map(a => ({ a, v: `술래 ${a.itTime.toFixed(1)}초` })),
-    final: () => G.rank().map(r => ({ a: r.a, v: r.v + (r.a.it ? ' · 마지막 술래' : '') }))
+    status: () => team() ? `얼지 않은 도망 팀 ${free().length}명` : '술래 ' + itNames(),
+    hud: () => me.ice ? '얼음! 같은 팀 친구가 닿으면 땡으로 풀려요' : me.freeze > 0 ? '잠깐! 곧 움직여요' : me.starT > 0 ? `무적! ${Math.ceil(me.starT)}초` : me.boostT > 0 ? '번개 속도!' : me.it ? (team() ? '도망 팀에게 닿아서 얼려요!' : '친구를 잡아요! 번개는 쌩!') : team() ? '술래를 피하고, 언 친구에게 닿아 땡!' : '술래를 피해요! 별은 무적!',
+    tag: a => a.it ? { bg: '#ff3b42', fg: '#fff', label: '술래 ' + a.name } : a.ice ? { bg: '#bfe8ff', fg: '#17181c', label: '얼음 ' + a.name } : a.starT > 0 ? { bg: '#ffd23f', fg: '#17181c', label: '무적 ' + a.name } : team() && !a.isMe ? { bg: TT[0].c, fg: '#fff' } : null,
+    rank: () => team()
+      ? [{ team: TT[0], v: `${free().length}명 안 얼음`, members: actors.filter(a => !a.it) }, { team: TT[1], v: `${actors.reduce((n, a) => n + (a.catches || 0), 0)}번 얼림`, members: actors.filter(a => a.it) }]
+      : actors.slice().sort((p, q) => p.itTime - q.itTime).map(a => ({ a, v: `술래 ${a.itTime.toFixed(1)}초` })),
+    final: () => {
+      if (!team()) return G.rank().map(r => ({ a: r.a, v: r.v + (r.a.it ? ' · 마지막 술래' : '') }));
+      const runs = actors.filter(a => !a.it), its = actors.filter(a => a.it), left = free().length, caught = its.reduce((n, a) => n + a.catches, 0);
+      const H = { team: TT[0], v: left ? `${left}명 끝까지 안 얼음` : '모두 얼음', members: runs, best: runs.slice().sort((p, q) => (q.saves - p.saves) || (p.ice - q.ice) || (p.iceT - q.iceT))[0] };
+      const Z = { team: TT[1], v: `${caught}번 얼림`, members: its, best: its.slice().sort((p, q) => q.catches - p.catches)[0] };
+      return left ? [H, Z] : [Z, H];
+    },
+    feel(o, n) {
+      if (!team()) { if (n.it && !o.it) toast('잡혔어요! 이제 내가 술래예요'); else if (!n.it && o.it) toast('잡았다! 이제 술래를 피해요'); }
+      else if (n.ice && !o.ice) { setTimeout(() => sfx('wrong', 0.6), 200); toast('얼음! 같은 팀 친구가 닿으면 땡으로 풀려요'); }
+      else if (!n.ice && o.ice) toast('땡! 다시 도망가요');
+      if (gotT(o, n, 'boostT')) toast('번개! 3초 동안 빨라져요');
+      if (gotT(o, n, 'starT')) toast('별! 4초 동안 술래가 못 잡아요');
+    }
   };
   return G;
 }
@@ -958,7 +1074,28 @@ function Race() {
     status: () => { const lap = Math.min(G.laps, Math.max(0, Math.floor(me.prog / P)) + 1); return me.fin ? `도착! ${finished.indexOf(me) + 1}등` : `${lap} / ${G.laps}바퀴 · 지금 ${place(me)}등`; },
     hud: () => state === 'play' ? (me.boostT > 0 ? '쌩! 날개 운동화' : '스페이스로 점프! 운동화는 쌩!') : '오른쪽으로 출발해서 트랙을 돌아요',
     rank: () => actors.slice().sort((p, q) => (p.fin ? finished.indexOf(p) : 999) - (q.fin ? finished.indexOf(q) : 999) || q.prog - p.prog).map(a => ({ a, v: a.fin ? `${a.fin.toFixed(1)}초` : `${clamp(Math.round(a.prog / (G.laps * P) * 100), 0, 99)}%` })),
-    final: () => G.rank().map(r => ({ a: r.a, v: r.a.fin ? `${r.a.fin.toFixed(1)}초 도착` : `${r.v}까지 달림` }))
+    final: () => G.rank().map(r => ({ a: r.a, v: r.a.fin ? `${r.a.fin.toFixed(1)}초 도착` : `${r.v}까지 달림` })),
+    snap: () => ({ ob: obs.map(o => [o.k, r1(o.s), r1(o.off), Math.round(o.x), Math.round(o.y)]), of: obs.map(o => o.off_ > G.time ? r1(o.off_) : 0), fd: finished.map(a => actors.indexOf(a)), pg: actors.map(a => Math.round(a.prog / 4)) }),
+    load(s) {
+      const ob = s.ob || [];
+      if (ob.length !== obs.length || ob.some((v, i) => v[0] !== obs[i].k || v[3] !== Math.round(obs[i].x))) obs = ob.map(([kd, s0, off, x, y], i) => ({ id: i, k: kd, s: s0, off, x, y }));
+      obs.forEach((o, i) => { o.off_ = (s.of && s.of[i]) || 0; });
+      finished = (s.fd || []).map(i => actors[i]).filter(Boolean);
+      if (s.pg) actors.forEach((a, i) => { if (s.pg[i] !== undefined && s.pg[i] !== null) a.prog = s.pg[i] * 4; });
+    },
+    ctick(dt, host) {
+      if (me.spec) return;
+      if (!host) { me.slow = 1; if (me.jumpT <= 0) for (const o of obs) if (o.k === 'mud' && !(o.off_ > G.time) && hyp(me.x - o.x, (me.y - o.y) * 1.4) < 30) me.slow = 0.45; }
+      if (state !== 'play') return;
+      if (G.laps > 1 && !me.lastLap && me.prog >= (G.laps - 1) * P) { me.lastLap = true; toast('마지막 바퀴!'); sfx('score_up'); }
+      if ((G.lpT2 = (G.lpT2 || 0) - dt) <= 0) { G.lpT2 = 1; const pl = place(me); if (me.lp && pl && pl < me.lp && !me.fin) addFx(me.x, me.y - 120, { text: me.lp - pl > 1 ? `${me.lp - pl}명 역전!` : '역전!', life: 1, color: '#ffd23f' }); me.lp = pl; }
+    },
+    remoteAct: a => jump(a),
+    feel(o, n) {
+      if (n.fin && !o.fin) { sfx('whistle'); const p = finished.indexOf(me) + 1; toast(p ? `도착! ${p}등` : '도착!'); }
+      if (gotT(o, n, 'stun')) sfx('hit', 0.8);
+      if (gotT(o, n, 'boostT')) toast('날개 운동화! 잠깐 빨라져요');
+    }
   };
   const place = a => G.rank().findIndex(r => r.a === a) + 1;
   function jump(a) { if (a.jumpT > 0 || a.jumpCd > 0 || a.stun > 0 || state !== 'play') return; a.jumpT = 0.6; a.jumpCd = 0.85; if (a.isMe) sfx('jump'); }
@@ -1017,7 +1154,15 @@ function Paint() {
     bars: () => teams.map(t => `<span style="background:${t.c}">${t.name} ${t.n}</span>`).join(''),
     tag: a => ({ bg: teams[a.team].c, fg: a.team === 2 ? '#17181c' : '#fff' }),
     rank: () => teams.map((t, k) => ({ team: t, v: `${t.n}칸`, members: actors.filter(a => a.team === k) })).sort((p, q) => q.team.n - p.team.n),
-    final: () => G.rank().map(r => Object.assign(r, { best: r.members.slice().sort((p, q) => q.painted - p.painted)[0] }))
+    final: () => G.rank().map(r => Object.assign(r, { best: r.members.slice().sort((p, q) => q.painted - p.painted)[0] })),
+    delta: 'c', // 바뀐 칸만 보내요
+    snap: () => ({ c: cells }),
+    load(s) {
+      const c = s.c || {}; let mine = false;
+      for (let i = 0; i < cells.length; i++) { const v = c[i] ?? -1; if (v === cells[i]) continue; if (!me.spec && v === me.team && hyp(X0 + (i % C) * CW + CW / 2 - me.x, Y0 + ((i / C) | 0) * CH + CH / 2 - me.y) < 70) mine = true; cells[i] = v; }
+      if (mine && state === 'play') sfx('paint', 0.45, rand(0.9, 1.15));
+      teams.forEach(t => { t.n = 0; }); for (const v of cells) if (v >= 0 && teams[v]) teams[v].n++;
+    }
   };
   return G;
 }
@@ -1224,7 +1369,12 @@ function Zombie() {
     },
     start() {
       actors.filter(a => a.zombie).forEach(z => { z.freeze = 3; say(z, '으어어…', '#c8f08a', 2.6); });
-      toast(me.zombie ? '나는 좀비! 3초 뒤에 깨어나요' : '좀비가 3초 뒤에 깨어나요! 도망쳐요!');
+    },
+    feelStart: () => toast(me.zombie ? '나는 좀비! 3초 뒤에 깨어나요' : '좀비가 3초 뒤에 깨어나요! 도망쳐요!'),
+    feel(o, n) {
+      if (n.zombie && !o.zombie) { setTimeout(() => sfx('wrong', 0.7), 250); toast('좀비가 됐어요! 이제 사람을 잡아요'); }
+      if (gotT(o, n, 'boostT')) toast('번개! 3초 동안 빨라져요');
+      if (gotT(o, n, 'starT')) toast('별! 4초 동안 좀비가 못 잡아요');
     },
     canStand: (x, y) => tileWalk(x, y),
     lock: a => a.freeze > 0 || (state !== 'play' && a.zombie),
@@ -1308,7 +1458,7 @@ function Bomb() {
     sfx('quiz_start', a.isMe ? 0.9 : 0.4); if (a.isMe) toast('폭탄이 나에게 왔어요! 다른 모둠 친구에게 닿아서 넘겨요');
   }
   function boom(a) {
-    const x = a.x, y = a.y, d = hyp(x - me.x, y - me.y);
+    const x = a.x, y = a.y, d = me.isMe ? hyp(x - me.x, y - me.y) : 9999;
     a.bomb = null; a.out = true; a.outAt = G.time; a.alpha = 0.6; a.path = null; a.shield = 0; a.boostT = 0; a.stun = 0; a.spin = 0;
     addFx(x, y + 14, { img: 'boom', life: 0.75, w: 140 }); addFx(x + 12, y - 8, { img: 'smoke', life: 1.4, w: 96 }); addFx(x - 14, y - 30, { img: 'sparks', life: 0.9, w: 80 });
     addFx(x, y - 140, { text: '펑!', life: 1, color: '#ffd23f' });
@@ -1412,7 +1562,20 @@ function Bomb() {
     bars: () => teams.map(t => `<span style="background:${t.c}">${t.name} ${t.alive}명</span>`).join(''),
     tag: a => a.out ? { bg: 'rgba(120,120,120,.8)', fg: '#fff' } : { bg: teams[a.team].c, fg: a.team === 2 ? '#17181c' : '#fff', label: a.bomb ? '폭탄 ' + a.name : undefined },
     rank: () => teams.map((t, k) => { const ms = actors.filter(a => a.team === k); return { team: t, v: `${t.alive}명 남음`, members: ms, s: t.alive * 1000 + ms.reduce((s, a) => s + (a.out ? a.outAt : G.time), 0) }; }).sort((p, q) => q.s - p.s),
-    final: () => G.rank().map(r => Object.assign(r, { best: r.members.slice().sort((p, q) => (q.passes - p.passes) || (p.out - q.out))[0] }))
+    final: () => G.rank().map(r => Object.assign(r, { best: r.members.slice().sort((p, q) => (q.passes - p.passes) || (p.out - q.out))[0] })),
+    snap: () => ({ tg: teams.map(t => t.gone ? 1 : 0) }),
+    load(s) { teams.forEach((t, j) => { t.gone = !!(s.tg && s.tg[j]); }); },
+    ctick(dt, host) {
+      if (!host) { for (const a of actors) if (a.bomb) a.bomb.t -= dt; teams.forEach((t, j) => { t.alive = actors.filter(a => a.team === j && !a.out).length; }); }
+      const n = me.bomb && !me.out ? Math.ceil(me.bomb.t) : 0;
+      if (n !== G.beepN) { G.beepN = n; if (n > 0 && n <= 3 && state === 'play') sfx('count_beep', 0.85, 1.4); }
+    },
+    feel(o, n) {
+      if (n.bm && !o.bm) { sfx('quiz_start', 0.9); toast('폭탄이 나에게 왔어요! 다른 모둠 친구에게 닿아서 넘겨요'); }
+      if (n.out && !o.out) { sfx('hit', 1, 0.7); shakeT = 0.35; setTimeout(() => sfx('wrong', 0.7), 300); toast('펑! 탈락… 의자에서 응원해요'); }
+      if (n.shield && !o.shield) toast('방패! 폭탄을 한 번 막아 줘요');
+      if (gotT(o, n, 'boostT')) toast('번개! 3초 동안 빨라져요');
+    }
   };
   return G;
 }
@@ -1447,8 +1610,10 @@ function OX() {
         if (a.streak >= 3 && a.streak % 3 === 0) say(a, `${a.streak}연속 정답!`, '#fff6c8', 1.6); else if (Math.random() < 0.3) say(a, pick(['맞았다!', '야호!', '역시!']), null, 1.3);
       } else { a.streak = 0; addFx(a.x, a.y - 104, { img: 'icon_wrong', life: 1.3 }); if (Math.random() < 0.25) say(a, pick(['아깝다!', '헉!', '다음엔 맞힐래!']), null, 1.3); }
     }
-    if (me.out) sfx('score_up', 0.6); else sfx(me.mark === 'o' ? 'correct' : 'wrong', 0.9);
-    if (!me.out && me.mark === 'o' && me.streak >= 3) setTimeout(() => sfx('score_up', 0.8), 350);
+    if (me.isMe) { // 다 같이 할 때 선생님 탭은 저마다의 화면이 소리를 내요
+      if (me.out) sfx('score_up', 0.6); else sfx(me.mark === 'o' ? 'correct' : 'wrong', 0.9);
+      if (!me.out && me.mark === 'o' && me.streak >= 3) setTimeout(() => sfx('score_up', 0.8), 350);
+    }
     const Z = ans === 'O' ? ZO : ZX;
     for (let i = 0; i < 6; i++) addFx(rand(Z[0] + 40, Z[2] - 40), rand(Z[1] + 60, Z[3] - 10), { img: 'confetti', life: 1.4, w: 36 });
     let msg = `정답은 ${ans}! ${nOk}명이 맞혔어요`;
@@ -1538,7 +1703,21 @@ function OX() {
     bars: () => teams.map(t => `<span style="background:${t.c}">${t.name} ${S.mode === 'surv' ? t.alive + '명' : t.pts + '점'}</span>`).join(''),
     tag: a => a.out ? { bg: 'rgba(120,120,120,.8)', fg: '#fff' } : { bg: teams[a.team].c, fg: a.team === 2 ? '#17181c' : '#fff' },
     rank: () => teams.map((t, k) => ({ team: t, v: S.mode === 'surv' ? `${t.alive}명 · ${t.pts}점` : `${t.pts}점`, members: actors.filter(a => a.team === k) })).sort((p, q) => S.mode === 'surv' ? (q.team.alive - p.team.alive) || (q.team.pts - p.team.pts) : q.team.pts - p.team.pts),
-    final: () => G.rank().map(r => Object.assign(r, { v: S.mode === 'surv' ? `${r.team.alive}명 남음 · ${r.team.pts}점` : `${r.team.pts}점`, best: r.members.slice().sort((p, q) => q.score - p.score)[0] }))
+    final: () => G.rank().map(r => Object.assign(r, { v: S.mode === 'surv' ? `${r.team.alive}명 남음 · ${r.team.pts}점` : `${r.team.pts}점`, best: r.members.slice().sort((p, q) => q.score - p.score)[0] })),
+    // 정답은 정답을 보여 줄 때만 보내요
+    snap: () => ({ q: qs.map(x => x[0]), qi, ph: phase, pe: r2(G.time + pT), aw: (phase === 'show' || phase === 'end') && qs[qi] ? [ans, qs[qi][2] || ''] : 0, tp: teams.map(t => t.pts) }),
+    load(s) {
+      const q = s.q || [];
+      if (q.length !== qs.length || q.some((t, i) => t !== qs[i][0])) qs = q.map(t => [t, '', '']);
+      qi = s.qi ?? -1; phase = s.ph || 'idle'; pT = (s.pe || 0) - G.time;
+      if (s.aw && qs[qi]) { ans = s.aw[0]; qs[qi][1] = ans; qs[qi][2] = s.aw[1] || ''; } else if (phase === 'q' || phase === 'gap') ans = '';
+      if (s.tp) teams.forEach((t, j) => { t.pts = s.tp[j] || 0; });
+    },
+    ctick(dt, host) { if (host) return; pT -= dt; teams.forEach((t, j) => { t.alive = actors.filter(a => a.team === j && !a.out).length; }); },
+    feel(o, n) {
+      if (n.mark && !o.mark) sfx(n.mark === 'o' ? 'correct' : 'wrong', 0.9);
+      if (n.out && !o.out) toast('관중석으로 가요. 우리 모둠을 응원해요!');
+    }
   };
   return G;
 }
@@ -1731,7 +1910,7 @@ const DEF_WORDS = ['컴퓨터', '로봇', '센서', '코딩', '엔트리', '블�
 
 const GAMES = [
   { id: 'dodge', name: '똥 피하기', map: 'playground', mapName: '놀이터', icon: 'poop', tags: ['개인전', '서바이벌'], rule: '하늘에서 똥이 떨어져요! 바닥에 그림자가 생기면 재빨리 피해요. 맞으면 탈락, 마지막까지 남은 사람이 1등이에요. 떨어진 똥을 밟으면 느려지고, 황금 똥을 맞으면 한 번 봐줘요.', how: '방향키로 그림자를 피해요.', act: '', make: Dodge },
-  { id: 'tag', name: '술래잡기', map: 'field', mapName: '학교 운동장', icon: 'game_flag', tags: ['개인전', '운동장'], rule: '빨간 이름표가 술래예요. 술래에게 닿으면 내가 술래가 되고 1초 동안 멈춰요. 술래였던 시간이 짧을수록 높은 순위!', how: '술래를 피해 도망쳐요. 내가 술래면 친구를 잡아요.', act: '', make: Tag },
+  { id: 'tag', name: '술래잡기', map: 'field', mapName: '학교 운동장', icon: 'game_flag', tags: ['개인전·팀전', '운동장'], rule: '빨간 이름표가 술래예요. 개인전: 술래에게 닿으면 내가 술래가 되고, 술래였던 시간이 짧을수록 높은 순위! 팀전(얼음땡): 술래 팀에게 닿으면 얼음! 같은 팀 친구가 닿으면 땡! 도망 팀이 모두 얼면 술래 팀이, 시간이 끝날 때 한 명이라도 남으면 도망 팀이 이겨요.', how: '술래를 피해 도망쳐요. 내가 술래면 친구를 잡아요. 팀전에서는 언 친구에게 닿아 땡!', act: '', make: Tag },
   { id: 'treasure', name: '보물찾기', map: 'classroom', mapName: '교실', icon: 'treasure_chest', tags: ['개인전', '퀴즈'], rule: '교실 곳곳의 보물 상자를 찾아가 문제를 풀어요. 맞히면 보물을 얻고, 틀리면 5초 뒤에 다시 풀 수 있어요. 많이 푼 사람이 1등!', how: '상자에 다가가 스페이스(행동)를 누르거나 상자를 눌러요.', act: '상자 열기', make: Treasure },
   { id: 'race', name: '달리기 경주', map: 'field', mapName: '학교 운동장', icon: 'hurdle', tags: ['개인전', '장애물'], rule: '출발선에서 오른쪽으로 달려 트랙을 돌아요. 허들·바나나·진흙은 점프로 넘고, 고깔은 돌아가요. 먼저 들어온 순서대로 순위!', how: '방향키로 달리고 스페이스(행동)로 점프해요.', act: '점프', make: Race },
   { id: 'paint', name: '땅따먹기', map: 'quiz_plaza', mapName: '퀴즈 광장', icon: 'confetti', tags: ['모둠 대항'], rule: '밟은 칸이 우리 모둠 색으로 바뀌어요. 다른 모둠 칸도 밟으면 빼앗을 수 있어요. 시간이 끝났을 때 칸이 많은 모둠이 이겨요.', how: '방향키로 돌아다니며 바닥을 칠해요.', act: '', make: Paint },
@@ -1747,7 +1926,7 @@ let cur = GAMES[0], last = performance.now(), hudTick = 0, endedAt = 0, winners 
 const startBtn = $('#startBtn'), endBtn = $('#endBtn');
 const pickIcon = gm => gm.icon2 ? `<span class="duo"><img src="assets/obj/${gm.icon}.png" alt=""><img src="assets/obj/${gm.icon2}.png" alt=""></span>` : `<img src="${gm.iconURL ? gm.iconURL() : `assets/obj/${gm.icon}.png`}" alt="">`;
 function renderPicker() {
-  $('#picker').innerHTML = GAMES.map(gm => `<button class="pick" type="button" data-id="${gm.id}" aria-pressed="${gm === cur}">${pickIcon(gm)}<span>${gm.name}<small>${gm.mapName}</small></span></button>`).join('');
+  $('#picker').innerHTML = (MODE === 'host' ? GAMES.filter(gm => LIVE_IDS.includes(gm.id)) : GAMES).map(gm => `<button class="pick" type="button" data-id="${gm.id}" aria-pressed="${gm === cur}">${pickIcon(gm)}<span>${gm.name}<small>${gm.mapName}</small></span></button>`).join('');
 }
 function renderPanel() {
   $('#gName').textContent = cur.name;
@@ -1765,27 +1944,36 @@ function readSettings() {
 }
 async function selectGame(gm) {
   cur = gm; renderPicker();
-  try { history.replaceState(null, '', '#' + gm.id); } catch (e) { /* 무시 */ }
+  try { history.replaceState(null, '', MODE === 'host' ? hostURL() : '#' + gm.id); } catch (e) { /* 무시 */ }
   $('#loading').hidden = false; $('#loading').textContent = '맵을 불러오는 중…';
   M = await loadMap(gm.map);
   if (cur !== gm) return;
   T = 32 * (M.ws || 1);
   $('#loading').hidden = true;
-  G = gm.make(); V = G.view || [0, 0, M.size[0], M.size[1]]; fitCanvas(); renderPanel(); readSettings(); resetGame();
+  G = gm.make(); V = G.view || [0, 0, M.size[0], M.size[1]]; fitCanvas(); renderPanel(); readSettings();
+  if (MODE === 'client') { cRound = null; state = 'ready'; GMQ.add('h'); gmKick(); } else resetGame();
+}
+function resetActors() {
+  actors.forEach(a => { a.stun = 0; a.spin = 0; a.jumpT = 0; a.bubbleT = 0; a.alpha = 1; a.path = null; a.team = null; a.wt = 0; a.tx = 0; a.boostT = 0; a.umbT = 0; a.starT = 0; a.hint = 0; a.streak = 0; a.emoT = rand(6, 20); a.out = false; a.zombie = false; a.bomb = null; a.shield = 0; a.freeze = 0; a.immune = 0; a.outNow = false; a.ice = false; a.sit = null; a.fin = 0; a.mark = ''; });
 }
 function resetGame() {
+  if (MODE === 'host') buildActors(); // 새로 들어온 친구·나간 친구를 이번 판에 반영
   closeQuiz(); $('#result').hidden = true; fx = []; $('#hint').textContent = ''; $('#countdown').textContent = '';
-  actors.forEach(a => { a.stun = 0; a.spin = 0; a.jumpT = 0; a.bubbleT = 0; a.alpha = 1; a.path = null; a.team = null; a.wt = 0; a.tx = 0; a.boostT = 0; a.umbT = 0; a.starT = 0; a.hint = 0; a.streak = 0; a.emoT = rand(6, 20); a.out = false; a.zombie = false; a.bomb = null; a.shield = 0; a.freeze = 0; a.immune = 0; a.outNow = false; });
+  resetActors();
   winners = []; bgmStop(); $('#hudT').classList.remove('hurry');
   G.time = 0; G.setup(); itemsReset(); state = 'ready'; $('#gSet').hidden = false;
   startBtn.disabled = false; endBtn.disabled = true; startBtn.textContent = '시작';
   if (G.redraw) G.redraw();
-  updateSide(true); camTo(me.x, me.y);
+  if (G.refreshSet) G.refreshSet();
+  updateSide(true); if (me.spec) camMid(); else camTo(me.x, me.y);
+  if (MODE === 'host') { ROUND++; MF = null; hostFull(); if (HOST_LIVE === 'on') update(ref(rt, 'live/' + HOST_CID + '/state/game'), { t: Date.now() }).catch(() => {}); }
 }
 function startGame() {
-  readSettings(); if (state !== 'ready') resetGame();
-  if (NET_CID && ghosts.size !== ghostN) { setCount(+$('#count').value); resetGame(); } // 같이 들어온 친구 수만큼 컴퓨터를 줄여요
-  state = 'count'; countT = 3.2; lastCount = 0; lastHurry = 0; sfx('ui_click'); camTo(me.x, me.y); $('#gSet').hidden = true; startBtn.disabled = true; endBtn.disabled = false; cv.focus({ preventScroll: true });
+  if (MODE === 'client') return;
+  readSettings(); if (state !== 'ready' || (MODE === 'host' && ROSTER_DIRTY)) resetGame(); // 선생님 탭: 새로 들어온 친구도 같이
+  if (MODE === 'local' && NET_CID && ghosts.size !== ghostN) { setCount(+$('#count').value); resetGame(); } // 같이 들어온 친구 수만큼 컴퓨터를 줄여요
+  if (MODE === 'local' && TEACHER && TEACH_CID && RUN) update(ref(rt, 'live/' + TEACH_CID + '/state/game'), { go: Date.now() }).catch(() => {}); // 각자 하는 게임: 학생들도 같이 시작
+  state = 'count'; countT = 3.2; lastCount = 0; lastHurry = 0; sfx('ui_click'); if (me.spec) camMid(); else camTo(me.x, me.y); $('#gSet').hidden = true; startBtn.disabled = true; endBtn.disabled = false; cv.focus({ preventScroll: true });
   const sr = $('#screen').getBoundingClientRect();
   if (innerWidth < 960 || sr.top < 0 || sr.bottom > innerHeight) $('#screen').scrollIntoView({ block: sr.height > innerHeight ? 'start' : 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 }
@@ -1797,7 +1985,7 @@ function endGame() {
 }
 const BEST = {
   dodge: { hi: true, v: () => me.out ? me.outAt : G.time, f: v => `${(+v).toFixed(1)}초 버팀` },
-  tag: { hi: false, v: () => me.itTime, f: v => `술래 ${(+v).toFixed(1)}초` },
+  tag: { hi: false, v: () => S.tmode === 'team' ? null : me.itTime, f: v => `술래 ${(+v).toFixed(1)}초`, s: () => S.tmode === 'team' ? (me.it ? `술래 팀 · ${me.catches || 0}번 얼림` : `도망 팀 · 땡 ${me.saves || 0}번${me.ice ? '' : ' · 끝까지 안 얼음'}`) : '' },
   treasure: { hi: true, v: () => me.score, f: v => `보물 ${v}개` },
   race: { hi: false, v: () => me.fin || null, f: v => `${(+v).toFixed(1)}초 도착` },
   paint: { hi: true, v: () => me.painted, f: v => `${v}칸 칠함` },
@@ -1809,9 +1997,9 @@ const BEST = {
 };
 function frontFrame(a, size) { const c = document.createElement('canvas'); c.width = size; c.height = size; const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage((G && G.sheet && G.sheet(a)) || a.sheet, F, 0, F, F, 0, 0, size, size); return c; }
 function showResult() {
-  const rows = G.final(), team = !!G.team;
+  const rows = MODE === 'client' ? finRows() : G.final(), team = !!G.team;
   $('#resH').textContent = `${cur.name} 결과` + (team && rows[1] && rows[1].v === rows[0].v ? ' · 비겼어요!' : '');
-  $('#resSub').textContent = team ? (G.resultSub || '모둠 대항 · 모둠마다 가장 잘한 친구가 시상대에 올라요') : (RUN ? '내 기록을 선생님께 보냈어요.' : '연습 게임이에요.');
+  $('#resSub').textContent = team ? (G.resultSub || '모둠 대항 · 모둠마다 가장 잘한 친구가 시상대에 올라요') : (MODE === 'host' ? '학생들 기록을 진행판에 모았어요.' : RUN ? '내 기록을 선생님께 보냈어요.' : '연습 게임이에요.');
   const pod = $('#podium'); pod.innerHTML = '';
   const MED = ['medal_gold', 'medal_silver', 'medal_bronze'], H = [120, 86, 62], COL = ['#ffd23f', '#dfe4ea', '#e9b07a'];
   [1, 0, 2].forEach(k => {
@@ -1826,19 +2014,20 @@ function showResult() {
   $('#resList').innerHTML = rows.map((r, i) => team
     ? `<li><span>${i + 1}. <span class="dot" style="background:${r.team.c}"></span>${teamLabel(r.team)}${r.members.length ? ` (${r.members.map(m => esc(m.name)).join(', ')})` : ''}</span><b>${esc(r.v)}</b></li>`
     : `<li${r.a.isMe ? ' style="font-weight:700;outline:2px solid var(--edge)"' : ''}><span>${i + 1}. ${esc(r.a.name)}</span><span>${esc(r.v)}</span></li>`).join('');
-  const B = BEST[cur.id], bv = B && B.v(); let bestHTML = '';
+  const B = BEST[cur.id], bv = me.spec ? null : MODE === 'client' ? finMine('bv') : B && B.v(); let bestHTML = '';
   if (B && bv !== null && bv !== undefined && !(B.hi && !bv)) {
     let prev = null; try { const t = localStorage.getItem('mpp_best_' + cur.id); prev = t === null ? null : +t; } catch (e) { /* 무시 */ }
     const isNew = prev === null || (B.hi ? bv > prev : bv < prev);
     if (isNew) try { localStorage.setItem('mpp_best_' + cur.id, String(bv)); } catch (e) { /* 무시 */ }
     bestHTML = `내 기록 ${esc(B.f(bv))}` + (isNew ? '<span class="new">새 기록!</span>' : ` · 내 최고 ${esc(B.f(prev))}`);
   }
+  if (!bestHTML && !me.spec) { const tx = MODE === 'client' ? finMine('tx') : B && B.s ? B.s() : ''; if (tx) bestHTML = esc(tx); }
   $('#resBest').innerHTML = bestHTML;
-  if (RUN && SES && !PREVIEW && USER && cur.id === WANT && !sentRun) {
+  if (MODE === 'local' && RUN && SES && !PREVIEW && USER && cur.id === WANT && !sentRun) {
     sentRun = true;
     const myRank = team ? rows.findIndex(r => r.members.includes(me)) + 1 : rows.findIndex(r => r.a === me) + 1;
     const val = bv === null || bv === undefined ? null : +bv;
-    set(ref(rt, 'live/' + SES.cid + '/results/' + RUN + '/' + USER.uid), { n: me.name, k: SES.key, g: cur.id, v: Number.isFinite(val) ? val : null, s: Number.isFinite(val) && B ? B.f(val) : '기록 없음', r: myRank || 0, t: rnow() }).catch(() => toast('기록을 보내지 못했어요'));
+    set(ref(rt, 'live/' + SES.cid + '/results/' + RUN + '/' + USER.uid), { n: me.name, k: SES.key, g: cur.id, v: Number.isFinite(val) ? val : null, s: Number.isFinite(val) && B ? B.f(val) : (B && B.s && B.s()) || '기록 없음', r: myRank || 0, t: rnow() }).catch(() => toast('기록을 보내지 못했어요'));
   }
   const pods = pod.children; if (pods[1]) pods[1].classList.add('first');
   $('#result').hidden = false; $('.result').scrollTop = 0; $('#again').focus({ preventScroll: true });
@@ -1855,20 +2044,23 @@ function showResult() {
   }
 }
 function updateSide(force) {
-  if (NET_CID) {
+  if (SIM) return;
+  if (MODE !== 'local') livePanel();
+  else if (NET_CID) {
     const gs = [...ghosts.values()].filter(x => x.gid === cur.id).sort((p, q) => (q.tc ? 1 : 0) - (p.tc ? 1 : 0) || p.name.localeCompare(q.name));
     $('#netBox').hidden = false; $('#netN').textContent = gs.length + '명';
     $('#netList').innerHTML = gs.map(x => `<li><b>${x.tc ? '👑' : '👫'}</b><span>${esc(x.name)}</span><span>${esc(x.gs || '하는 중')}</span></li>`).join('') || '<li><span>아직 들어온 친구가 없어요</span></li>';
   }
-  const rows = G.rank();
+  const rows = MODE === 'client' ? RKC : G.rank();
   $('#rank').innerHTML = rows.map((r, i) => r.team
     ? `<li><b>${i + 1}</b><span><span class="dot" style="background:${r.team.c}"></span>${teamLabel(r.team)}</span><span>${esc(r.v)}</span></li>`
-    : `<li class="${r.a.isMe ? 'mine' : ''}"><b>${i + 1}</b><span>${esc(r.a.name)}</span><span>${esc(r.v)}</span></li>`).join('');
+    : `<li class="${r.a.isMe ? 'mine' : ''}"><b>${i + 1}</b><span>${r.a.bot ? '🤖 ' : r.a.tc ? '👑 ' : ''}${esc(r.a.name)}</span><span>${esc(r.v)}</span></li>`).join('');
   const L = $('#hudL'), Rr = $('#hudR'), Tt = $('#hudT');
-  L.innerHTML = G.bars ? `<span class="bars">${G.bars()}</span>` : esc(G.status());
+  L.innerHTML = G.bars ? `<span class="bars">${G.bars()}</span>` : esc(me.spec ? `${actors.length}명이 하는 중` : G.status());
   if (G.bars) { L.style.background = 'transparent'; L.style.border = '0'; L.style.boxShadow = 'none'; L.style.padding = '0'; } else L.removeAttribute('style');
   Tt.textContent = state === 'play' || state === 'over' ? (G.limit ? fmt(Math.max(0, G.limit - G.time)) : fmt(G.time)) : '';
-  Rr.textContent = state === 'ready' ? '선생님이 시작을 누르면 시작해요' : state === 'over' ? '끝!' : G.bars ? G.status() : G.hud();
+  const rdy = MODE === 'host' ? `학생 ${actors.filter(a => a.uid).length}명이 들어왔어요 · 시작을 누르면 다 같이 시작해요` : MODE === 'client' ? '선생님이 시작을 누르면 다 같이 시작해요' : '선생님이 시작을 누르면 시작해요';
+  Rr.textContent = state === 'ready' ? (G.readyText ? G.readyText() + ' · ' : '') + rdy : state === 'over' ? '끝!' : me.spec ? (MODE === 'host' ? '👑 선생님은 구경하는 중' : '다음 판부터 같이 해요! 지금은 구경해요') : G.bars ? G.status() : G.hud();
   void force;
 }
 
@@ -1883,7 +2075,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => { if (KEY[e.key]) keys.delete(KEY[e.key]); });
 addEventListener('blur', () => keys.clear());
-function act() { if (state === 'play' && G.action) G.action(); }
+function act() { if (state === 'play' && G.action && !me.spec) { G.action(); if (MODE === 'client') { ACN++; CN.force = true; } } }
 for (const b of document.querySelectorAll('.keys .btn')) {
   const k = b.dataset.k;
   b.addEventListener('pointerdown', e => { keys.add(k); me.path = null; b.setPointerCapture(e.pointerId); e.preventDefault(); });
@@ -1891,18 +2083,23 @@ for (const b of document.querySelectorAll('.keys .btn')) {
 }
 $('#actBtn').addEventListener('click', act);
 cv.addEventListener('pointerdown', e => {
-  if (!G || quizOpen) return;
+  if (!G || quizOpen || me.spec) return;
   const r = cv.getBoundingClientRect(), x = camX() + (e.clientX - r.left) / VS, y = camY() + (e.clientY - r.top) / VS;
   if (state === 'play' && G.click && G.click(x, y)) return;
   if (G.lock && G.lock(me)) return;
   me.path = (cur.id === 'dodge' || cur.id === 'paint' || cur.id === 'tag' || cur.id === 'race' || cur.id === 'bomb' || cur.id === 'ox') ? [[x, y]] : findPath(me, x, y);
 });
-$('#picker').addEventListener('click', e => { const b = e.target.closest('.pick'); if (b) selectGame(GAMES.find(gm => gm.id === b.dataset.id)); });
+$('#picker').addEventListener('click', e => { const b = e.target.closest('.pick'); if (!b) return; const gm = GAMES.find(x => x.id === b.dataset.id); if (MODE === 'host') hostSwitch(gm); else if (MODE === 'local') selectGame(gm); });
 startBtn.addEventListener('click', startGame);
 endBtn.addEventListener('click', endGame);
-$('#again').addEventListener('click', () => { readSettings(); resetGame(); startGame(); });
+$('#again').addEventListener('click', () => { if (MODE === 'client') return; readSettings(); resetGame(); startGame(); });
 $('#closeRes').addEventListener('click', () => { $('#result').hidden = true; });
-$('#gSet').addEventListener('change', () => { readSettings(); if (state !== 'play' && state !== 'count') resetGame(); });
+$('#gSet').addEventListener('change', e => {
+  if (MODE === 'client') return;
+  const k = e.target.dataset && e.target.dataset.s; readSettings();
+  if (k && G.panelKeys && G.panelKeys.includes(k)) { renderPanel(); readSettings(); } // 술래 고르기 칸 보이기·숨기기
+  if (state !== 'play' && state !== 'count') resetGame();
+});
 $('#reroll').addEventListener('click', () => { if (MY_O) { toast('내 옷은 반 화면의 꾸미기에서 바꿔요'); return; } me.o = randomOutfit(); me.sheet = sheetFor(me.o); me._u = null; drawMe(); sfx('ui_click'); });
 $('#sndBtn').addEventListener('click', e => { soundOn = !soundOn; savePref('sound', soundOn); e.currentTarget.setAttribute('aria-pressed', String(soundOn)); sfx('ui_click'); });
 $('#bgmBtn').addEventListener('click', e => { musicOn = !musicOn; savePref('music', musicOn); e.currentTarget.setAttribute('aria-pressed', String(musicOn)); if (musicOn && state === 'play') bgmStart(); else bgmStop(); });
@@ -1910,25 +2107,39 @@ $('#sndBtn').setAttribute('aria-pressed', String(soundOn)); $('#bgmBtn').setAttr
 $('#emo').innerHTML = EMO.map((t, i) => `<button class="btn" type="button" data-e="${i}">${t}<kbd>${i + 1}</kbd></button>`).join('');
 $('#emo').addEventListener('click', e => { const b = e.target.closest('[data-e]'); if (b) emote(+b.dataset.e); });
 $('#myName').addEventListener('input', () => { me.name = ($('#myName').value.trim() || '나').slice(0, 6); updateSide(); });
-$('#count').addEventListener('change', () => { setCount(+$('#count').value); if (G) { readSettings(); resetGame(); } });
-addEventListener('hashchange', () => { const gm = GAMES.find(x => x.id === location.hash.slice(1)); if (gm && gm !== cur) selectGame(gm); });
+$('#count').addEventListener('change', () => { if (MODE === 'host') { if (state === 'ready' || state === 'over') resetGame(); else markDirty(); return; } setCount(+$('#count').value); if (G) { readSettings(); resetGame(); } });
+addEventListener('hashchange', () => { if (MODE !== 'local') return; const gm = GAMES.find(x => x.id === location.hash.slice(1)); if (gm && gm !== cur) selectGame(gm); });
 function drawMe() { const x = $('#meCv').getContext('2d'); x.clearRect(0, 0, 128, 128); x.imageSmoothingEnabled = false; x.drawImage(me.sheet, F, 0, F, F, 0, 0, 128, 128); }
 
 /* ---------- 매 프레임 ---------- */
 function frame(now) {
   requestAnimationFrame(frame);
+  if (MODE === 'host' && document.hidden) return; // 숨은 탭은 아래 타이머가 돌려요
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  for (const gh of ghosts.values()) {
-    const ddx = gh.tx - gh.x, ddy = gh.ty - gh.y, d = Math.hypot(ddx, ddy);
-    if (d > 0.5) { const sp = Math.min(d, Math.max(175, d * 4) * dt); gh.x += ddx / d * sp; gh.y += ddy / d * sp; gh.moving = true; gh.step += dt * 8.5; }
-    else gh.moving = gh.rm && d > 0.1;
+  if (MODE === 'client') { clientFrame(dt, now); return; }
+  tick(dt, now, true);
+}
+// 선생님 탭이 다른 탭 뒤로 가서 브라우저가 화면 그리기를 멈춰도, 학생들 게임은 계속: 밀린 시간만큼 나눠서 돌려요
+setInterval(() => {
+  if (MODE !== 'host' || !document.hidden) return;
+  const now = performance.now(); let el = Math.min(3, (now - last) / 1000); last = now;
+  while (el > 0.001) { const dt = Math.min(0.05, el); el -= dt; tick(dt, now, false); }
+}, 200);
+function tick(dt, now, draw) {
+  if (MODE === 'local') {
+    for (const gh of ghosts.values()) {
+      const ddx = gh.tx - gh.x, ddy = gh.ty - gh.y, d = Math.hypot(ddx, ddy);
+      if (d > 0.5) { const sp = Math.min(d, Math.max(175, d * 4) * dt); gh.x += ddx / d * sp; gh.y += ddy / d * sp; gh.moving = true; gh.step += dt * 8.5; }
+      else gh.moving = gh.rm && d > 0.1;
+    }
+    netTick(now);
   }
-  netTick(now);
   if (G && M && M.img && state !== 'load') {
+    if (MODE === 'host' && ROSTER_DIRTY && state === 'ready' && now > rosterAt) resetGame(); // 들어온 친구를 대기 화면에 넣기
     if (state === 'count') {
       countT -= dt; const cn = countT > 0.2 ? Math.ceil(countT - 0.2) : 0; $('#countdown').textContent = cn ? String(cn) : '시작!';
       if (cn !== lastCount) { lastCount = cn; sfx(cn ? 'count_beep' : 'count_go'); }
-      if (countT <= 0) { state = 'play'; G.time = 0; $('#countdown').textContent = ''; if (G.start) G.start(); bgmStart(); }
+      if (countT <= 0) { state = 'play'; G.time = 0; $('#countdown').textContent = ''; if (G.start) sim(() => G.start()); bgmStart(); if (G.feelStart && !me.spec) G.feelStart(); }
     }
     for (const a of actors) {
       a.bubbleT -= dt; a.jumpT = Math.max(0, a.jumpT - dt); a.jumpCd -= dt; if (a.stinkT > 0) a.stinkT -= dt;
@@ -1936,29 +2147,34 @@ function frame(now) {
       if (state === 'over' && winners.includes(a) && a.jumpT <= 0 && Math.random() < dt * 1.6) a.jumpT = 0.6;
       if (a.stun > 0) { a.stun -= dt; if (a.spin > 0) { a.spin -= dt; a.dir = ['down', 'right', 'up', 'left'][Math.floor(now / 90) % 4]; } }
     }
-    if (!quizOpen && !(G.lock && G.lock(me)) && state !== 'over') {
+    if (!me.spec && !quizOpen && !(G.lock && G.lock(me)) && state !== 'over') {
       let dx = 0, dy = 0;
       if (keys.has('left')) dx--; if (keys.has('right')) dx++; if (keys.has('up')) dy--; if (keys.has('down')) dy++;
       if (!dx && !dy && me.path) [dx, dy] = followPath(me);
       moveActor(me, dx, dy, dt);
     } else me.moving = false;
+    if (MODE === 'host') hostApply(dt);
     if (state === 'play') {
-      G.time += dt; G.update(dt); itemsUpdate(dt);
-      if (G.limit) { const rem = Math.ceil(G.limit - G.time); if (rem <= 5 && rem > 0 && rem !== lastHurry) { lastHurry = rem; sfx('count_beep', 0.7); $('#hudT').classList.add('hurry'); } }
-      if (G.limit && G.time >= G.limit) { sfx('time_up'); endGame(); }
+      G.time += dt;
+      sim(() => { G.update(dt); itemsUpdate(dt); if (G.limit && G.time >= G.limit && state === 'play') { sfx('time_up'); endGame(); } });
+      if (G.limit && state === 'play') { const rem = Math.ceil(G.limit - G.time); if (rem <= 5 && rem > 0 && rem !== lastHurry) { lastHurry = rem; sfx('count_beep', 0.7); $('#hudT').classList.add('hurry'); } }
     }
-    for (const a of actors) {
-      if (a.isMe) continue;
-      if (state === 'play') {
-        if (G.bot) G.bot(a, dt); else a.moving = false;
-        if ((a.emoT -= dt) <= 0) { a.emoT = rand(12, 30); if (cur.id !== 'chat' && !a.out && a.bubbleT <= 0 && Math.random() < 0.45) say(a, pick(CHEER), null, 1.8); }
+    const self = me;
+    sim(() => {
+      for (const a of actors) {
+        if (a === self || a.remote) continue; // 진짜 친구는 자기 화면에서 움직여요
+        if (state === 'play') {
+          if (G.bot) G.bot(a, dt); else a.moving = false;
+          if ((a.emoT -= dt) <= 0) { a.emoT = rand(12, 30); if (cur.id !== 'chat' && !a.out && a.bubbleT <= 0 && Math.random() < 0.45) say(a, pick(CHEER), null, 1.8); }
+        }
+        else if (state === 'ready' && !(G.lock && G.lock(a)) && cur.id !== 'bingo' && cur.id !== 'chat') wander(a, dt, (x, y) => stand(a, x, y), 0.35);
+        else a.moving = false;
       }
-      else if (state === 'ready' && !(G.lock && G.lock(a)) && cur.id !== 'bingo' && cur.id !== 'chat') wander(a, dt, (x, y) => stand(a, x, y), 0.35);
-      else a.moving = false;
-    }
+    });
     fx = fx.filter(e => (e.t += dt) < e.life); shakeT = Math.max(0, shakeT - dt);
-    render(); follow(dt);
-    if ((hudTick -= dt) <= 0) { hudTick = 0.25; updateSide(); }
+    if (MODE === 'host') { if (G.ctick) G.ctick(dt, true); hostFeel(); hostSync(now); }
+    if (draw) { render(); follow(dt); }
+    if ((hudTick -= dt) <= 0) { hudTick = 0.25; if (draw) updateSide(); }
   }
 }
 
@@ -2000,8 +2216,9 @@ function netStart() {
   netRef = ref(rt, 'live/' + NET_CID + '/players/' + USER.uid);
   onValue(ref(rt, '.info/connected'), async (s) => {
     netOn = !!s.val();
-    if (netOn) { try { await onDisconnect(netRef).remove(); } catch (e) { /* 무시 */ } netFull = false; } // 다음 프레임에 전체를 다시 보냄
+    if (netOn) { try { await onDisconnect(netRef).remove(); } catch (e) { /* 무시 */ } netFull = false; CN.full = false; } // 다음 프레임에 전체를 다시 보냄
   });
+  if (MODE === 'client') return; // 친구들 자리는 선생님 탭이 모아서 보내 줘요
   const base = ref(rt, 'live/' + NET_CID + '/players');
   onChildAdded(base, (s) => ghostUp(s.key, s.val()));
   onChildChanged(base, (s) => ghostUp(s.key, s.val()));
@@ -2009,6 +2226,440 @@ function netStart() {
   setInterval(() => { netFull = false; }, 20000); // 가끔 전체를 다시 보내서 빠진 칸을 채움
 }
 
+
+/* ---------- 다 같이 하기: 선생님이 초대한 반 친구들과 한 게임 ----------
+ * 선생님 탭(host): 판정·🤖를 모두 돌리고, live/반/state/gm 에 1초에 8번쯤 올려요
+ * 학생(client): 내 캐릭터만 내 화면에서 움직여 live/반/players/내uid 에 올리고, 나머지는 gm 을 받아 그려요
+ * gm: h 머리(게임·판·단계·설정) · ro 참가자 · t 시계 · p 자리 · a 상태 · g 게임마다 따로 · gi 바닥 아이템 · ev 효과 · rk 순위 · fin 결과 · hb 살아 있음
+ * 선생님 탭이 '움직인' 학생(대기석·출발선·넘어짐)은 tp 번호를 올려서, 학생 화면이 그 자리로 옮겨요 */
+const AF_V = ['out', 'it', 'ice', 'zombie', 'z0', 'shield', 'fin', 'mark', 'score', 'outNow', 'outAt', 'zAt'];
+const AF_T = ['freeze', 'immune', 'starT', 'boostT', 'umbT', 'stun', 'spin', 'jumpT', 'stinkT']; // 남은 시간 → 끝나는 시각으로 보냄
+const DIRS = ['down', 'up', 'left', 'right'];
+const SPEC = {}; // 선생님 탭이 게임을 돌리는 동안 '나'가 없는 척: 선생님만의 안내·소리가 모두에게 가지 않게
+const listOf = x => Array.isArray(x) ? x : x && typeof x === 'object' ? Object.keys(x).sort((p, q) => p - q).map(k => x[k]) : [];
+function rec(e) { if (MODE !== 'host') return; e.s = ++evSeq; e.at = performance.now(); EVQ.push(e); }
+function sim(fn) {
+  if (MODE !== 'host' || SIM) return fn();
+  const m = me; SIM = true; me = SPEC; m.isMe = false;
+  try { return fn(); } finally { SIM = false; me = m; m.isMe = !m.spec; }
+}
+function aflags(a) {
+  const f = {};
+  for (const k of AF_V) { const v = a[k]; if (v) f[k] = v === true ? 1 : typeof v === 'number' ? r1(v) : v; }
+  if (typeof a.team === 'number') f.team = a.team;
+  for (const k of AF_T) if (a[k] > 0.05) f[k] = r1(G.time + a[k]);
+  if (a.alpha !== undefined && a.alpha < 0.99) f.al = r2(a.alpha);
+  if (a.out && a.sit) f.st = [Math.round(a.sit.x), Math.round(a.sit.y), a.sit.face, a.sit.k || 0];
+  if (a.bomb) f.bm = [r1(G.time + a.bomb.t), r1(a.bomb.max)];
+  if (a.tp) f.tp = a.tp;
+  return f;
+}
+function applyFlags(a, f) {
+  for (const k of AF_V) a[k] = f[k] !== undefined ? f[k] : k === 'mark' ? '' : 0;
+  a.team = f.team !== undefined ? f.team : null;
+  for (const k of AF_T) { if (a.isMe && k === 'jumpT') continue; a[k] = f[k] ? Math.max(0, f[k] - G.time) : 0; } // 내 점프는 내 화면이 먼저
+  a.alpha = f.al !== undefined ? f.al : 1;
+  a.sit = f.st ? { x: f.st[0], y: f.st[1], face: f.st[2], k: f.st[3] || 0 } : null;
+  a.bomb = f.bm ? { t: f.bm[0] - G.time, max: f.bm[1] } : null;
+}
+
+/* ----- 선생님 탭 (host) ----- */
+const REM = new Map(); // 들어온 학생 uid → 이름·옷·자리·행동
+let gmRef = null, HS = null, ROUND = 0, ROSTER_DIRTY = false, rosterAt = 0, hostPlays = true, HOST_LIVE = 'wait', TME = null, MF = null;
+const HSPEC = { spec: true, isMe: false, name: '선생님', x: 0, y: 0, dir: 'down', o: null };
+const hostURL = () => '?host=' + encodeURIComponent(HOST_CID) + '&g=' + encodeURIComponent(cur.id) + '&run=' + encodeURIComponent(RUN);
+function markDirty() { ROSTER_DIRTY = true; rosterAt = performance.now() + 700; }
+function remUp(uid, v) {
+  if (!v || !USER || uid === USER.uid) return;
+  if (v.mp !== 'game:' + RUN || v.tc) { if (REM.has(uid)) remGone(uid); return; }
+  let r = REM.get(uid);
+  if (!r) { r = { uid, tp: 0, ready: false, okey: '' }; REM.set(uid, r); }
+  r.n = String(v.n || '친구').slice(0, 10); r.k = String(v.k || ''); r.x = +v.x || 0; r.y = +v.y || 0; r.d = ROWS[v.d] !== undefined ? v.d : 'down'; r.m = !!v.m;
+  r.ctp = typeof v.tp === 'number' ? v.tp : -1;
+  if (v.ac !== r.acS) { if (r.acS !== undefined) r.acQ = 1; r.acS = v.ac; }
+  if (v.em !== r.emS) { if (r.emS !== undefined && v.em) r.emQ = v.em; r.emS = v.em; }
+  const o = AV.clean(v.o), okey = JSON.stringify(o);
+  if (okey !== r.okey) {
+    r.okey = okey;
+    AV.ensureMany([o]).then(() => {
+      if (r.okey !== okey || REM.get(uid) !== r) return;
+      const first = !r.ready; r.o = o; r.ready = true;
+      const a = actors.find(x => x.uid === uid);
+      if (a) { a.o = o; a.sheet = sheetFor(o); a._u = a._z = a._i = null; if (!a.remote) { a.remote = true; a.bot = false; a.path = null; a.hx = NaN; } }
+      else if (first) markDirty();
+    });
+  } else if (r.ready) { const a = actors.find(x => x.uid === uid); if (a && !a.remote) { a.remote = true; a.bot = false; a.path = null; a.hx = NaN; } } // 다시 들어옴
+}
+function remGone(uid) {
+  REM.delete(uid);
+  const a = actors.find(x => x.uid === uid);
+  if (!a) { ROSTER_DIRTY = ROSTER_DIRTY || false; return; }
+  if (state === 'ready') markDirty(); else { a.remote = false; a.bot = true; a.path = null; a.moving = false; } // 게임 중에 나가면 🤖가 대신
+}
+function buildActors() {
+  if (!TME) return;
+  const prev = actors, list = [];
+  if (hostPlays) { me = TME; TME.isMe = true; list.push(TME); } else me = HSPEC;
+  const studs = [...REM.values()].filter(r => r.ready).sort((p, q) => p.n.localeCompare(q.n, 'ko'));
+  for (const r of studs) {
+    let a = prev.find(x => x.uid === r.uid);
+    if (!a) { a = makeActor(r.n, false, { o: r.o }); a.uid = r.uid; a.tp = r.tp; a.hx = NaN; }
+    a.remote = true; a.bot = false; a.name = r.n; a.k = r.k; a.isMe = false;
+    list.push(a);
+  }
+  const total = Math.max(4, +$('#count').value || 0), used = new Set(list.map(a => a.name)), bots = prev.filter(a => a.bot && !a.uid);
+  while (list.length < total) {
+    let b = bots.shift();
+    if (!b) { b = makeActor(NAMES.find(x => !used.has(x)) || '친구' + list.length, false, null); b.bot = true; }
+    if (used.has(b.name)) b.name = NAMES.find(x => !used.has(x)) || b.name + list.length;
+    used.add(b.name); list.push(b);
+  }
+  actors = list; ROSTER_DIRTY = false;
+}
+function hostApply(dt) {
+  for (const a of actors) {
+    if (!a.remote) continue;
+    const r = REM.get(a.uid); if (!r) { a.moving = false; continue; }
+    if (!(Math.abs(a.x - a.hx) < 0.5 && Math.abs(a.y - a.hy) < 0.5)) { a.tp = (a.tp | 0) + 1; a.hx = a.x; a.hy = a.y; r.tp = a.tp; } // 지난 판정에서 선생님 탭이 옮겼어요
+    if (r.ctp === (a.tp | 0)) { // 학생이 내 마지막 '옮기기'를 받은 뒤의 자리만 믿어요
+      const dx = r.x - a.x, dy = r.y - a.y, d = hyp(dx, dy);
+      if (d > 160) { a.x = r.x; a.y = r.y; } else if (d > 0.5) { const sp = Math.min(d, Math.max(240, d * 9) * dt); a.x += dx / d * sp; a.y += dy / d * sp; }
+      a.hx = a.x; a.hy = a.y; a.dir = r.d;
+    }
+    a.moving = r.m && !(a.out && a.sit) && !(a.stun > 0); if (a.moving) a.step += dt * 8.5;
+    if (r.acQ) { r.acQ = 0; if (state === 'play' && G.remoteAct) sim(() => G.remoteAct(a)); }
+    if (r.emQ) { const i = +String(r.emQ).split(':')[1]; r.emQ = 0; if (EMO[i]) sim(() => say(a, EMO[i], '#fff6c8', 2.2)); }
+  }
+}
+function hostFeel() { // 선생님 캐릭터의 내 안내·소리 (학생 화면과 같은 방법)
+  if (me.spec || !G.feel) { MF = null; return; }
+  const f = aflags(me);
+  if (MF && state === 'play') G.feel(MF, f);
+  MF = f;
+}
+function hostCollect(full) {
+  const up = {}, now = performance.now();
+  for (const a of actors) if (a.remote && !(Math.abs(a.x - a.hx) < 0.5 && Math.abs(a.y - a.hy) < 0.5)) { a.tp = (a.tp | 0) + 1; a.hx = a.x; a.hy = a.y; const r = REM.get(a.uid); if (r) r.tp = a.tp; }
+  const SS = {}; for (const [id] of G.settings) SS[id] = S[id] ?? ''; if (cur.id === 'race' && S.obsKinds) SS.obsKinds = S.obsKinds.length ? S.obsKinds : ['none'];
+  const h = { gid: cur.id, run: RUN, rd: ROUND, ph: state, S: SS }, hj = JSON.stringify(h);
+  if (full || hj !== HS.h) { HS.h = hj; up.h = h; }
+  const ro = actors.map(a => { const e = { n: a.name, o: a.o }; if (a.uid) e.u = a.uid; if (a.bot) e.b = 1; if (a.tc) e.tc = 1; return e; }), rj = JSON.stringify(ro);
+  if (full || rj !== HS.ro) { HS.ro = rj; up.ro = ro; }
+  const t = state === 'count' ? r2(-countT) : state === 'ready' ? 0 : r2(G.time);
+  if (full || t !== HS.t) { HS.t = t; up.t = t; }
+  const p = actors.map(a => Math.round(a.x) + ',' + Math.round(a.y) + ',' + (Math.max(0, DIRS.indexOf(a.dir)) * 2 + (a.moving ? 1 : 0))).join(';');
+  if (full || p !== HS.p) { HS.p = p; up.p = p; }
+  if (full) { const all = {}; HS.a = []; actors.forEach((a, i) => { const f = aflags(a), j = JSON.stringify(f); HS.a[i] = j; if (j !== '{}') all[i] = f; }); up.a = all; }
+  else actors.forEach((a, i) => { const f = aflags(a), j = JSON.stringify(f); if (j !== HS.a[i]) { HS.a[i] = j; up['a/' + i] = j === '{}' ? null : f; } });
+  if (G.snap) {
+    const sn = G.snap(), gfull = {};
+    for (const k in sn) {
+      if (k === G.delta) { // 땅따먹기 칸: 바뀐 칸만
+        const arr = sn[k];
+        if (full || !HS.dc || HS.dc.length !== arr.length) { HS.dc = arr.slice(); const o = {}; arr.forEach((v, i) => { if (v >= 0) o[i] = v; }); if (full) gfull[k] = o; else up['g/' + k] = o; }
+        else arr.forEach((v, i) => { if (v !== HS.dc[i]) { HS.dc[i] = v; up['g/' + k + '/' + i] = v >= 0 ? v : null; } });
+        continue;
+      }
+      const j = JSON.stringify(sn[k]);
+      if (full || j !== HS.g[k]) { HS.g[k] = j; if (full) gfull[k] = sn[k]; else up['g/' + k] = sn[k]; }
+    }
+    if (full) up.g = gfull;
+  }
+  const gi = GI.map(i => [i.k, Math.round(i.x), Math.round(i.y), i.gone ? 1 : 0]), gj = JSON.stringify(gi);
+  if (full || gj !== HS.gi) { HS.gi = gj; up.gi = gi.length ? gi : null; }
+  EVQ = EVQ.filter(e => now - e.at < 2500).slice(-40);
+  if (full) { HS.ev = evSeq; up.ev = { s: evSeq }; }
+  else if (evSeq > HS.ev) { HS.ev = evSeq; up.ev = { s: evSeq, l: EVQ.map(e => { const c = Object.assign({}, e); delete c.at; return c; }) }; }
+  if (full || now - HS.rkT > 450) {
+    HS.rkT = now; let rk = [];
+    try { rk = G.rank().map(r => r.team ? { tl: teamLabel(r.team), c: r.team.c, v: String(r.v) } : { i: actors.indexOf(r.a), v: String(r.v) }); } catch (e) { rk = []; }
+    const kj = JSON.stringify(rk); if (full || kj !== HS.rk) { HS.rk = kj; up.rk = rk.length ? rk : null; }
+  }
+  if (state === 'over' && !HS.fin) { HS.fin = true; const F = hostFin(); up.fin = F; hostResults(F); }
+  if (full || now - HS.hb > 2000) { HS.hb = now; up.hb = Date.now(); }
+  return up;
+}
+function hostFull() {
+  if (!gmRef || HOST_LIVE === 'off') return;
+  HS = { h: '', ro: '', t: null, p: '', a: [], g: {}, dc: null, gi: '', ev: evSeq, rk: '', rkT: 0, fin: false, hb: 0, last: performance.now() };
+  set(gmRef, hostCollect(true)).catch(hostErr);
+}
+function hostSync(now, force) {
+  if (!gmRef || !HS || HOST_LIVE === 'off' || (!force && now - HS.last < 120)) return;
+  HS.last = now;
+  const up = hostCollect(false);
+  if (Object.keys(up).length) update(gmRef, up).catch(hostErr);
+}
+let hostErrT = 0;
+function hostErr(e) { if (performance.now() - hostErrT > 8000) { hostErrT = performance.now(); toast(/permission/i.test((e && e.code) || '') ? '이 반의 게임을 보낼 권한이 없어요 (반을 만든 선생님만 초대할 수 있어요)' : '인터넷이 불안해요. 학생 화면에 늦게 갈 수 있어요'); } }
+function hostFin() { // 결과: 순위 줄 + 사람마다 기록(bv)·기록 글(tx)·순위(rr)
+  let rows = []; try { rows = G.final(); } catch (e) { rows = []; }
+  const B = BEST[cur.id], team = !!G.team, m0 = me, bv = {}, tx = {};
+  actors.forEach((a, i) => {
+    if (!B) return;
+    me = a;
+    try { const v = B.v(); if (v !== null && v !== undefined && Number.isFinite(+v)) bv[i] = r2(+v); const t = B.s ? B.s() : ''; if (t) tx[i] = t; } catch (e) { /* 기록 없음 */ } finally { me = m0; }
+  });
+  const rr = actors.map(a => (team ? rows.findIndex(r => r.members.includes(a)) : rows.findIndex(r => r.a === a)) + 1);
+  const out = rows.map(r => team ? { tl: teamLabel(r.team), c: r.team.c, v: String(r.v), m: r.members.map(a => actors.indexOf(a)), b: r.best ? actors.indexOf(r.best) : -1 } : { i: actors.indexOf(r.a), v: String(r.v) });
+  return { rows: out, bv, tx, rr };
+}
+function hostResults(F) { // 학생마다 기록을 진행판(results)으로
+  const B = BEST[cur.id];
+  actors.forEach((a, i) => {
+    if (!a.uid) return;
+    const v = F.bv[i];
+    set(ref(rt, 'live/' + HOST_CID + '/results/' + RUN + '/' + a.uid), { n: a.name, k: a.k || '', g: cur.id, v: v === undefined ? null : v, s: v !== undefined && B ? B.f(v) : F.tx[i] || '기록 없음', r: F.rr[i] || 0, t: rnow() }).catch(() => {});
+  });
+}
+function hostGame(gm = cur) { // 반 화면에 '지금 이 게임 중' 알리기 → 반에 있는 학생들이 이 게임으로 넘어와요
+  HOST_LIVE = 'wait';
+  set(ref(rt, 'live/' + HOST_CID + '/state/game'), { id: gm.id, name: gm.name, run: RUN, t: Date.now(), live: 1 }).catch(hostErr);
+  set(ref(rt, 'live/' + HOST_CID + '/lastRun'), RUN).catch(() => {});
+}
+async function hostSwitch(gm) { // 다른 게임으로: 새 판 번호 → 학생 화면도 그 게임으로
+  if (!gm || gm === cur || hostSwitch.busy) return;
+  hostSwitch.busy = true; HOST_LIVE = 'off'; // 바꾸는 동안은 보내지 않아요
+  try { await loadMap(gm.map); } catch (e) { /* selectGame 이 다시 해 봐요 */ }
+  RUN = 'r' + Date.now().toString(36); REM.clear();
+  hostGame(gm); // 반 화면에 새 게임을 먼저 알리고(학생들이 넘어올 때 확인해요) → 새 판 보내기
+  try { await selectGame(gm); } finally { hostSwitch.busy = false; }
+  toast(`'${gm.name}'(으)로 바꿨어요. 학생 화면도 넘어와요`);
+}
+function hostOff(g) {
+  HOST_LIVE = 'off'; bgmStop();
+  $('#gateH').textContent = g && g.run ? '다른 게임을 시작했어요' : '초대를 끝냈어요';
+  $('#gateP').textContent = g && g.run ? '반 진행판에서 다른 게임을 시작해서 이 게임은 멈췄어요.' : '학생들은 반으로 돌아갔어요. 다시 초대하면 반에 있는 학생들이 이 게임으로 와요.';
+  $('#gateRe').hidden = !!(g && g.run); $('#gateGo').href = 'teacher.html#live-' + encodeURIComponent(HOST_CID); $('#gateGo').textContent = '선생님 화면으로 ▶';
+  $('#gate').hidden = false;
+}
+function hostEndAll() {
+  HOST_LIVE = 'off';
+  update(ref(rt, 'live/' + HOST_CID + '/state'), { game: null, gm: null }).catch(() => {}).then(() => { location.href = 'teacher.html#live-' + encodeURIComponent(HOST_CID); });
+}
+function hostStart() {
+  if (!RUN) RUN = 'r' + Date.now().toString(36);
+  gmRef = ref(rt, 'live/' + HOST_CID + '/state/gm');
+  TME = makeActor('선생님', true); TME.tc = true; me = TME;
+  const base = ref(rt, 'live/' + HOST_CID + '/players');
+  onChildAdded(base, s => remUp(s.key, s.val())); onChildChanged(base, s => remUp(s.key, s.val())); onChildRemoved(base, s => remGone(s.key));
+  onValue(ref(rt, 'live/' + HOST_CID + '/state/game'), s => {
+    const g = s.val();
+    if (g && g.run === RUN) { if (HOST_LIVE === 'wait') HOST_LIVE = 'on'; }
+    else if (HOST_LIVE === 'on') hostOff(g);
+  });
+  $('#hostPlay').addEventListener('change', e => { hostPlays = e.target.checked; toast(hostPlays ? '선생님도 같이 해요 👑' : '선생님은 구경만 해요'); if (state === 'ready' || state === 'over') resetGame(); else markDirty(); });
+  $('#hostEnd').addEventListener('click', hostEndAll);
+  $('#gateRe').addEventListener('click', () => { $('#gate').hidden = true; RUN = 'r' + Date.now().toString(36); REM.clear(); try { history.replaceState(null, '', hostURL()); } catch (e) { /* 무시 */ } hostGame(); resetGame(); toast('다시 초대했어요. 반에 있는 학생들이 넘어와요'); });
+}
+
+/* ----- 초대받은 학생 (client) ----- */
+let GMB = {}, GMQ = new Set(), gmPend = false, gmBusy = false, CT = 0, cRound = null, FIN = null, RKC = [], lastGm = 0, evSeen = -1, CSPEC = null, resShown = false, hintNow = '';
+let CN = { full: false, x: NaN, y: NaN, d: '', m: false, at: 0, force: false }, ACN = 0, EMN = '', emN = 0;
+function gmOn(k, v) { GMB[k] = v; GMQ.add(k); lastGm = performance.now(); gmKick(); }
+function gmKick() { if (!gmPend) { gmPend = true; queueMicrotask(gmFlush); } }
+async function gmFlush() {
+  gmPend = false;
+  if (gmBusy || !G || !M || MODE !== 'client') return;
+  const v = GMB, h = v.h;
+  if (!h) return;
+  if (h.run !== RUN) { goRun({ id: h.gid, run: h.run }); return; }
+  if (h.gid !== cur.id) return;
+  const keys = new Set(GMQ); GMQ.clear();
+  gmBusy = true;
+  try {
+    Object.assign(S, h.S || {}); if (S.obsKinds && S.obsKinds[0] === 'none') S.obsKinds = [];
+    const ph = h.ph || 'ready', was = state, round = h.rd !== cRound;
+    if (round || keys.has('ro')) await clientRoster(listOf(v.ro));
+    if (round) { cRound = h.rd; CT = +v.t || 0; clientRound(ph); }
+    if (round || keys.has('t')) { const t = +v.t || 0; if (round || Math.abs(t - CT) > 0.6 || ph !== was) CT = t; else CT += (t - CT) * 0.35; if (ph === 'play' || ph === 'over') G.time = Math.max(0, CT); }
+    if (!round && ph !== was) { state = ph; phaseFx(was, ph); }
+    if ((round || keys.has('g')) && G.load && v.g) G.load(v.g);
+    if (round || keys.has('gi')) loadGI(v.gi);
+    if (round || keys.has('a')) {
+      const A = v.a || {};
+      actors.forEach((a, i) => {
+        const f = A[i] || {};
+        if (!a.isMe) { applyFlags(a, f); return; }
+        const o = a._f; applyFlags(a, f);
+        if ((f.tp | 0) !== a.tpSeen) { a.tpSeen = f.tp | 0; a.tele = true; }
+        if (o && G.feel && state === 'play') G.feel(o, f);
+        a._f = f;
+      });
+    }
+    if (round || keys.has('p') || keys.has('a')) applyPos(String(v.p || ''), round);
+    if (keys.has('ev') && v.ev) { const e = v.ev; if (evSeen < 0 || round) evSeen = e.s || 0; else { for (const x of listOf(e.l)) if (x && x.s > evSeen) applyEv(x); evSeen = Math.max(evSeen, e.s || 0); } }
+    if (round || keys.has('rk')) RKC = listOf(v.rk).map(r => !r ? null : r.tl !== undefined ? { team: { name: r.tl, label: r.tl, c: r.c }, v: r.v } : { a: actors[r.i], v: r.v }).filter(r => r && (r.team || r.a));
+    if (v.fin && state === 'over' && !resShown) { FIN = v.fin; resShown = true; const rows = finRows(); winners = G.team ? (rows[0] ? rows[0].members.concat(rows[1] && rows[1].v === rows[0].v ? rows[1].members : []) : []) : rows.slice(0, 3).map(r => r.a); setTimeout(() => { if (state === 'over' && FIN) showResult(); }, 700); }
+    updateSide();
+  } catch (e) { console.warn('gm', e); }
+  finally { gmBusy = false; if (GMQ.size) gmKick(); }
+}
+async function clientRoster(list) {
+  const os = list.map(e => AV.clean(e && e.o));
+  await AV.ensureMany(os);
+  const prev = new Map(actors.map(a => [a.uid || 'b:' + a.name, a]));
+  actors = list.map((e, i) => {
+    const nm = String((e && e.n) || '친구').slice(0, 10), key = (e && e.u) || 'b:' + nm;
+    let a = prev.get(key);
+    if (!a) { a = makeActor(nm, false, { o: os[i] }); a.x = a.tx = 0; a.y = a.ty = 0; }
+    a.uid = (e && e.u) || ''; a.bot = !!(e && e.b); a.tc = !!(e && e.tc); a.name = nm; a.isMe = !!(USER && a.uid && a.uid === USER.uid);
+    if (JSON.stringify(a.o) !== JSON.stringify(os[i])) { a.o = os[i]; a.sheet = sheetFor(os[i]); a._u = a._z = a._i = null; }
+    return a;
+  });
+  const m = actors.find(a => a.isMe);
+  if (m) { m.speed = 178; me = m; } else me = CSPEC;
+}
+function clientRound(ph) { // 새 판: 선생님 탭과 같은 설정으로 맵을 준비하고, 자리·상태는 받은 것으로
+  closeQuiz(); $('#result').hidden = true; fx = []; $('#countdown').textContent = '';
+  resetActors();
+  winners = []; bgmStop(); $('#hudT').classList.remove('hurry'); FIN = null; resShown = false; RKC = [];
+  G.time = 0; G.setup(); itemsReset(); G.time = Math.max(0, CT);
+  me._f = null; me.lastLap = false; me.lp = 0; G.beepN = 0; G.lpT2 = 0;
+  state = ph; if (ph !== 'ready') phaseFx('ready', ph);
+}
+function phaseFx(was, ph) {
+  if (ph === 'ready') { $('#countdown').textContent = ''; bgmStop(); }
+  if (ph === 'count') {
+    lastCount = 0; lastHurry = 0; $('#result').hidden = true; if (!me.spec) camTo(me.x, me.y);
+    const sr = $('#screen').getBoundingClientRect();
+    if (innerWidth < 960 || sr.top < 0 || sr.bottom > innerHeight) $('#screen').scrollIntoView({ block: sr.height > innerHeight ? 'start' : 'nearest', behavior: CALM ? 'auto' : 'smooth' });
+  }
+  if (ph === 'play') { $('#countdown').textContent = ''; bgmStart(); if (G.feelStart && !me.spec) G.feelStart(); }
+  if (ph === 'over') { endedAt = performance.now(); bgmStop(); sfx(G.limit && CT >= G.limit - 0.5 ? 'time_up' : 'whistle'); $('#hudT').classList.remove('hurry'); closeQuiz(); }
+}
+function applyPos(ps, round) {
+  const P = ps.split(';');
+  actors.forEach((a, i) => {
+    const q = P[i]; if (!q) return;
+    const [x, y, dm] = q.split(',').map(Number);
+    if (a.isMe) { if (a.tele) { a.tele = false; a.x = x; a.y = y; a.path = null; CN.force = true; if (state !== 'play') camTo(x, y); } return; } // 선생님 탭이 옮긴 내 자리
+    a.tx = x; a.ty = y; a.dir = DIRS[dm >> 1] || 'down'; a.rm = dm & 1;
+    if (round || !(Math.abs(a.x - x) < 200 && Math.abs(a.y - y) < 200)) { a.x = x; a.y = y; }
+  });
+}
+function loadGI(gi) {
+  const old = GI;
+  GI = listOf(gi).filter(Boolean).map(e => { const o = old.find(q => q.k === e[0] && Math.abs(q.x - e[1]) < 2 && Math.abs(q.y - e[2]) < 2); return { k: e[0], x: e[1], y: e[2], gone: !!e[3], t: o ? o.t : Math.random() * 3 }; });
+}
+function applyEv(x) {
+  if (x.k === 't') toast(String(x.m || ''));
+  else if (x.k === 's') { if (x.n === 'whistle' || x.n === 'time_up') return; sfx(x.n, Math.min(Number.isFinite(x.v) ? x.v : 0.4, 0.9), x.r || 1); }
+  else if (x.k === 'f') { addFx(x.x, x.y, x.o || {}); if (x.o && x.o.img === 'boom' && !me.spec && hyp(x.x - me.x, x.y - me.y) < 320) shakeT = 0.35; }
+  else if (x.k === 'b') { const a = actors[x.i]; if (a) say(a, x.m || '', x.c || null, x.d || 2.4); }
+}
+function finRows() {
+  if (!FIN) return [];
+  return listOf(FIN.rows).filter(Boolean).map(r => r.tl !== undefined ? { team: { name: r.tl, label: r.tl, c: r.c }, v: r.v, members: listOf(r.m).map(i => actors[i]).filter(Boolean), best: actors[r.b] } : { a: actors[r.i], v: r.v }).filter(r => r.team || r.a);
+}
+function finMine(k) { const i = actors.indexOf(me); if (!FIN || i < 0 || !FIN[k]) return null; const v = FIN[k][i]; return v === undefined || v === null ? null : v; }
+function clientNet(now) {
+  if (!netRef || !netOn || PREVIEW) return;
+  if (!CN.full) { CN.full = true; CN.at = now; set(netRef, Object.assign(netRec(), { tp: me.tpSeen ?? -1, ac: ACN, em: EMN })).catch(() => { CN.full = false; }); return; } // 처음엔 전체 (구경 중이어도 들어왔다고 알림)
+  if (me.spec) return;
+  const ch = Math.abs(me.x - CN.x) > 0.5 || Math.abs(me.y - CN.y) > 0.5 || me.dir !== CN.d || me.moving !== CN.m;
+  if (!CN.force && !(ch && now - CN.at > 95) && now - CN.at < 4000) return;
+  CN.force = false; CN.at = now; CN.x = me.x; CN.y = me.y; CN.d = me.dir; CN.m = me.moving;
+  update(netRef, { x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: me.moving ? 1 : 0, tp: me.tpSeen ?? -1, ac: ACN, em: EMN, go: me.out ? 1 : 0, gid: cur.id, t: rnow() }).catch(() => {});
+}
+function clientFrame(dt, now) {
+  if (!G || !M || !M.img) return;
+  if (state === 'count' || state === 'play') CT += dt;
+  if (state === 'count') {
+    countT = -CT; const cn = countT > 0.2 ? Math.ceil(countT - 0.2) : 0; $('#countdown').textContent = cn ? String(cn) : '시작!';
+    if (cn !== lastCount) { lastCount = cn; sfx(cn ? 'count_beep' : 'count_go'); }
+  }
+  if (state === 'play') {
+    G.time = Math.max(0, CT);
+    if (G.limit) { const rem = Math.ceil(G.limit - G.time); if (rem <= 5 && rem > 0 && rem !== lastHurry) { lastHurry = rem; sfx('count_beep', 0.7); $('#hudT').classList.add('hurry'); } }
+  }
+  for (const a of actors) {
+    a.bubbleT -= dt; a.jumpT = Math.max(0, a.jumpT - dt); a.jumpCd -= dt; if (a.stinkT > 0) a.stinkT -= dt;
+    if (state === 'play') { a.boostT -= dt; a.umbT -= dt; a.starT -= dt; a.freeze -= dt; a.immune -= dt; }
+    if (state === 'over' && winners.includes(a) && a.jumpT <= 0 && Math.random() < dt * 1.6) a.jumpT = 0.6;
+    if (a.stun > 0) { a.stun -= dt; if (a.spin > 0) { a.spin -= dt; a.dir = ['down', 'right', 'up', 'left'][Math.floor(now / 90) % 4]; } }
+    if (a.isMe) continue;
+    const dx = a.tx - a.x, dy = a.ty - a.y, d = hyp(dx, dy); // 친구들은 받은 자리로 부드럽게
+    if (d > 0.5) { const sp = Math.min(d, Math.max(200, d * 7) * dt); a.x += dx / d * sp; a.y += dy / d * sp; }
+    a.moving = !!a.rm && !(a.out && a.sit) && !(a.stun > 0 && a.spin > 0); if (a.moving) a.step += dt * 8.5;
+  }
+  if (!me.spec && !quizOpen && !(G.lock && G.lock(me)) && state !== 'over') {
+    let dx = 0, dy = 0;
+    if (keys.has('left')) dx--; if (keys.has('right')) dx++; if (keys.has('up')) dy--; if (keys.has('down')) dy++;
+    if (!dx && !dy && me.path) [dx, dy] = followPath(me);
+    moveActor(me, dx, dy, dt);
+  } else me.moving = false;
+  for (const it of GI) it.t += dt;
+  if (G.ctick) G.ctick(dt, false);
+  fx = fx.filter(e => (e.t += dt) < e.life); shakeT = Math.max(0, shakeT - dt);
+  render(); follow(dt);
+  clientNet(now);
+  if ((hudTick -= dt) <= 0) {
+    hudTick = 0.25; updateSide();
+    const w = !GMB.h ? '선생님 게임 화면을 기다리는 중…' : now - lastGm > 9000 && state !== 'over' ? '선생님 화면을 기다리는 중… (선생님 게임 창이 꺼졌을 수 있어요)' : me.spec ? '다음 판부터 같이 해요! 지금은 구경해요' : '';
+    if (w !== hintNow) { hintNow = w; $('#hint').textContent = w; }
+  }
+}
+function clientStart() {
+  CSPEC = makeActor(SES.name, true); CSPEC.spec = true; me = CSPEC;
+  const base = 'live/' + SES.cid + '/state/', gmR = ref(rt, base + 'gm');
+  onChildAdded(gmR, s => gmOn(s.key, s.val())); onChildChanged(gmR, s => gmOn(s.key, s.val())); onChildRemoved(gmR, s => gmOn(s.key, null));
+  onValue(ref(rt, base + 'game'), s => { const g = s.val(); if (!g || !g.run) clientLeave(); else if (g.run !== RUN) goRun(g); });
+}
+let leaving = 0;
+function clientLeave() { // 선생님이 게임을 끝냄 → 반으로
+  if (leaving) return;
+  toast('선생님이 게임을 끝냈어요. 반으로 돌아가요');
+  leaving = setTimeout(() => { location.href = 'class.html'; }, $('#result').hidden ? 2500 : 7000);
+}
+function goRun(g) { // 선생님이 다른 게임으로 바꿈 → 그 게임으로
+  if (goRun.done || !g || !g.run) return; goRun.done = true;
+  try { const r = JSON.parse(sessionStorage.getItem('moa_runs') || '[]'); r.push(g.run); sessionStorage.setItem('moa_runs', JSON.stringify(r.slice(-20))); } catch (e) { /* 무시 */ }
+  location.replace('games.html?g=' + encodeURIComponent(g.id || '') + '&run=' + encodeURIComponent(g.run));
+}
+function livePanel() { // 진행판: 함께 하는 친구들
+  const ppl = actors.filter(a => a.uid || a.tc), watch = MODE === 'host' ? [...REM.values()].filter(r => !actors.some(a => a.uid === r.uid)) : [];
+  const html = ppl.map(a => `<li${a.isMe ? ' class="mine"' : ''}><b>${a.tc ? '👑' : a.bot ? '🤖' : '👫'}</b><span>${esc(a.name)}</span><span>${a.bot ? '나갔어요' : a.tc ? '선생님' : ''}</span></li>`).join('')
+    + watch.map(r => `<li><b>⏳</b><span>${esc(r.n)}</span><span>다음 판부터</span></li>`).join('');
+  $('#netBox').hidden = false; $('#netN').textContent = ppl.filter(a => a.uid).length + '명';
+  const out = html || '<li><span>아직 들어온 친구가 없어요</span></li>';
+  if (out !== livePanel.last) { livePanel.last = out; $('#netList').innerHTML = out; }
+  if (MODE === 'host') $('#hostN').textContent = `학생 ${ppl.filter(a => a.uid && !a.bot).length}명이 같이 하고 있어요` + (watch.length ? ` · ${watch.length}명은 다음 판부터` : '') + (ROSTER_DIRTY && state !== 'ready' ? ' (새로 온 친구는 다시 시작할 때 들어와요)' : '');
+}
+function gate(ses) { // 학생은 선생님이 초대한 게임에만 들어와요
+  $('#loading').hidden = true;
+  $('#gateH').textContent = '선생님이 초대하면 들어와요';
+  $('#gateP').textContent = ses ? '미니 게임은 선생님이 반에서 초대해야 같이 할 수 있어요. 반에서 기다려요!' : '미니 게임은 선생님이 반에서 초대하면 들어올 수 있어요. 먼저 우리 반에 들어가요.';
+  $('#gateGo').href = ses ? 'class.html' : './'; $('#gateGo').textContent = ses ? '반으로 돌아가기 ▶' : '첫 화면으로 ▶';
+  $('#gate').hidden = false; $('#gateGo').focus();
+}
+function modeUI() {
+  if (SES && !TEACHER) document.body.classList.add('stu');
+  if (MODE === 'client') {
+    document.body.classList.add('live');
+    $('#subT').textContent = '선생님이 초대한 게임이에요! 우리 반 친구들과 한 게임에서 같이 놀아요.';
+    $('#sideNote').textContent = '선생님이 시작을 누르면 다 같이 시작해요.';
+  }
+  if (MODE === 'host') {
+    document.title = '모아팡 미니 게임';
+    $('#myName').value = '선생님'; $('#myName').readOnly = true; $('#reroll').hidden = true;
+    $('#countT').textContent = '컴퓨터 친구';
+    $('#count').innerHTML = '<option value="0">없이 우리 반만</option><option value="12" selected>모자라면 12명까지</option><option value="20">모자라면 20명까지</option><option value="30">모자라면 30명까지</option>';
+    $('#subT').textContent = '👑 우리 반 친구들을 초대했어요! 친구들이 다 들어오면 시작을 눌러요.';
+    $('#backT').href = 'teacher.html#live-' + encodeURIComponent(HOST_CID);
+    $('#rankH').insertAdjacentHTML('beforebegin', '<div class="set hostbox" id="hostBox"><b>👑 초대한 게임</b><label><span>나도 캐릭터로 같이 하기</span><input type="checkbox" id="hostPlay" checked></label><p class="note" id="hostN"></p><div class="row"><button class="btn r" type="button" id="hostEnd">초대 끝내기 · 모두 반으로</button></div></div>');
+    $('#sideNote').textContent = '이 창을 닫으면 학생들 게임도 멈춰요. 다른 탭을 볼 때는 학생 화면이 조금 느리게 움직일 수 있어요. 다른 게임을 고르면 학생들도 그 게임으로 넘어와요.';
+  }
+}
+function localRunWait() { // 각자 하는 게임(보물찾기·채팅·빙고): 선생님이 시작을 누르면 시작
+  toast('선생님이 시작을 누르면 시작해요');
+  let ended = false;
+  onValue(ref(rt, 'live/' + SES.cid + '/state/game'), s => {
+    const g = s.val();
+    if (g && g.run === RUN) { if (g.go && !localRunWait.go) { localRunWait.go = true; if (state === 'ready') { toast('선생님이 시작했어요!'); startGame(); } } }
+    else if (!ended) { ended = true; toast('선생님이 게임을 끝냈어요'); }
+  });
+}
 
 /* ---------- 넓은 맵: 스크롤 상자에서 보이는 곳만 그려요 ---------- */
 // 캔버스는 상자 크기 그대로(가볍게), 맵은 상자 안쪽(camIn)을 맵 크기만큼 넓혀서 스크롤로 둘러봐요
@@ -2039,9 +2690,10 @@ function camTo(x, y) { // 상자 가운데에 이 자리가 오게
   if (!V || !(M && M.ws > 1)) return;
   cam.scrollLeft = (x - V[0]) * VS - cam.clientWidth / 2; cam.scrollTop = (y - 48 - V[1]) * VS - cam.clientHeight / 2;
 }
+const camMid = () => { if (V) camTo((V[0] + V[2]) / 2, (V[1] + V[3]) / 2 + 48); }; // 구경할 때: 맵 가운데
 let camAcc = [0, 0];
 function follow(dt) { // 내가 움직이면 화면이 나를 따라가요 (구경할 때는 마음대로 둘러보기)
-  if (!M || M.ws <= 1 || (state !== 'play' && state !== 'count') || me.out || quizOpen) return;
+  if (!M || M.ws <= 1 || (state !== 'play' && state !== 'count') || me.spec || me.out || quizOpen) return;
   if (!(keys.size || me.path || me.moving || state === 'count')) return;
   const px = (me.x - camX()) * VS, py = (me.y - 48 - camY()) * VS, W = cam.clientWidth, H = cam.clientHeight;
   const mx = W * 0.36, my = H * 0.34, f = Math.min(1, dt * 6);
@@ -2067,25 +2719,34 @@ let USER = null, sentRun = false;
   try { USER = SES ? await ensureUser() : await whenAuth(); } catch (e) { USER = null; }
   TEACHER = false;
   if (isTeacher(USER) && !PREVIEW) { const r = await teacherRole(USER); if (r === 'admin' || r === 'teacher') { TEACHER = true; OWN = r === 'teacher' ? USER.uid : ''; } }
+  // 학생은 선생님이 초대한 게임에만 들어와요 (혼자 들어오거나 끝난 게임이면 막아요)
+  if (!TEACHER) {
+    let GAME = null;
+    if (SES && RUN && USER) { try { GAME = (await rget(ref(rt, 'live/' + SES.cid + '/state/game'))).val(); } catch (e) { GAME = null; } }
+    if (!(GAME && GAME.run === RUN && (!WANT || GAME.id === WANT))) { gate(!!SES); return; }
+    if (GAME.live && LIVE_IDS.includes(GAME.id)) MODE = 'client';
+  } else if (HOST_CID && !SES) MODE = 'host';
   // 학생: 우리 반 선생님의 문제 상자 (반 문서의 owner)
   let CLS = null; // 반 문서 (선생님이 이 반에 보낸 퀴즈 세트 qz)
+  const CID = (SES && SES.cid) || TEACH_CID || HOST_CID;
   if (SES && !TEACHER && USER) { try { const c = await getDoc(doc(fs, 'classes', SES.cid)); CLS = c.exists() ? c.data() : null; OWN = (CLS && CLS.owner) || ''; } catch (e) { OWN = SES.tid || ''; } }
-  else if (TEACHER && TEACH_CID) { try { const c = await getDoc(doc(fs, 'classes', TEACH_CID)); CLS = c.exists() ? c.data() : null; } catch (e) { CLS = null; } }
+  else if (TEACHER && CID) { try { const c = await getDoc(doc(fs, 'classes', CID)); CLS = c.exists() ? c.data() : null; } catch (e) { CLS = null; } }
   if (SES) { $('#backCls').hidden = false; $('#resBack').hidden = false; $('#myName').value = SES.name; $('#myName').readOnly = true; }
   if (RUN && TEACH_CID && TEACHER && !SES) { NET_CID = TEACH_CID; $('#myName').value = '선생님'; $('#myName').readOnly = true; }
-  if (TEACHER) { $('#backT').hidden = false; $('#sideNote').textContent = (OWN ? '선생님 계정이에요. 문제 만들기에서 저장한 문제는 내가 만든 반의 게임과 퀴즈에서 함께 써요.' : '선생님 계정이에요. 문제 만들기에서 저장한 문제는 모든 반의 게임과 퀴즈에서 함께 써요.'); }
-  if (RUN) {
-    $('#subT').textContent = SES ? '선생님이 시작한 게임이에요! 끝나면 내 기록이 선생님께 가요.' : '👑 선생님도 같이 하는 중이에요.';
+  if (TEACHER) { $('#backT').hidden = false; if (TEACH_CID) $('#backT').href = 'teacher.html#live-' + encodeURIComponent(TEACH_CID); $('#sideNote').textContent = (OWN ? '선생님 계정이에요. 문제 만들기에서 저장한 문제는 내가 만든 반의 게임과 퀴즈에서 함께 써요.' : '선생님 계정이에요. 문제 만들기에서 저장한 문제는 모든 반의 게임과 퀴즈에서 함께 써요.'); }
+  if (RUN && MODE === 'local') {
+    $('#subT').textContent = SES ? '선생님이 시작한 게임이에요! 끝나면 내 기록이 선생님께 가요.' : '👑 선생님도 같이 하는 중이에요. 시작을 누르면 학생들도 같이 시작해요.';
     $('#sideNote').textContent = '선생님이 시작한 게임이에요. 파란 이름표는 진짜 우리 반 친구, 🤖는 컴퓨터예요.';
-    try { const r = JSON.parse(sessionStorage.getItem('moa_runs') || '[]'); if (!r.includes(RUN)) { r.push(RUN); sessionStorage.setItem('moa_runs', JSON.stringify(r.slice(-20))); } } catch (e) { /* 무시 */ }
   }
+  if (RUN && SES) { try { const r = JSON.parse(sessionStorage.getItem('moa_runs') || '[]'); if (!r.includes(RUN)) { r.push(RUN); sessionStorage.setItem('moa_runs', JSON.stringify(r.slice(-20))); } } catch (e) { /* 무시 */ } }
+  modeUI();
   if (USER) {
     // 선생님이 저장한 문제 (모든 반 공통)
     await Promise.all(['ox', 'mc', 'ch'].map(async k => { try { const s = await getDoc(doc(fs, 'banks', bankId(OWN, k))); const l = s.exists() && s.data().list; if (Array.isArray(l) && l.length) BANKS[k] = l; } catch (e) { /* 기본 문제 */ } }));
     // 선생님이 이 반에 보낸 퀴즈 세트가 있으면 그 문제로 (📚 퀴즈 보관함)
     for (const k of ['ox', 'mc']) { const q = CLS && CLS.qz && CLS.qz[k]; if (q && Array.isArray(q.list) && q.list.length) BANKS[k] = q.list; }
-    // 지금 반에 들어와 있는 친구들의 이름과 옷
-    if (SES) { try { const ps = await rget(ref(rt, 'live/' + SES.cid + '/players')); ps.forEach(p => { const v = p.val(); if (v && p.key !== USER.uid && v.n) MATES.push({ n: String(v.n).slice(0, 6), o: AV.clean(v.o) }); }); } catch (e) { /* 친구 없이 */ } }
+    // 지금 반에 들어와 있는 친구들의 이름과 옷 (각자 하는 게임에서 🤖 대신)
+    if (SES && MODE === 'local') { try { const ps = await rget(ref(rt, 'live/' + SES.cid + '/players')); ps.forEach(p => { const v = p.val(); if (v && p.key !== USER.uid && v.n) MATES.push({ n: String(v.n).slice(0, 6), o: AV.clean(v.o) }); }); } catch (e) { /* 친구 없이 */ } }
   }
   aiNS().then(s => { if (!s) { const t = document.querySelector('#qbTabs [data-t=ai]'); if (t) t.hidden = true; } });
   await AV.ready();
@@ -2093,12 +2754,15 @@ let USER = null, sentRun = false;
   await Promise.all([AV.ensureMany(POOL.concat(MATES.map(m => m.o), MY_O ? [MY_O] : [], [AV.withHand(AV.START, 'hand_umbrella', 'yellow')])), ...OBJ.map(async id => { IMG[id] = await loadImg('assets/obj/' + id + '.png'); })]);
   if (!RAW.body) { $('#loading').textContent = '캐릭터 그림을 불러오지 못했어요.'; return; }
   netStart();
-  await new Promise(r => setTimeout(r, NET_CID ? 600 : 0)); // 먼저 들어온 친구들 받기
-  setCount(+$('#count').value); drawMe();
-  const first = GAMES.find(x => x.id === (WANT || location.hash.slice(1))) || GAMES[0];
+  if (MODE === 'host') hostStart(); else if (MODE === 'client') clientStart();
+  await new Promise(r => setTimeout(r, NET_CID && MODE === 'local' ? 600 : 0)); // 먼저 들어온 친구들 받기
+  if (MODE === 'local') setCount(+$('#count').value);
+  drawMe();
+  const first = MODE === 'host' ? GAMES.find(x => x.id === WANT && LIVE_IDS.includes(x.id)) || GAMES[0] : GAMES.find(x => x.id === (WANT || location.hash.slice(1))) || GAMES[0];
   await selectGame(first);
   requestAnimationFrame(frame);
-  if (RUN && first.id === WANT) { toast('선생님이 시작한 게임! 곧 시작해요'); setTimeout(() => { if (state === 'ready') startGame(); }, 2500); }
+  if (MODE === 'host') hostGame();
+  else if (MODE === 'local' && RUN && SES && first.id === WANT) localRunWait();
 })();
 }
 </script>

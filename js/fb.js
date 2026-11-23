@@ -133,6 +133,17 @@ if (PREVIEW && !/(teacher|padlet)\.html$/.test(location.pathname) && !new URLSea
 }
 export const previewToast = () => toast('미리보기에서는 남기지 않아요 (학생 화면에서는 돼요)');
 
+// 진행 상태(live/반/state)를 받되, 다 같이 하는 미니 게임 화면 자료(gm: 1초에 여러 번 바뀜)는 빼고 알려 준다
+export function onLiveState(base, cb, err) {
+  const r = ref(rt, base + '/state'), cur = {};
+  let ready = false, pend = false;
+  const fire = () => { if (!ready || pend) return; pend = true; queueMicrotask(() => { pend = false; cb(Object.assign({}, cur)); }); };
+  const put = (s) => { if (s.key === 'gm') return; cur[s.key] = s.val(); fire(); };
+  const offs = [onChildAdded(r, put, err), onChildChanged(r, put, err), onChildRemoved(r, (s) => { if (s.key === 'gm') return; delete cur[s.key]; fire(); }, err)];
+  offs.push(onValue(r, () => { ready = true; fire(); }, err, { onlyOnce: true }));
+  return () => offs.forEach((f) => { try { f(); } catch (e) { /* 무시 */ } });
+}
+
 export function toast(msg, bad) {
   let box = document.getElementById('toasts');
   if (!box) { box = document.createElement('div'); box.id = 'toasts'; box.setAttribute('role', 'status'); box.setAttribute('aria-live', 'polite'); document.body.append(box); }

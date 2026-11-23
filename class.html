@@ -168,7 +168,7 @@ html.embed .mapbox{border:0;box-shadow:none}
 import {
   fs, rt, ensureUser, whenAuth, isTeacher, teacherRole, doc, getDoc, onSnapshot, setDoc, updateDoc, increment, serverTimestamp, collection, query, where,
   ref, set, update, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, rquery, limitToLast, rnow, rget,
-  getSession, setSession, clearSession, mapName, WAIT_MAP, esc, safeUrl, hostOf, errText, toast, PREVIEW
+  getSession, setSession, clearSession, mapName, WAIT_MAP, esc, safeUrl, hostOf, errText, toast, PREVIEW, onLiveState
 } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
@@ -675,9 +675,9 @@ function frame(now) {
     if (online && myRef) { try { await onDisconnect(myRef).remove(); sendAll(); } catch (e) { /* 무시 */ } }
   });
   let stReady = false;
-  onValue(ref(rt, base + '/state'), (s) => {
+  onLiveState(base, (v) => { // 미니 게임 화면 자료(gm)는 빼고 받아요
     const prevPhase = st.phase, prevMap = st.map;
-    st = s.val() || {}; if (!st.phase) st.phase = 'wait';
+    st = v || {}; if (!st.phase) st.phase = 'wait';
     stReady = true; applyState(prevPhase, prevMap);
   }, (err) => { toast(errText(err), true); if (!stReady) { st = { phase: 'wait' }; applyState(); } });
   let joined = false; setTimeout(() => { joined = true; }, 2500);
