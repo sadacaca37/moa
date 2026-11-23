@@ -80,11 +80,26 @@ export function nameKey(name) {
 }
 export const cleanName = (s) => String(s || '').normalize('NFC').replace(/[\u0000-\u001f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 10);
 
-// 이 기기에 남기는 입장 정보
+/* ---------- 학생 화면 미리보기 (선생님) ----------
+ * 선생님 화면의 '👀 학생 화면으로 보기'(주소 ?preview=반ID&pn=반이름) → 이 탭에서만 학생처럼 보인다.
+ * 미리보기 중에는 학생 기록·점수·글·댓글·채팅·자리(실시간 위치)를 남기지 않는다. 맨 위 띠의 버튼으로 선생님 화면에 돌아감. */
+const PKEY = 'moa_preview';
+{
+  const q = new URLSearchParams(location.search), c = q.get('preview');
+  if (c && /^[A-Za-z0-9_-]{1,60}$/.test(c)) { try { sessionStorage.setItem(PKEY, JSON.stringify({ cid: c, className: String(q.get('pn') || '우리 반').slice(0, 24) })); } catch (e) { /* 무시 */ } }
+}
+export const PREVIEW = (() => { try { const p = JSON.parse(sessionStorage.getItem(PKEY)); return p && p.cid ? p : null; } catch (e) { return null; } })();
+export function endPreview() { try { sessionStorage.removeItem(PKEY); } catch (e) { /* 무시 */ } }
+export const previewUrl = (c) => './?preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '');
+
+// 이 기기에 남기는 입장 정보 (미리보기 중에는 가짜 학생 '미리보기'로, 아무것도 남기지 않음)
 const SKEY = 'moa_session';
-export function getSession() { try { const s = JSON.parse(localStorage.getItem(SKEY)); return s && s.cid && s.name ? s : null; } catch (e) { return null; } }
-export function setSession(s) { try { localStorage.setItem(SKEY, JSON.stringify(s)); } catch (e) { /* 저장 못 해도 계속 */ } }
-export function clearSession() { try { localStorage.removeItem(SKEY); } catch (e) { /* 무시 */ } }
+export function getSession() {
+  if (PREVIEW) return { cid: PREVIEW.cid, className: PREVIEW.className, name: '미리보기', key: 'preview', outfit: null, preview: true };
+  try { const s = JSON.parse(localStorage.getItem(SKEY)); return s && s.cid && s.name ? s : null; } catch (e) { return null; }
+}
+export function setSession(s) { if (PREVIEW) return; try { localStorage.setItem(SKEY, JSON.stringify(s)); } catch (e) { /* 저장 못 해도 계속 */ } }
+export function clearSession() { if (PREVIEW) return; try { localStorage.removeItem(SKEY); } catch (e) { /* 무시 */ } }
 
 export const MAPS = [
   ['classroom', '교실'], ['group_room', '모둠 교실'], ['quiz_plaza', '퀴즈 광장'], ['ox_arena', 'OX 퀴즈 경기장'],
@@ -108,6 +123,15 @@ export function errText(e) {
   if (/admin-restricted|operation-not-allowed/.test(c)) return '익명 로그인이 꺼져 있어요. 선생님께 알려 주세요.';
   return '잘 안 됐어요. 잠시 뒤에 다시 해 주세요.' + (c ? ' (' + c + ')' : '');
 }
+
+// 미리보기 띠 (선생님 화면·패들렛 관리·진행판 안 교실 화면에는 안 보임)
+if (PREVIEW && !/(teacher|padlet)\.html$/.test(location.pathname) && !new URLSearchParams(location.search).get('teach')) {
+  const bar = document.createElement('div'); bar.className = 'pv-bar'; bar.setAttribute('role', 'note');
+  bar.innerHTML = '<b>👀 학생 화면 미리보기</b><span>' + esc(PREVIEW.className) + ' 학생에게 이렇게 보여요 · 점수·글·채팅은 남지 않아요</span><a class="pv-back" href="teacher.html#live-' + encodeURIComponent(PREVIEW.cid) + '">선생님 화면으로 ◀</a>';
+  bar.querySelector('a').addEventListener('click', () => endPreview());
+  document.body.prepend(bar);
+}
+export const previewToast = () => toast('미리보기에서는 남기지 않아요 (학생 화면에서는 돼요)');
 
 export function toast(msg, bad) {
   let box = document.getElementById('toasts');

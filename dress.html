@@ -63,7 +63,7 @@
 <div class="ground" aria-hidden="true"></div>
 <script src="js/avatar.js"></script>
 <script type="module">
-import { fs, ensureUser, doc, getDoc, setDoc, serverTimestamp, getSession, setSession, mapName, errText, toast } from './js/fb.js';
+import { fs, ensureUser, doc, getDoc, setDoc, serverTimestamp, getSession, setSession, mapName, errText, toast, PREVIEW, previewToast } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
 const qs = new URLSearchParams(location.search);
@@ -127,6 +127,7 @@ function changed() { me = A.clean(me); sheet = A.sheet(me); renderCloset(); }
 $('rand').addEventListener('click', () => { me = A.random(); changed(); });
 $('reset').addEventListener('click', () => { me = A.clean(A.START); changed(); });
 $('done').addEventListener('click', async () => {
+  if (PREVIEW) { previewToast(); setTimeout(() => { location.href = 'class.html'; }, 900); return; }
   $('done').disabled = true; $('saveMsg').textContent = '저장하는 중…';
   try {
     await ensureUser();

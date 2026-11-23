@@ -75,7 +75,8 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
     <a class="btn sm" href="#classes" data-nav="classes">우리 반</a>
     <a class="btn sm" href="#home" data-nav="home" id="navHome">첫 화면 꾸미기</a>
     <a class="btn sm" href="#team" data-nav="team" id="navTeam" hidden>선생님 관리</a>
-    <a class="btn sm" href="padlet.html">내 패들렛</a>
+    <a class="btn sm" href="#quiz" data-nav="quiz">📚 퀴즈 보관함</a>
+    <a class="btn sm" href="padlet.html">내 패들렛·과제방</a>
     <a class="btn sm" href="games.html">미니 게임·문제 만들기</a>
     <a class="btn sm" href="./">첫 화면 보기</a>
     <button class="btn sm" type="button" id="logout">로그아웃</button>
@@ -92,7 +93,7 @@ import {
   auth, fs, rt, whenAuth, isTeacher, teacherLogin, logout, resetPassword, SITE,
   teacherRole, teacherSignup, resendVerify, refreshUser, bankId, emKey,
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, increment, writeBatch,
-  ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast
+  ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast, TEACHER_EM_KEY, endPreview, previewUrl
 } from './js/fb.js';
 import { DEF_OX, DEF_MC } from './js/questions.js';
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
@@ -100,6 +101,7 @@ import { aiQuiz, AGES, CATS } from './js/ai.js';
 import { trashBoard, inTrash, TRASH_DAYS } from './js/trash.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
+endPreview(); // 학생 화면 미리보기에서 돌아오면 미리보기를 끔
 const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
 const LCOL = ['#7FE0E8', '#9BE07A', '#FF8F8F', '#9DB8FF', '#FFD23F', '#D7B5FF'];
 const GAMES = [['dodge', '똥 피하기', 1], ['tag', '술래잡기', 0], ['treasure', '보물찾기', 1], ['race', '달리기 경주', 0], ['paint', '땅따먹기', 1], ['chat', '채팅 게임', 1], ['bingo', '빙고', 0], ['zombie', '좀비 탈출', 1], ['bomb', '폭탄 돌리기', 1], ['ox', 'OX 퀴즈', 1]];
@@ -131,7 +133,6 @@ function confirmDlg(title, text, ok, fn) {
 
 /* ---------- 로그인 ---------- */
 // 이메일은 이 컴퓨터에서 한 번 로그인한 뒤에만 미리 채워진다 (다른 컴퓨터·학생 화면에는 안 보임)
-const TEACHER_EM_KEY = 'moaTeacherEmail';
 function savedEm() { try { return localStorage.getItem(TEACHER_EM_KEY) || ''; } catch (e) { return ''; } }
 function drawLogin(msg) {
   $('menu').hidden = true;
@@ -213,8 +214,8 @@ function drawClasses() {
   const cs = classes;
   $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">우리 반 · ' + cs.length + ' / ' + MAX + '</h1></div>' +
     '<div class="grid">' + cs.map((c) => '<article class="pf ccard"><div class="band" style="background:' + esc(c.color || '#FFD23F') + '"><b>' + esc(c.kind || '정규반') + '</b><span class="on"><i aria-hidden="true"></i>접속 ' + (counts[c.id] || 0) + '명</span></div>' +
-      '<div class="bd"><h3>' + esc(c.name) + '</h3><div class="meta"><span>방번호 <b>' + esc(c.room || '-') + '</b></span><span>맵 · ' + esc(mapName(c.map || 'classroom')) + '</span></div>' +
-      '<div class="row"><a class="btn blue sm" href="#live-' + esc(c.id) + '">진행판 ▶</a><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><button class="btn sm" type="button" data-edit="' + esc(c.id) + '">고치기</button></div></div></article>').join('') +
+      '<div class="bd"><h3>' + esc(c.name) + '</h3><div class="meta"><span>방번호 <b>' + esc(c.room || '-') + '</b></span><span>맵 · ' + esc(mapName(c.map || 'classroom')) + '</span>' + (c.qz && (c.qz.ox || c.qz.mc) ? '<span>📚 ' + esc([c.qz.ox, c.qz.mc].filter(Boolean).map((q) => q.name).join(', ')) + '</span>' : '') + '</div>' +
+      '<div class="row"><a class="btn blue sm" href="#live-' + esc(c.id) + '">진행판 ▶</a><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><button class="btn sm" type="button" data-edit="' + esc(c.id) + '">고치기</button><a class="btn sm" href="' + esc(previewUrl(c)) + '" title="이 반 학생에게 보이는 화면을 봐요">👀 학생 화면</a></div></div></article>').join('') +
     '<button class="add" type="button" id="newC"' + (cs.length >= MAX ? ' disabled' : '') + '>＋ 새 클래스 만들기<small style="font:500 14px Noto Sans KR,sans-serif">' + (cs.length >= MAX ? '20개가 다 찼어요' : cs.length + ' / ' + MAX + '개') + '</small></button></div>' +
     '<p class="note pf pad" style="color:var(--ink)">학생은 첫 화면에서 방번호 5자리를 누르거나, QR·링크로 바로 들어와요. 클래스는 내 패들렛과 같은 목록이에요.</p></div>';
 }
@@ -348,9 +349,9 @@ function drawLive(cid) {
     liveOffs.push(onValue(rquery(ref(rt, base + '/chat'), limitToLast(40)), (s) => { L.chat = []; s.forEach((x) => { L.chat.push(x.val()); }); paintChat(); }));
     liveOffs.push(onValue(ref(rt, base + '/lastRun'), (s) => { const r = s.val(); if (r && r !== L.resFor && !(L.st.game && L.st.game.run)) watchResults(r); }));
     liveOffs.push(onSnapshot(collection(fs, 'classes', cid, 'students'), (s) => { L.students = s.docs.map((d) => Object.assign({ id: d.id }, d.data())); paintStudents(); }, () => {}));
-    Promise.all(['ox', 'mc'].map(async (k) => { let l = []; try { const s = await getDoc(doc(fs, 'banks', bankId(c.owner, k))); l = s.exists() ? s.data().list || [] : []; } catch (e) { l = []; } L.saved[k] = l.length > 0; L.bank[k] = l.length ? l : (k === 'ox' ? DEF_OX : DEF_MC); })).then(() => paintQuiz());
+    Promise.all(['ox', 'mc'].map(async (k) => { const qz = (c.qz || {})[k]; if (qz && Array.isArray(qz.list) && qz.list.length) { L.saved[k] = true; L.bank[k] = qz.list; return; } let l = []; try { const s = await getDoc(doc(fs, 'banks', bankId(c.owner, k))); l = s.exists() ? s.data().list || [] : []; } catch (e) { l = []; } L.saved[k] = l.length > 0; L.bank[k] = l.length ? l : (k === 'ox' ? DEF_OX : DEF_MC); })).then(() => paintQuiz());
   }
-  $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">' + esc(c.name) + ' 진행판</h1><div class="row"><span class="badge">방번호 ' + esc(c.room) + '</span><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><a class="btn sm" href="#classes">◀ 우리 반</a></div></div>' +
+  $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">' + esc(c.name) + ' 진행판</h1><div class="row"><span class="badge">방번호 ' + esc(c.room) + '</span><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><a class="btn sm grn" href="' + esc(previewUrl(c)) + '" title="학생에게 보이는 첫 화면·교실·패들렛·게임을 그대로 봐요 (기록은 남지 않아요)">👀 학생 화면으로 보기</a><a class="btn sm" href="#classes">◀ 우리 반</a></div></div>' +
     // 교실 화면: 선생님도 캐릭터(👑)로 들어가서 학생들과 같이 보임
     '<section class="pf card"><div class="row" style="justify-content:space-between;align-items:center"><h2>🏫 교실 화면 <small style="font:700 13px \'Noto Sans KR\',sans-serif;color:var(--sub)">👑 선생님도 캐릭터로 들어가 있어요 · 화면을 누르고 방향키로 움직여요</small></h2><button class="btn sm" type="button" id="roomFull">크게 보기 ⛶</button></div>' +
       '<div class="roomv"><iframe id="roomF" src="class.html?teach=' + encodeURIComponent(c.id) + '&embed=1" title="' + esc(c.name) + ' 교실 화면" allow="fullscreen"></iframe></div></section>' +
@@ -439,7 +440,7 @@ function paintQuiz() {
   $('quizC').innerHTML = '<h2>퀴즈 <span class="badge" id="qzB"></span></h2><div id="qzLive"></div><details id="qzNew" open><summary>새 퀴즈 내기</summary><div class="stack" style="margin-top:10px">' +
     '<div class="seg" id="qzK"><button type="button" class="btn sm" data-k="ox" aria-pressed="' + (k === 'ox') + '">OX 퀴즈</button><button type="button" class="btn sm" data-k="mc" aria-pressed="' + (k === 'mc') + '">객관식</button></div>' +
     '<div class="row qtools"><button type="button" class="btn sm" id="qzXl">📥 엑셀로 문제 올리기</button><button type="button" class="btn sm" id="qzTpl">엑셀 양식 받기</button><button type="button" class="btn sm yel" id="qzAi">🤖 AI로 문제 만들기</button><input type="file" id="qzFile" accept=".xlsx,.csv" hidden></div>' +
-    '<p class="note" style="margin:0">' + (k === 'ox' ? 'OX' : '객관식') + ' 문제 상자 ' + bank.length + '문제' + (L.saved[k] ? '' : ' (아직 기본 문제예요)') + ' · 엑셀이나 AI로 넣은 문제는 문제 상자에 저장돼서 미니 게임에서도 같이 써요.</p>' +
+    '<p class="note" style="margin:0">' + (setOf(L.cid, k) ? '📚 이 반에 보낸 퀴즈 세트 \'' + esc(setOf(L.cid, k).name) + '\' ' + bank.length + '문제 · 엑셀이나 AI로 넣으면 이 세트에 더해져요 (<a href="#quiz">퀴즈 보관함</a>)' : (k === 'ox' ? 'OX' : '객관식') + ' 문제 상자 ' + bank.length + '문제' + (L.saved[k] ? '' : ' (아직 기본 문제예요)') + ' · 엑셀이나 AI로 넣은 문제는 문제 상자에 저장돼서 미니 게임에서도 같이 써요. 반마다 다른 문제를 내려면 <a href="#quiz">📚 퀴즈 보관함</a>에서 반에 보내요.') + '</p>' +
     '<label class="lb">문제 상자에서 고르기<select class="field" id="qzPick"><option value="">' + (bank.length ? '직접 쓰기 (아래 칸)' : '저장된 문제가 없어요 — 아래에 직접 써요') + '</option>' + bank.map((x, i) => '<option value="' + i + '">' + esc(String(x.q).slice(0, 60)) + '</option>').join('') + '</select></label>' +
     '<label class="lb">문제<input class="field" id="qzQ" maxlength="120"></label>' +
     (k === 'ox' ? '<div class="lb">정답<div class="seg" id="qzA"><button type="button" class="btn sm" data-a="O" aria-pressed="true">O</button><button type="button" class="btn sm" data-a="X" aria-pressed="false">X</button></div></div><label class="lb">해설 (없어도 돼요)<input class="field" id="qzW" maxlength="80"></label>'
@@ -480,15 +481,19 @@ const QFMT = {
 };
 async function saveQuizBank(k, list) {
   const c = classes.find((x) => x.id === L.cid); if (!c) return;
-  await setDoc(doc(fs, 'banks', bankId(c.owner, k)), { list, at: Date.now() });
+  const set = setOf(c.id, k);
+  if (set) await saveSet(Object.assign({}, set, { list }));
+  else await setDoc(doc(fs, 'banks', bankId(c.owner, k)), { list, at: Date.now() });
   L.bank[k] = list; L.saved[k] = true; paintQuiz();
 }
 // 새 문제를 문제 상자에 넣기: 더하기 또는 바꾸기 (기본 문제만 있을 때는 바로 바꾸기)
-function putQuizItems(k, items, from) {
-  const cur = L.saved[k] ? (L.bank[k] || []) : [];
+const liveTarget = (k) => ({ cur: () => L.saved[k] ? (L.bank[k] || []) : [], save: (list) => saveQuizBank(k, list), after: () => {} });
+function putQuizItems(k, items, from, tg) {
+  tg = tg || liveTarget(k);
+  const cur = tg.cur();
   const go = async (replace) => {
     closeDlg();
-    try { const list = (replace ? [] : cur).concat(items).slice(0, 300); await saveQuizBank(k, list); toast(from + ' ' + items.length + '문제를 ' + QFMT[k].name + ' 문제 상자에 ' + (replace || !cur.length ? '넣었어요' : '더했어요') + '. 위 \'문제 상자에서 고르기\'에서 골라 내요.'); }
+    try { const list = (replace ? [] : cur).concat(items).slice(0, 300); await tg.save(list); tg.after(); if (tg.msg) { toast(from + ' ' + items.length + '문제를 ' + tg.msg + (replace || !cur.length ? '넣었어요.' : '더했어요.')); return; } toast(from + ' ' + items.length + '문제를 ' + QFMT[k].name + ' 문제 상자에 ' + (replace || !cur.length ? '넣었어요' : '더했어요') + '. 위 \'문제 상자에서 고르기\'에서 골라 내요.'); }
     catch (err) { toast(errText(err), true); }
   };
   if (!cur.length) { go(true); return; }
@@ -496,7 +501,7 @@ function putQuizItems(k, items, from) {
   $('qAdd').addEventListener('click', () => go(false));
   $('qRep').addEventListener('click', () => go(true));
 }
-function bindQuizTools(k) {
+function bindQuizTools(k, tg) {
   const F = QFMT[k];
   $('qzTpl').addEventListener('click', () => { downloadBlob('모아팡_' + F.name.replace(/\s/g, '') + '_양식.xlsx', makeXlsx(F.head, F.sample, F.widths)); toast('엑셀 양식을 내려받았어요. 한 줄에 한 문제씩 채워서 올려요.'); });
   $('qzXl').addEventListener('click', () => $('qzFile').click());
@@ -510,13 +515,14 @@ function bindQuizTools(k) {
       const items = body.map(F.fromRow).filter(Boolean), skip = body.length - items.length;
       if (!items.length) { toast('읽을 수 있는 문제가 없어요. 칸 순서를 확인해 주세요: ' + F.head.join(' | '), true); return; }
       if (skip) toast('빈칸이 있거나 정답을 알 수 없는 ' + skip + '줄은 뺐어요.');
-      putQuizItems(k, items, '"' + f.name + '"에서');
+      putQuizItems(k, items, '"' + f.name + '"에서', tg);
     } catch (err) { toast('파일을 읽지 못했어요. 엑셀 통합 문서(.xlsx)나 CSV 파일인지 확인해 주세요.', true); }
   });
-  $('qzAi').addEventListener('click', () => aiQuizDlg(k));
+  $('qzAi').addEventListener('click', () => aiQuizDlg(k, tg));
 }
 let aiAbort = null, aiItems = [];
-function aiQuizDlg(k) {
+function aiQuizDlg(k, tg) {
+  tg = tg || liveTarget(k);
   const F = QFMT[k], last = (() => { try { return JSON.parse(localStorage.getItem('moaAiQuiz')) || {}; } catch (e) { return {}; } })();
   const opt = (list, v) => list.map((x) => '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
   openDlg(dlgTop('🤖 AI로 ' + F.name + ' 만들기') +
@@ -533,7 +539,7 @@ function aiQuizDlg(k) {
   const make = async () => {
     const p = { kind: k, cat: $('aiCat').value, age: $('aiAge').value, level: $('aiLv').value, n: +$('aiN').value, topic: qClean($('aiTopic').value).slice(0, 120) };
     try { localStorage.setItem('moaAiQuiz', JSON.stringify({ cat: p.cat, age: p.age, lv: p.level, n: String(p.n), topic: p.topic })); } catch (e) { /* 무시 */ }
-    p.have = (L.bank[k] || []).map((x) => x.q);
+    p.have = tg.cur().map((x) => x.q);
     if (aiAbort) aiAbort.abort(); aiAbort = new AbortController();
     $('aiGo').disabled = true; $('aiAct').hidden = true; $('aiOut').innerHTML = ''; $('aiMsg').textContent = 'AI가 ' + p.cat + ' 문제 ' + p.n + '개를 만드는 중이에요… (10초쯤 걸려요)';
     try {
@@ -554,7 +560,7 @@ function aiQuizDlg(k) {
     if (!pick.length) { $('aiMsg').textContent = '넣을 문제를 하나 이상 골라 주세요.'; return; }
     const items = pick.map((x) => (k === 'ox' ? { q: x.q, a: x.a, why: x.why || '' } : { q: x.q, o: x.o, a: x.a }));
     if (aiAbort) aiAbort.abort();
-    putQuizItems(k, items, 'AI가 만든');
+    putQuizItems(k, items, 'AI가 만든', tg);
   });
 }
 async function sendQuiz() {
@@ -616,12 +622,102 @@ function paintResults() {
   });
 }
 
+/* ---------- 📚 퀴즈 보관함: 퀴즈 세트를 만들어 두고 반을 골라 보내기 ----------
+ * 세트 모음: banks/{주인}_lib (주 선생님 'lib') = { sets: [{ id, name, k: 'ox'|'mc', list, at }] }
+ * 반에 보내기: classes/{반}.qz[k] = { sid, name, list, at } → 그 반 진행판 퀴즈·미니 게임(OX·퀴즈)이 이 문제를 씀
+ * 보내지 않은 반은 예전처럼 선생님 문제 상자(banks/ox·mc)를 씀 */
+const LIB = { sets: [], ok: false };
+const myOwner = () => isAdmin() ? '' : user.uid;
+const KN = { ox: 'OX 퀴즈', mc: '객관식' };
+const setOf = (cid, k) => { const c = classes.find((x) => x.id === cid); const q = c && c.qz && c.qz[k]; return q && q.sid ? (LIB.sets.find((s) => s.id === q.sid) || Object.assign({ id: q.sid, k }, q)) : null; };
+const sentTo = (set) => classes.filter((c) => c.qz && c.qz[set.k] && c.qz[set.k].sid === set.id);
+const saveLib = (sets) => setDoc(doc(fs, 'banks', bankId(myOwner(), 'lib')), { sets, at: Date.now() });
+// 세트를 저장하고, 이 세트를 받은 반에도 새 문제를 보냄
+async function saveSet(set) {
+  const sets = LIB.sets.filter((s) => s.id !== set.id).concat([Object.assign({}, set, { at: Date.now() })]).sort((a, b) => (a.made || 0) - (b.made || 0));
+  await saveLib(sets); LIB.sets = sets;
+  for (const c of sentTo(set)) await setDoc(doc(fs, 'classes', c.id), { qz: { [set.k]: { sid: set.id, name: set.name, list: set.list, at: Date.now() } } }, { merge: true });
+}
+function drawQuizLib() {
+  const sets = LIB.sets.slice().sort((a, b) => (b.at || 0) - (a.at || 0));
+  $('view').innerHTML = '<div class="stack"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">📚 퀴즈 보관함</h1>' +
+    '<div class="pf card"><h2>퀴즈 세트 · ' + sets.length + '개</h2><p class="note">퀴즈 세트를 미리 만들어 두고 <b>반을 골라 보내면</b>, 그 반의 진행판 퀴즈와 미니 게임(OX 퀴즈)에서 그 문제를 써요. 같은 세트를 여러 반에 보낼 수 있고, 세트를 고치면 받은 반에도 바로 바뀌어요. 아무 세트도 받지 않은 반은 기본 문제 상자를 써요.</p>' +
+    '<div class="row"><button class="btn blue" type="button" data-new="ox">＋ OX 퀴즈 세트</button><button class="btn blue" type="button" data-new="mc">＋ 객관식 세트</button></div>' +
+    '<ul class="list" id="qsL" style="max-height:none">' + (LIB.ok ? (sets.length ? sets.map((s) => { const to = sentTo(s); return '<li><span class="tag" style="background:' + (s.k === 'ox' ? '#FFD23F' : '#9DB8FF') + '">' + KN[s.k] + '</span><span class="sp"><b>' + esc(s.name) + '</b> · ' + (s.list || []).length + '문제<br><small style="color:var(--sub)">' + (to.length ? '보낸 반: ' + esc(to.map((c) => c.name).join(', ')) : '아직 보낸 반이 없어요') + '</small></span>' +
+      '<button class="btn sm grn" type="button" data-send="' + esc(s.id) + '">🚀 반에 보내기</button><button class="btn sm" type="button" data-open="' + esc(s.id) + '">문제 보기·더하기</button><button class="btn sm" type="button" data-copy="' + esc(s.id) + '">복사</button><button class="btn sm red" type="button" data-sdel="' + esc(s.id) + '">지우기</button></li>'; }).join('') : '<li>아직 퀴즈 세트가 없어요. 위 버튼으로 만들어요.</li>') : '<li>불러오는 중…</li>') + '</ul></div>' +
+    '<div class="pf card"><h2>반마다 받은 퀴즈</h2><ul class="list" style="max-height:none">' + (classes.length ? classes.map((c) => '<li><span class="tag" style="background:' + esc(c.color || '#FFD23F') + '">' + esc(c.kind || '정규반') + '</span><b class="sp">' + esc(c.name) + '</b>' + ['ox', 'mc'].map((k) => { const s = setOf(c.id, k); return '<span>' + KN[k] + ': ' + (s ? '📚 ' + esc(s.name) : '<span style="color:var(--sub)">기본 문제 상자</span>') + '</span>'; }).join(' · ') + '</li>').join('') : '<li>아직 반이 없어요.</li>') + '</ul></div></div>';
+  $('view').onclick = (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.new) newSetDlg(b.dataset.new);
+    else if (b.dataset.send) sendSetDlg(LIB.sets.find((s) => s.id === b.dataset.send));
+    else if (b.dataset.open) openSetDlg(LIB.sets.find((s) => s.id === b.dataset.open));
+    else if (b.dataset.copy) { const s = LIB.sets.find((x) => x.id === b.dataset.copy); if (s) saveSet({ id: setId(), made: Date.now(), k: s.k, name: (s.name + ' 사본').slice(0, 30), list: (s.list || []).slice() }).then(() => toast('세트를 복사했어요.')).catch((err) => toast(errText(err), true)); }
+    else if (b.dataset.sdel) { const s = LIB.sets.find((x) => x.id === b.dataset.sdel); if (s) confirmDlg('퀴즈 세트 지우기', '\'' + s.name + '\' 세트를 지워요.' + (sentTo(s).length ? ' 이 세트를 받은 반(' + sentTo(s).map((c) => c.name).join(', ') + ')은 기본 문제 상자로 돌아가요.' : ''), '지우기', () => delSet(s)); }
+  };
+}
+const setId = () => 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+function newSetDlg(k) {
+  openDlg(dlgTop('새 ' + KN[k] + ' 세트') + '<label class="lb">세트 이름<input class="field" id="snm" maxlength="30" placeholder="예: 3월 컴퓨터 기초, AI 특강 1차시"></label>' +
+    '<label class="lb">처음 문제<select class="field" id="sfrom"><option value="">빈 세트로 시작 (엑셀·AI로 채우기)</option><option value="bank">지금 문제 상자(기본)에서 복사</option></select></label><div class="row"><button class="btn blue" type="button" id="sgo">만들기 ▶</button></div>', '#snm');
+  $('sgo').addEventListener('click', async () => {
+    const name = $('snm').value.trim(); if (!name) { $('snm').focus(); return; }
+    let list = [];
+    if ($('sfrom').value === 'bank') { try { const s = await getDoc(doc(fs, 'banks', bankId(myOwner(), k))); list = s.exists() ? s.data().list || [] : []; } catch (e) { list = []; } if (!list.length) list = (k === 'ox' ? DEF_OX : DEF_MC).slice(); }
+    const set = { id: setId(), made: Date.now(), k, name, list };
+    try { await saveSet(set); openSetDlg(set); toast('\'' + name + '\' 세트를 만들었어요.'); } catch (err) { toast(errText(err), true); }
+  });
+}
+function openSetDlg(set) {
+  if (!set) return;
+  const k = set.k, F = QFMT[k], cur = () => (LIB.sets.find((s) => s.id === set.id) || set);
+  const tg = { cur: () => cur().list || [], save: (list) => saveSet(Object.assign({}, cur(), { list })), after: () => setTimeout(() => openSetDlg(cur()), 50), msg: '\'' + set.name + '\' 세트에 ' };
+  const list = cur().list || [];
+  openDlg(dlgTop('📚 ' + cur().name + ' · ' + KN[k]) +
+    '<div class="row qtools"><button type="button" class="btn sm" id="qzXl">📥 엑셀로 문제 올리기</button><button type="button" class="btn sm" id="qzTpl">엑셀 양식 받기</button><button type="button" class="btn sm yel" id="qzAi">🤖 AI로 문제 만들기</button><button type="button" class="btn sm" id="qzRen">이름 바꾸기</button><input type="file" id="qzFile" accept=".xlsx,.csv" hidden></div>' +
+    '<p class="note">' + list.length + '문제 · 받은 반: ' + esc(sentTo(cur()).map((c) => c.name).join(', ') || '없음') + '</p>' +
+    '<ol class="list" id="sItems" style="max-height:46vh;padding-left:0">' + (list.length ? list.map((x, i) => '<li><span class="sp">' + (i + 1) + '. ' + esc(F.show(x)) + '</span><button class="btn sm red" type="button" data-qdel="' + i + '" aria-label="' + (i + 1) + '번 문제 빼기">✕</button></li>').join('') : '<li>아직 문제가 없어요. 엑셀이나 AI로 넣어요.</li>') + '</ol>' +
+    '<div class="row"><button class="btn grn" type="button" id="sSend">🚀 반에 보내기</button><button class="btn" type="button" data-x>다 했어요</button></div>', '#qzXl');
+  bindQuizTools(k, tg);
+  $('qzRen').addEventListener('click', () => { const n = prompt('세트 이름', cur().name); if (n && n.trim()) saveSet(Object.assign({}, cur(), { name: n.trim().slice(0, 30) })).then(() => openSetDlg(cur())).catch((err) => toast(errText(err), true)); });
+  $('sItems').addEventListener('click', (e) => { const b = e.target.closest('[data-qdel]'); if (!b) return; const l = (cur().list || []).slice(); l.splice(+b.dataset.qdel, 1); saveSet(Object.assign({}, cur(), { list: l })).then(() => openSetDlg(cur())).catch((err) => toast(errText(err), true)); });
+  $('sSend').addEventListener('click', () => sendSetDlg(cur()));
+}
+function sendSetDlg(set) {
+  if (!set) return;
+  if (!(set.list || []).length) { toast('문제가 없는 세트예요. 먼저 문제를 넣어 주세요.', true); return; }
+  if (!classes.length) { toast('먼저 반을 만들어 주세요.', true); return; }
+  openDlg(dlgTop('🚀 \'' + set.name + '\' 반에 보내기') + '<p class="note">고른 반의 ' + KN[set.k] + '(진행판 퀴즈·미니 게임)에 이 세트 ' + set.list.length + '문제가 들어가요. 체크를 빼면 그 반은 기본 문제 상자로 돌아가요.</p>' +
+    '<div class="row"><button class="btn sm" type="button" id="sAll">모두 고르기</button><button class="btn sm" type="button" id="sNone">모두 빼기</button></div>' +
+    '<ul class="list" id="sCls" style="max-height:42vh">' + classes.map((c) => { const o = setOf(c.id, set.k); return '<li><label style="display:flex;gap:8px;align-items:center;flex:1;cursor:pointer"><input type="checkbox" value="' + esc(c.id) + '"' + (o && o.id === set.id ? ' checked' : '') + ' style="width:20px;height:20px"><b>' + esc(c.name) + '</b><small style="color:var(--sub)">' + (o ? (o.id === set.id ? '받은 반' : '지금: ' + esc(o.name)) : '') + '</small></label></li>'; }).join('') + '</ul>' +
+    '<div class="row"><button class="btn blue" type="button" id="sGo">보내기 ▶</button><button class="btn" type="button" data-x>그만두기</button></div>', '#sGo');
+  const boxes = () => [...document.querySelectorAll('#sCls input')];
+  $('sAll').addEventListener('click', () => boxes().forEach((x) => { x.checked = true; }));
+  $('sNone').addEventListener('click', () => boxes().forEach((x) => { x.checked = false; }));
+  $('sGo').addEventListener('click', async () => {
+    $('sGo').disabled = true; let n = 0, off = 0;
+    try {
+      for (const x of boxes()) {
+        const c = classes.find((y) => y.id === x.value), o = setOf(x.value, set.k), had = o && o.id === set.id;
+        if (x.checked && !had) { await setDoc(doc(fs, 'classes', c.id), { qz: { [set.k]: { sid: set.id, name: set.name, list: set.list, at: Date.now() } } }, { merge: true }); n++; }
+        else if (!x.checked && had) { await setDoc(doc(fs, 'classes', c.id), { qz: { [set.k]: null } }, { merge: true }); off++; }
+      }
+      closeDlg(); toast(n || off ? (n ? n + '개 반에 보냈어요.' : '') + (off ? ' ' + off + '개 반은 기본 문제로 돌렸어요.' : '') : '바뀐 것이 없어요.');
+    } catch (err) { toast(errText(err), true); $('sGo').disabled = false; }
+  });
+}
+async function delSet(s) {
+  try {
+    for (const c of sentTo(s)) await setDoc(doc(fs, 'classes', c.id), { qz: { [s.k]: null } }, { merge: true });
+    await saveLib(LIB.sets.filter((x) => x.id !== s.id)); toast('\'' + s.name + '\' 세트를 지웠어요.');
+  } catch (err) { toast(errText(err), true); }
+}
+
 /* ---------- 길 찾기 ---------- */
 function route() {
   const h = location.hash.slice(1) || 'classes';
   document.querySelectorAll('[data-nav]').forEach((a) => a.setAttribute('aria-pressed', String(h.startsWith(a.dataset.nav))));
   if (h.startsWith('live-')) { view = 'live'; drawLive(h.slice(5)); }
-  else { stopLive(); if (h === 'home') { view = 'home'; drawHome(); } else if (h === 'team' && isAdmin()) { view = 'team'; drawTeam(); } else { view = 'classes'; drawClasses(); } }
+  else { stopLive(); if (h === 'home') { view = 'home'; drawHome(); } else if (h === 'quiz') { view = 'quiz'; drawQuizLib(); } else if (h === 'team' && isAdmin()) { view = 'team'; drawTeam(); } else { view = 'classes'; drawClasses(); } }
 }
 
 /* ---------- 선생님 관리 (주 선생님만) ---------- */
@@ -670,9 +766,11 @@ function start(u) {
     classes = s.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((c) => isAdmin() ? !c.owner : c.owner === u.uid).sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
     watchCounts();
     if (view === 'classes') drawClasses();
+    else if (view === 'quiz') drawQuizLib();
     else if (view === 'live' && L) { const c = classes.find((x) => x.id === L.cid); if (!c) route(); else refreshList('clsL', c.links || [], () => (classes.find((x) => x.id === c.id) || {}).links || [], (list) => setDoc(doc(fs, 'classes', c.id), { links: list }, { merge: true })); }
     else if (!view) route();
   }, (err) => { $('view').innerHTML = '<p class="pf pad">' + esc(errText(err)) + '</p>'; });
+  onSnapshot(doc(fs, 'banks', bankId(myOwner(), 'lib')), (s) => { LIB.sets = s.exists() ? s.data().sets || [] : []; LIB.ok = true; if (view === 'quiz') drawQuizLib(); }, () => { LIB.ok = true; });
   onSnapshot(homeRef(), (s) => {
     home = s.exists() ? s.data() : {};
     if (view === 'home') { if ($('homeL')) refreshList('homeL', home.links || [], () => home.links || [], (list) => setDoc(homeRef(), { links: list }, { merge: true })); else drawHome(); }

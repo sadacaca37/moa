@@ -147,7 +147,7 @@ html.embed .mapbox{border:0;box-shadow:none}
 import {
   fs, rt, ensureUser, whenAuth, isTeacher, teacherRole, doc, getDoc, onSnapshot, setDoc, updateDoc, increment, serverTimestamp, collection, query, where,
   ref, set, update, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, rquery, limitToLast, rnow, rget,
-  getSession, setSession, clearSession, mapName, WAIT_MAP, esc, safeUrl, hostOf, errText, toast
+  getSession, setSession, clearSession, mapName, WAIT_MAP, esc, safeUrl, hostOf, errText, toast, PREVIEW
 } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
@@ -158,8 +158,9 @@ const T_OUTFIT_KEY = 'moaTeacherOutfit';
 const T_OUTFIT = { hair: 'hair_long', top: 'top_shirt_tie', bottom: 'bottom_slacks', shoes: 'shoes_loafers', outer: 'outer_blazer', hand: 'hand_book' };
 const teacherOutfit = () => { try { return JSON.parse(localStorage.getItem(T_OUTFIT_KEY)) || T_OUTFIT; } catch (e) { return T_OUTFIT; } };
 const ses = TEACH ? { cid: TEACH, className: '우리 반', name: '선생님', key: 'teacher', outfit: teacherOutfit(), teacher: true } : getSession();
-if (!ses) location.replace('./');
+if (!ses) { location.replace('./'); await new Promise(() => {}); } // 입장 정보가 없으면 첫 화면으로 (아래는 실행하지 않음)
 const keepSes = (x) => { if (!TEACH) setSession(x); };
+const PV = !TEACH && !!(ses && ses.preview); // 선생님의 학생 화면 미리보기: 보기만 하고 아무것도 남기지 않음 (친구들에게 내 캐릭터도 안 보임)
 const T = 32, CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const hyp = Math.hypot, rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 $('clsT').textContent = ses.className; $('meT').textContent = ses.name;
@@ -168,7 +169,7 @@ document.title = ses.className + ' · 모아팡';
 let user = null, cls = {}, st = {}, M = null, mapId = null, loadingMap = null, first = true;
 const MAPC = {}, actors = new Map();
 const myOutfit = A.clean(ses.outfit || A.START);
-const me = { uid: '', name: ses.name, key: ses.key, o: myOutfit, sheet: null, x: 0, y: 0, dir: 'down', moving: false, step: 0, speed: 175, isMe: true, bubble: '', bubbleT: 0, path: null };
+const me = { uid: '', name: ses.name, key: ses.key, o: myOutfit, sheet: null, x: 0, y: 0, dir: 'down', moving: false, step: 0, speed: 175, isMe: true, bubble: '', bubbleT: 0, path: null, seat: null, sitWant: null, slide: null };
 
 /* ---------- 탭 ---------- */
 function tab(which) {
@@ -203,7 +204,8 @@ async function goMap(id, announce) {
   if (loadingMap !== my) return;
   M = d; mapId = id;
   const cv = $('cv'); cv.width = M.size[0]; cv.height = M.size[1];
-  const [x, y] = spotIn(M.spawn || M.start); me.x = x; me.y = y; me.path = null; me.dir = 'down';
+  const [x, y] = spotIn(M.spawn || M.start); me.x = x; me.y = y; me.path = null; me.dir = 'down'; me.seat = null; me.sitWant = null; me.slide = null;
+  if (AUTO_SIT.has(id) && st.phase === 'class' && !TEACH) setTimeout(() => { if (mapId === id && !me.seat) autoSit(); }, 700);
   $('mapT').textContent = '맵 · ' + (st.phase === 'class' ? mapName(id) : '대기실');
   $('mapH').textContent = st.phase === 'class' ? mapName(id) : '대기실';
   $('mapSub').textContent = st.phase === 'class' ? '친구들과 함께 있어요' : '선생님이 수업을 시작하면 ' + mapName(st.map || cls.map || 'classroom') + '(으)로 이동해요';
@@ -213,7 +215,7 @@ async function goMap(id, announce) {
 
 /* ---------- 실시간: 내 자리 ---------- */
 let myRef = null, lastSend = 0, sentMoving = false, online = false;
-function rec() { const r = { n: me.name, k: me.key, o: me.o, x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 0, mp: mapId || '', t: rnow() }; if (TEACH) r.tc = 1; return r; }
+function rec() { const r = { n: me.name, k: me.key, o: me.o, x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 0, mp: mapId || '', s: me.seat || '', t: rnow() }; if (TEACH) r.tc = 1; return r; }
 // 선생님이 게임에 같이 들어가 있는 동안(같은 브라우저)에는 교실 화면이 선생님 자리를 덮어쓰지 않음
 const tInGame = () => { if (!TEACH) return false; try { return Date.now() - (+localStorage.getItem('moaTeacherGame') || 0) < 8000; } catch (e) { return false; } };
 function sendAll() { if (myRef && online && mapId && !tInGame()) set(myRef, rec()).catch(() => {}); }
@@ -230,7 +232,8 @@ function upsert(uid, v) {
   if (!v || uid === user.uid) return;
   let a = actors.get(uid);
   if (!a) { a = { uid, x: v.x, y: v.y, tx: v.x, ty: v.y, dir: 'down', moving: false, step: Math.random() * 4, bubble: '', bubbleT: 0, sheet: null, okey: '' }; actors.set(uid, a); }
-  a.name = String(v.n || '친구').slice(0, 10); a.key = v.k; a.mp = v.mp; a.tc = !!v.tc; a.tx = +v.x || 0; a.ty = +v.y || 0; a.dir = v.d || 'down'; a.remoteMoving = !!v.m;
+  a.name = String(v.n || '친구').slice(0, 10); a.key = v.k; a.mp = v.mp; a.tc = !!v.tc; a.seat = v.s || '';
+  if (a.seat && a.seat === me.seat && a.mp === mapId && uid < user.uid) { me.seat = null; autoSit(); } // 같은 의자에 동시에 앉으면 한 명이 옆자리로 a.tx = +v.x || 0; a.ty = +v.y || 0; a.dir = v.d || 'down'; a.remoteMoving = !!v.m;
   if (Math.abs(a.x - a.tx) > 300 || Math.abs(a.y - a.ty) > 300) { a.x = a.tx; a.y = a.ty; }
   const ok = JSON.stringify(v.o || {});
   if (ok !== a.okey) { a.okey = ok; const o = A.clean(v.o); a.sheet = null; A.ensure(o).then(() => { a.sheet = A.sheet(o); }); }
@@ -250,6 +253,7 @@ function people() {
 function logLine(html, cls2) { const p = document.createElement('p'); if (cls2) p.className = cls2; p.innerHTML = html; const log = $('log'); log.append(p); while (log.children.length > 60) log.firstChild.remove(); log.scrollTop = log.scrollHeight; }
 $('chatF').addEventListener('submit', async (e) => {
   e.preventDefault(); const m = $('chatI').value.replace(/\s+/g, ' ').trim().slice(0, 40); if (!m || !user) return;
+  if (PV) { $('chatI').value = ''; logLine('<b>' + esc(me.name) + '</b>' + esc(m) + ' (미리보기 · 친구들에게는 안 보내요)', 'mine'); say(me, m); return; }
   if (st.chatOff) { toast('지금은 선생님이 채팅을 껐어요', true); return; }
   $('chatI').value = '';
   try { await push(ref(rt, 'live/' + ses.cid + '/chat'), { u: user.uid, n: me.name, m, t: rnow() }); } catch (err) { toast(errText(err), true); }
@@ -266,12 +270,12 @@ function applyState(prevPhase, prevMap) {
   if (g && g.run && g.id) {
     $('gameStrip').hidden = false; $('gameT').textContent = '지금 미니 게임 중이에요: ' + (g.name || '게임');
     $('gameGo').href = 'games.html?g=' + encodeURIComponent(g.id) + '&run=' + encodeURIComponent(g.run);
-    if (!TEACH && !done.includes(g.run) && Date.now() - (g.t || 0) < 20 * 60000) location.href = $('gameGo').href;
+    if (!TEACH && !PV && !done.includes(g.run) && Date.now() - (g.t || 0) < 20 * 60000) location.href = $('gameGo').href;
   } else $('gameStrip').hidden = true;
   if (lastClr !== null && st.chatClr && st.chatClr !== lastClr) { $('log').innerHTML = ''; logLine('선생님이 채팅을 지웠어요', 'sys'); }
   lastClr = st.chatClr || 0;
   const call = st.call || null;
-  if (lastCall !== null && call && call !== lastCall && M) { const [x, y] = spotIn(M.gather || M.spawn || M.start); me.x = x; me.y = y; me.path = null; me.dir = 'up'; sendAll(); toast('선생님이 모두 불렀어요!'); }
+  if (lastCall !== null && call && call !== lastCall && M) { const [x, y] = spotIn(M.gather || M.spawn || M.start); me.seat = null; me.sitWant = null; me.x = x; me.y = y; me.path = null; me.dir = 'up'; sendAll(); toast('선생님이 모두 불렀어요!'); }
   lastCall = call || 0;
   const want = wantMap();
   if (want !== mapId) goMap(want, !first);
@@ -310,7 +314,7 @@ function drawQuiz() {
   if (rev) {
     const ok = answered !== null && String(answered) === String(q.ans);
     R.hidden = false; R.textContent = answered === null ? '정답은 ' + (ox ? q.ans : (+q.ans + 1) + '번 ' + (opts[q.ans] || '')) + ' 이에요.' : ok ? '정답! +1점 🎉' : '아쉬워요! 정답은 ' + (ox ? q.ans : (+q.ans + 1) + '번') + ' 이에요.' + (q.why ? ' ' + q.why : '');
-    if (ok && !scored.has(q.qid)) { scored.add(q.qid); sessionStorage.setItem('moa_scored', JSON.stringify([...scored])); updateDoc(doc(fs, 'classes', ses.cid, 'students', ses.key), { score: increment(1) }).catch(() => {}); }
+    if (ok && !PV && !scored.has(q.qid)) { scored.add(q.qid); sessionStorage.setItem('moa_scored', JSON.stringify([...scored])); updateDoc(doc(fs, 'classes', ses.cid, 'students', ses.key), { score: increment(1) }).catch(() => {}); }
   } else { R.hidden = answered === null; R.textContent = '제출했어요! 선생님이 정답을 공개하면 알려 줄게요.'; }
   $('quizStrip').hidden = !$('quiz').hidden || (answered !== null && !rev);
 }
@@ -318,6 +322,7 @@ $('quizO').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-v]'); if (!b || answered !== null || !st.quiz) return;
   const q = st.quiz, v = q.k === 'ox' ? b.dataset.v : +b.dataset.v;
   answered = v; drawQuiz();
+  if (PV) return; // 미리보기: 답을 보내지 않음
   try { await set(ref(rt, 'live/' + ses.cid + '/answers/' + q.qid + '/' + user.uid), { n: me.name, k: me.key, a: v, t: rnow() }); }
   catch (err) { answered = null; drawQuiz(); toast(errText(err), true); }
 });
@@ -339,7 +344,7 @@ const keys = new Set(), KEY = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp:
 addEventListener('keydown', (e) => {
   if (e.target.closest('input,textarea,select') || !$('quiz').hidden || $('roomTab').hidden) return;
   if (KEY[e.key]) { keys.add(KEY[e.key]); me.path = null; e.preventDefault(); }
-  if (e.key === ' ' && document.activeElement === $('cv')) { e.preventDefault(); if (nearBoard()) tab('board'); }
+  if (e.key === ' ' && document.activeElement === $('cv')) { e.preventDefault(); if (nearBoard()) tab('board'); else if (me.slide) { /* 타는 중 */ } else if (me.seat) standUp(); else if (nearSlide()) startSlide(); else { const s = nearSeat(); if (s) sitAt(s); } }
 });
 addEventListener('keyup', (e) => { if (KEY[e.key]) keys.delete(KEY[e.key]); });
 addEventListener('blur', () => keys.clear());
@@ -371,10 +376,11 @@ function findPath(tx, ty) {
 }
 function followPath() {
   while (me.path && me.path.length) { const p = me.path[0]; if (hyp(p[0] - me.x, p[1] - me.y) < 5) me.path.shift(); else return [p[0] - me.x, p[1] - me.y]; }
-  me.path = null; return [0, 0];
+  me.path = null; if (me.sitWant) { const s = me.sitWant; me.sitWant = null; if (s.slide) startSlide(); else if (s.use ? inRect(s.use, me.x, me.y) : hyp(me.x - s.x, me.y - s.y) < 3.2 * T) sitAt(s); } return [0, 0];
 }
 function moveMe(dx, dy, dt) {
   const len = hyp(dx, dy); if (len < 0.01 || st.freeze) { me.moving = false; return; }
+  if (me.seat) { standUp(); return; }
   dx /= len; dy /= len; const sp = me.speed * dt, ox = me.x, oy = me.y;
   if (stand(me.x + dx * sp, me.y)) me.x += dx * sp;
   if (stand(me.x, me.y + dy * sp)) me.y += dy * sp;
@@ -386,12 +392,115 @@ $('cv').addEventListener('pointerdown', (e) => {
   if (!M) return; const cv = $('cv'), r = cv.getBoundingClientRect();
   const x = (e.clientX - r.left) * cv.width / r.width, y = (e.clientY - r.top) * cv.height / r.height;
   if (M.board && x >= M.board[0] && x <= M.board[2] && y >= M.board[1] && y <= M.board[3] && nearBoard(140)) { tab('board'); return; }
-  me.path = findPath(x, y); cv.focus({ preventScroll: true });
+  cv.focus({ preventScroll: true });
+  if (me.slide) return;
+  const sl = slideOf();
+  if (sl) { const xs = sl.path.map((p) => p[0]), ys = sl.path.map((p) => p[1]); if (x > Math.min(...xs) - 24 && x < Math.max(...xs) + 24 && y > Math.min(...ys) - 24 && y < Math.max(...ys) + 30) { if (me.seat) standUp(); const u = useRect(sl); if (inRect(u, me.x, me.y)) startSlide(); else { me.sitWant = { slide: true }; me.path = findPath((u[0] + u[2]) / 2, (u[1] + u[3]) / 2); } return; } }
+  const s = seatsOf().find((q) => q.hit ? inRect(q.hit, x, y) : hyp(q.x - x, q.y - 10 - y) < 24);
+  if (s) {
+    if (me.seat === s.id) return; const who = takenBy(s.id); if (who) { toast('이미 ' + who.name + ' 친구가 ' + (s.ride ? '타고' : '앉아') + ' 있어요', true); return; }
+    if (me.seat) standUp(); me.sitWant = s;
+    if (s.use ? inRect(s.use, me.x, me.y) : hyp(me.x - s.x, me.y - s.y) < 2.6 * T) { sitAt(s); return; }
+    const [ax, ay] = s.use ? nearStand((s.use[0] + s.use[2]) / 2, (s.use[1] + s.use[3]) / 2) : nearStand(s.x, s.y + 26); me.path = findPath(ax, ay); return;
+  }
+  if (me.seat) standUp();
+  me.sitWant = null; me.path = findPath(x, y);
 });
 function nearBoard(R = 70) {
   if (!M || !M.boardUse) return false;
   const b = M.boardUse, cx = (b[0] + b[2] + 1) / 2 * T, cy = (b[1] + b[3] + 1) / 2 * T;
   return hyp(me.x - cx, me.y - cy) < R + (b[2] - b[0]) * T / 2;
+}
+
+/* ---------- 의자에 앉기 ----------
+ * 교실·모둠 교실: 수업이 시작돼 들어오면 빈 의자에 저절로 앉는다(지난번 자리 → 이름으로 정해지는 자리부터).
+ * 의자를 누르거나 의자 옆에서 스페이스 → 앉기, 방향키·다른 곳 누르기·스페이스 → 일어나기. 한 의자에는 한 명만.
+ * 앉은 모습: 옷 입은 서 있는 그림의 윗몸만 그리고(다리는 의자·책상에 가려짐), 뒷모습이면 의자 등받이를 맵 그림에서 다시 그려 앞에 덮는다. */
+const AUTO_SIT = new Set(['classroom', 'group_room']);
+const BACKREST = { classroom: [-19, -27, 38, 26], group_room: [-20, -29, 40, 22] }; // 자리(엉덩이 점) 기준 등받이 사각형
+const DESKTOP = { group_room: [-30, 14, 60, 22] }; // 앞모습으로 앉는 자리 앞 책상 윗면 (다리를 가림)
+const SIT_DY = 19; // 엉덩이 점 → 서 있을 때 발 자리 (이름표·순서 맞추기)
+// 놀이터 놀이기구: 그네·시소는 앉는 자리, 정글짐은 꼭대기에 올라서는 자리, 미끄럼틀은 사다리로 올라가 미끄러져 내려옴
+const useRect = (r) => r.use ? [r.use[0] * T - 16, r.use[1] * T - 16, (r.use[2] + 1) * T + 16, (r.use[3] + 1) * T + 16] : null;
+const inRect = (q, x, y) => !!q && x >= q[0] && x <= q[2] && y >= q[1] && y <= q[3];
+function rideSeats() {
+  if (!M) return [];
+  if (!M._rs) {
+    M._rs = [];
+    for (const r of M.rides || []) {
+      const use = useRect(r);
+      if (r.kind === 'swing' || r.kind === 'seesaw') (r.seats || []).forEach((q, i) => M._rs.push({ id: r.id + '-' + i, x: q.x, y: q.y, face: q.face, ride: r.kind, i, use }));
+      else if (r.kind === 'jungle' && r.top) M._rs.push({ id: r.id, x: r.top[0], y: r.top[1] + 14 - SIT_DY, face: 'down', ride: 'jungle', use, hit: [r.top[0] - 64, r.top[1] - 10, r.top[0] + 64, r.top[1] + 140] });
+    }
+  }
+  return M._rs;
+}
+const slideOf = () => M && (M.rides || []).find((r) => r.kind === 'slide' && r.path && r.path.length > 2);
+const seatsOf = () => M ? (M.seats || []).concat(rideSeats()) : [];
+const seatById = (id) => seatsOf().find((q) => q.id === id) || null;
+function takenBy(id) { for (const a of actors.values()) if (a.mp === mapId && a.seat === id) return a; return null; }
+function nearSeat() { let best = null; for (const q of seatsOf()) { const d = hyp(q.x - me.x, q.y + SIT_DY - me.y); if ((d < 2.4 * T || inRect(q.use, me.x, me.y)) && !takenBy(q.id) && (!best || d < best[0])) best = [d, q]; } return best && best[1]; }
+function nearStand(x, y) {
+  if (stand(x, y)) return [x, y];
+  for (let r = 8; r <= 192; r += 8) for (let k = 0; k < 16; k++) { const an = k / 16 * Math.PI * 2, px = x + Math.cos(an) * r, py = y + Math.abs(Math.sin(an)) * r * (k < 8 ? 1 : -1); if (stand(px, py)) return [px, py]; }
+  return spotIn(M.spawn || M.start);
+}
+const seatKey = () => 'moaSeat_' + ses.cid + '_' + mapId;
+function sitAt(q, quiet) {
+  const who = takenBy(q.id); if (who) { if (!quiet) toast('이미 ' + who.name + ' 친구가 앉아 있어요', true); return false; }
+  me.seat = q.id; me.sitWant = null; me.path = null; me.moving = false; me.x = q.x; me.y = q.y + SIT_DY; me.dir = q.face;
+  try { localStorage.setItem(seatKey(), q.id); } catch (e) { /* 기억 못 해도 앉기 */ }
+  sendAll(); return true;
+}
+function standUp() {
+  const q = seatById(me.seat); me.seat = null; if (!q || !M) { sendAll(); return; }
+  const off = { up: [0, 30], down: [0, -30], left: [-30, SIT_DY], right: [30, SIT_DY] }[q.face] || [0, 30];
+  const [x, y] = q.use ? nearStand((q.use[0] + q.use[2]) / 2, (q.use[1] + q.use[3]) / 2) : nearStand(q.x + off[0], q.y + off[1]);
+  me.x = x; me.y = y; me.dir = q.face === 'up' ? 'down' : q.face; sendAll();
+}
+function autoSit() {
+  const list = seatsOf(); if (!list.length) return;
+  let last = ''; try { last = localStorage.getItem(seatKey()) || ''; } catch (e) { /* 무시 */ }
+  let h = 0; for (const ch of String(ses.key || me.name)) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  const st0 = h % list.length, order = list.filter((q) => q.id === last).concat(list.slice(st0), list.slice(0, st0));
+  for (const q of order) if (!takenBy(q.id)) { sitAt(q, true); return; }
+}
+const nearSlide = () => { const sl = slideOf(); return !!sl && inRect(useRect(sl), me.x, me.y); };
+function startSlide() {
+  const sl = slideOf(); if (!sl || me.slide) return;
+  if (actorsOnSlide()) { toast('친구가 미끄럼틀을 타고 있어요. 잠깐만요!', true); return; }
+  me.seat = null; me.path = null; me.slide = { t: 0, p: sl.path }; me.x = sl.path[0][0]; me.y = sl.path[0][1]; sendAll();
+}
+function actorsOnSlide() { for (const a of actors.values()) if (a.mp === mapId && a.seat === 'slide') return true; return false; }
+// 사다리 오르기 1.1초(뒷모습으로 걷기) → 미끄러지기 0.9초(앉은 옆모습) → 끝에서 내려섬
+function slideStep(dt) {
+  const S = me.slide, p = S.p; S.t += dt;
+  const CL = 1.1, SL = 0.9, lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+  let pos, sliding = false;
+  if (S.t < CL) { pos = lerp(p[0], p[1], S.t / CL); me.dir = 'up'; me.moving = true; me.step += dt * 8; }
+  else if (S.t < CL + SL) {
+    sliding = true; const k = (S.t - CL) / SL, seg = p.slice(1), lens = seg.slice(1).map((q, i) => hyp(q[0] - seg[i][0], q[1] - seg[i][1])), tot = lens.reduce((x, y) => x + y, 0);
+    let d = k * k * tot, i = 0; while (i < lens.length - 1 && d > lens[i]) { d -= lens[i]; i++; }
+    pos = lerp(seg[i], seg[i + 1], Math.min(1, d / lens[i])); me.dir = 'right'; me.moving = true;
+  } else { const e = p[p.length - 1], [x, y] = nearStand(e[0] + 12, e[1] + 12); me.slide = null; me.x = x; me.y = y; me.dir = 'down'; me.moving = false; me.seat = null; sendAll(); return; }
+  me.x = pos[0]; me.y = pos[1] + (sliding ? SIT_DY : 0); // 미끄러질 때는 길 위 점이 엉덩이 자리
+  const want = sliding ? 'slide' : '';
+  if ((me.seat || '') !== want) { me.seat = want || null; sendAll(); }
+}
+// 옷 입은 서 있는 그림(128칸)에서 엉덩이 줄은 위에서 98px → 화면 0.75배로 73.5px
+function drawSeated(a, q) {
+  const tt = performance.now() / 1000 + (a.uid ? a.uid.length : 0);
+  if (q.ride === 'jungle') { const wv = Math.floor(tt * 2.5) % 2 ? 0 : 2; g.imageSmoothingEnabled = false; g.drawImage(a.sheet, wv * 128, 0, 128, 128, Math.round(q.x - 48), Math.round(q.y + SIT_DY - 93), 96, 96); return; }
+  const bob = q.ride === 'swing' ? Math.sin(tt * 2.6) * 9 : q.ride === 'seesaw' ? Math.sin(performance.now() / 1000 * 2.2) * 11 * (q.i ? -1 : 1) : 0;
+  if (bob) q = Object.assign({}, q, { y: q.y + bob });
+  const row = ROWS[q.face] || 0, L = Math.round(q.x - 48), Tp = Math.round(q.y - 74 - (q.face === 'up' ? 9 : 4)); // 앉으면 어깨가 등받이 위로 보이게 조금 올림
+  g.imageSmoothingEnabled = false;
+  g.drawImage(a.sheet, 128, row * 128, 128, 98, L, Tp, 96, 73.5);
+  const desk = q.face === 'down' && DESKTOP[mapId];
+  if (q.face === 'down' && !desk) g.drawImage(a.sheet, 128, row * 128 + 98, 128, 30, L, Tp + 73, 96, 11); // 앞모습(벤치): 무릎만 짧게
+  else if (q.face === 'left' || q.face === 'right') g.drawImage(a.sheet, 128, row * 128 + 98, 128, 30, L + (q.face === 'right' ? 10 : -10), Tp + 72, 96, 9); // 옆모습: 무릎을 앞으로
+  const br = q.face === 'up' ? BACKREST[mapId] : desk; // 앞쪽 겹: 뒷모습은 의자 등받이, 앞모습은 책상 윗면을 맵 그림에서 다시 그림
+  if (br && M.img) g.drawImage(M.img, q.x + br[0], q.y + br[1], br[2], br[3], q.x + br[0], q.y + br[1], br[2], br[3]);
 }
 
 /* ---------- 그리기 ---------- */
@@ -401,6 +510,8 @@ const WALK = [1, 0, 1, 2], ROWS = { down: 0, front: 0, up: 1, back: 1, left: 2, 
 function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
 function drawActor(a) {
   if (!a.sheet) return;
+  if (a.seat === 'slide') { drawSeated(a, { x: a.x, y: a.y - SIT_DY, face: 'right' }); return; }
+  const s = a.seat && seatById(a.seat); if (s) { drawSeated(a, s); return; }
   const col = a.moving ? WALK[Math.floor(a.step) % 4] : 1;
   g.imageSmoothingEnabled = false;
   g.drawImage(a.sheet, col * 128, (ROWS[a.dir] || 0) * 128, 128, 128, Math.round(a.x - 48), Math.round(a.y - 93), 96, 96);
@@ -446,18 +557,23 @@ function frame(now) {
   if ($('roomTab').hidden && document.visibilityState === 'visible') { /* 게시판 탭: 그리지 않아도 됨 */ }
   let dx = 0, dy = 0;
   if ($('quiz').hidden) { if (keys.has('left')) dx--; if (keys.has('right')) dx++; if (keys.has('up')) dy--; if (keys.has('down')) dy++; }
-  if (!dx && !dy && me.path) [dx, dy] = followPath();
-  moveMe(dx, dy, dt);
+  if (me.slide) slideStep(dt);
+  else {
+    if (!dx && !dy && me.path) [dx, dy] = followPath();
+    moveMe(dx, dy, dt);
+  }
   syncMove(now);
   me.bubbleT -= dt;
   for (const a of actors.values()) {
     a.bubbleT -= dt;
+    const sa = a.seat && a.mp === mapId && seatById(a.seat); if (sa) { a.x = sa.x; a.y = sa.y + SIT_DY; a.dir = sa.face; a.moving = false; continue; }
     const ddx = a.tx - a.x, ddy = a.ty - a.y, d = hyp(ddx, ddy);
     if (d > 0.5) { const sp = Math.min(d, Math.max(175, d * 4) * dt); a.x += ddx / d * sp; a.y += ddy / d * sp; a.moving = true; a.step += dt * 8.5; }
     else a.moving = a.remoteMoving && d > 0.1;
   }
-  const near = nearBoard();
-  $('hint').hidden = !near; if (near) $('hint').textContent = '스페이스를 누르거나 칠판을 누르면 게시판이 열려요';
+  const near = nearBoard(), sl = !near && !me.seat && !me.slide && nearSlide(), ns = !near && !sl && !me.seat && !me.path && !me.slide && nearSeat();
+  const hint = near ? '스페이스를 누르거나 칠판을 누르면 게시판이 열려요' : me.slide ? '' : me.seat ? (seatById(me.seat) || {}).ride ? '방향키를 누르면 내려와요' : '방향키를 누르거나 다른 곳을 누르면 일어나요' : sl ? '스페이스를 누르거나 미끄럼틀을 누르면 타요' : ns ? (ns.ride ? '스페이스를 누르면 ' + ({ swing: '그네를', seesaw: '시소를', jungle: '정글짐을' })[ns.ride] + ' 타요' : '스페이스를 누르거나 의자를 누르면 앉아요') : '';
+  $('hint').hidden = !hint; if (hint) $('hint').textContent = hint;
   if ($('roomTab').hidden) return;
   ui = clamp(cv.width / Math.max(320, cv.clientWidth), 1, 3);
   g.setTransform(1, 0, 0, 1, 0, 0); g.imageSmoothingEnabled = true;
@@ -490,7 +606,8 @@ function frame(now) {
     drawLinks();
   }, (err) => toast(errText(err), true));
   // 학생 기록 (점수, 다른 기기에서 바꾼 옷)
-  if (!TEACH) onSnapshot(doc(fs, 'classes', ses.cid, 'students', ses.key), (s) => {
+  if (PV) { $('scoreT').textContent = '점수 0 · 미리보기'; document.querySelector('a[href="dress.html"]').hidden = true; }
+  if (!TEACH && !PV) onSnapshot(doc(fs, 'classes', ses.cid, 'students', ses.key), (s) => {
     if (!s.exists()) return;
     const d = s.data(); $('scoreT').textContent = '점수 ' + (d.score || 0);
     if (d.outfit && JSON.stringify(A.clean(d.outfit)) !== JSON.stringify(me.o)) {
@@ -506,10 +623,10 @@ function frame(now) {
 
   // 실시간
   const base = 'live/' + ses.cid;
-  myRef = ref(rt, base + '/players/' + user.uid);
+  myRef = PV ? null : ref(rt, base + '/players/' + user.uid);
   onValue(ref(rt, '.info/connected'), async (s) => {
     online = !!s.val();
-    if (online) { try { await onDisconnect(myRef).remove(); sendAll(); } catch (e) { /* 무시 */ } }
+    if (online && myRef) { try { await onDisconnect(myRef).remove(); sendAll(); } catch (e) { /* 무시 */ } }
   });
   let stReady = false;
   onValue(ref(rt, base + '/state'), (s) => {

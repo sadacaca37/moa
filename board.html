@@ -74,7 +74,7 @@
 <input type="file" id="picIn" accept="image/*" hidden>
 <div class="ground" aria-hidden="true"></div>
 <script type="module">
-import { fs, ensureUser, isTeacher, teacherRole, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, esc, safeUrl, hostOf, errText, getSession, toast } from './js/fb.js';
+import { fs, ensureUser, isTeacher, teacherRole, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, getDocs, onSnapshot, serverTimestamp, esc, safeUrl, hostOf, errText, getSession, toast, PREVIEW, previewToast } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const SEC = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
 const NAME_KEY = 'moa_board_name';
@@ -199,6 +199,7 @@ async function shrink(file) {
 
 /* ---------- 올리기 · 지우기 ---------- */
 async function sendPost() {
+  if (PREVIEW) { previewToast(); return; }
   if (S.busy) return;
   const si = +$('ws').value || 0, title = cleanTxt($('wt').value, 80), body = cleanTxt($('wb').value, 2000);
   let link = cleanTxt($('wl').value, 500);
@@ -217,6 +218,7 @@ async function sendPost() {
   } finally { S.busy = false; }
 }
 async function sendComment(pid, input) {
+  if (PREVIEW) { previewToast(); return; }
   const body = cleanTxt(input.value, 300); if (!body) return;
   let author = myName();
   if (!author) {
@@ -285,10 +287,11 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('dlg')
 (async () => {
   if (!bid) return fail('주소가 잘못되었어요.');
   try {
-    S.user = await ensureUser(); S.teacher = isTeacher(S.user);
+    S.user = await ensureUser(); S.teacher = !PREVIEW && isTeacher(S.user); // 미리보기: 학생처럼
     const first = await getDoc(doc(fs, 'boards', bid));
     if (!first.exists()) return fail('지워진 패들렛이에요.');
     S.board = first.data();
+    if (PREVIEW && (!S.board.public || S.board.trash)) return fail('아직 선생님이 학생에게 보여 주지 않은 패들렛이에요. (미리보기: 내 패들렛에서 \'학생에게 보이기\'를 켜면 학생에게 보여요)');
     // 선생님 모드는 이 패들렛의 주인 선생님만 (함께 쓰는 선생님 패들렛은 owner, 주 선생님 패들렛은 owner 없음)
     if (S.teacher) { const r = await teacherRole(S.user); S.teacher = S.board.owner ? S.board.owner === S.user.uid : r === 'admin'; }
     draw();

@@ -8,49 +8,34 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
-<link rel="stylesheet" href="css/brand.css">
+<link rel="stylesheet" href="css/moa.css">
 <style>
 /* VOICE: 밝은 도트 게임 화면 — 선생님 혼자 쓰는 수업 자료 창고
    IDEA: 게임 대화창처럼 굵은 남색 테두리 상자, 제미나이 꽃밭 하늘 배경
    PICTURE: 클래스 카드 벽 → 가로로 늘어선 패들렛 칸과 글 카드
-   COLOUR: 하늘 파랑 배경, 남색 #1B1F3B 테두리, 노랑 #FFD23F·파랑 #2F5FE0 버튼
+   COLOUR: 하늘 파랑 배경, 남색 #1B1F3B 테두리, 노랑 #FFD23F·파랑 #3A6FF2 버튼
    TYPE: 제목·버튼 Jua, 본문 Noto Sans KR / LAYOUT: 위 띠, 카드 격자, 가로 스크롤 칸 */
-:root{color-scheme:light;--ink:#1B1F3B;--sub:#4B4F6B;--paper:#FFF8E7;--blue:#2F5FE0;--yel:#FFD23F;--off:#C9C3B0}
-*{box-sizing:border-box;min-width:0}
+/* 공통 모양(색·버튼·입력 칸·상자·배경)은 css/moa.css — 여기는 패들렛 화면에만 쓰는 것 */
 html{scroll-padding-top:90px}
-body{margin:0;color:var(--ink);font:16px/1.55 'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#2E9BEA url(assets/bg.webp) center top/cover no-repeat fixed;min-height:100vh;overflow-x:clip}
-h1,h2,h3,button,.hd{font-family:'Jua','Noto Sans KR',sans-serif;font-weight:400;letter-spacing:0}
-a{color:var(--ink)}
-button{color:var(--ink)}
-.pf{border:4px solid var(--ink);box-shadow:inset -4px -4px 0 #E2D6B8,inset 4px 4px 0 #fff,6px 6px 0 var(--ink)}
-.btn{min-height:44px;padding:0 14px;border:4px solid var(--ink);background:#fff;font-size:17px;cursor:pointer;box-shadow:inset -4px -4px 0 rgba(0,0,0,.18),inset 4px 4px 0 rgba(255,255,255,.4),0 4px 0 var(--ink);display:inline-flex;align-items:center;gap:8px;position:relative}
-.btn:hover{filter:brightness(1.06)}
-.btn:active{transform:translateY(4px);box-shadow:inset -4px -4px 0 rgba(0,0,0,.18),inset 4px 4px 0 rgba(255,255,255,.4),0 0 0 var(--ink)}
-.btn.blue{background:var(--blue);color:#fff}.btn.yel{background:var(--yel)}.btn.red{background:#FF6B4A;color:#fff}
-.btn:disabled{background:var(--off);color:var(--sub);cursor:not-allowed;filter:none}
-.mini{min-height:36px;padding:0 8px;border:2px solid var(--ink);background:#fff;font:700 13px 'Noto Sans KR',sans-serif;cursor:pointer}
+.btn{padding:0 14px;position:relative}
+.mini{min-height:36px;padding:0 8px;border:2px solid var(--ink);background:#fff;color:var(--ink);font:700 13px 'Noto Sans KR',sans-serif;cursor:pointer}
 .mini:hover{background:#FFF1B8}
-button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:4px solid #FF8A3D;outline-offset:3px}
-.field{width:100%;min-height:44px;padding:0 12px;border:3px solid var(--ink);background:#fff;color:var(--ink);font:16px 'Noto Sans KR',sans-serif}
+.field{min-height:44px;padding:0 12px;border-width:3px;font:16px 'Noto Sans KR',sans-serif}
 textarea.field{padding:10px 12px;line-height:1.6;resize:vertical}
 
 header{position:sticky;top:0;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px max(3vw,16px);background:rgba(255,248,231,.96);border-bottom:4px solid var(--ink)}
-.logo{display:flex;align-items:center;gap:10px;text-decoration:none}
-.logo i{width:36px;height:36px;background:#FF6B4A;border:4px solid var(--ink);display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:3px}
-.logo i b{background:#fff}.logo i b:nth-child(1),.logo i b:nth-child(4){background:var(--yel)}
-.logo span{font-size:26px;color:var(--yel);text-shadow:2px 0 0 var(--ink),-2px 0 0 var(--ink),0 2px 0 var(--ink),0 -2px 0 var(--ink),3px 3px 0 var(--ink)}
 .bar{width:4px;height:32px;background:var(--ink)}
 .htxt{flex:1;min-width:200px;display:flex;flex-direction:column;gap:2px}
 .htxt h1{margin:0;font-size:clamp(22px,3vw,28px);line-height:1.15;text-wrap:balance}
 .htxt small{font-size:13px;color:var(--sub)}
 .hbtns{display:flex;flex-wrap:wrap;gap:8px}
 .save{font:700 13px 'Noto Sans KR',sans-serif;padding:4px 10px;border:3px solid var(--ink);background:#1B1F3B;color:#7CFF8A;white-space:nowrap}
-.save.busy{color:var(--yel)}.save.bad{background:#FF6B4A;color:#fff}.save.mem{background:#fff;color:#B3261E}
+.save.busy{color:var(--yel)}.save.bad{background:#FF6B4A;color:#fff}
 
 main{max-width:1240px;margin:0 auto;padding:22px max(3vw,16px) 28px;display:flex;flex-direction:column;gap:18px}
 main.wide{max-width:none;padding-inline:0}
-.note{align-self:flex-start;margin:0;padding:8px 12px;background:rgba(255,255,255,.94);border:3px solid var(--ink);font-size:14px;font-weight:700;line-height:1.6}
-.toast{align-self:flex-start;margin:0;padding:10px 14px;background:var(--ink);color:#7CFF8A;font-size:14px;font-weight:700}
+.note{align-self:flex-start;margin:0;padding:8px 12px;background:rgba(255,255,255,.94);border:3px solid var(--ink);font-size:14px;font-weight:700;line-height:1.6;color:var(--ink)}
+.toast{align-self:flex-start;margin:0;padding:10px 14px;background:var(--ink);color:var(--grn);font-size:14px;font-weight:700;border:0;box-shadow:none;text-align:left}
 .toast.bad{color:#FFB4A6}
 .tools{background:var(--paper);padding:12px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:12px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
@@ -73,7 +58,7 @@ main.wide{max-width:none;padding-inline:0}
 .recent{display:flex;flex-direction:column;gap:6px}
 .recent span{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#F4F0E4;border:2px solid var(--ink);font-size:13px;font-weight:700;line-height:1.4;overflow-wrap:anywhere}
 .recent span::before{content:"";width:8px;height:8px;flex:none;background:var(--c);border:2px solid var(--ink)}
-.empty{padding:10px;border:2px dashed var(--ink);font-size:13px;line-height:1.6;color:var(--sub)}
+.empty{padding:10px;border:2px dashed var(--ink);font-size:13px;line-height:1.6;color:var(--sub);text-align:left;background:none}
 .cfoot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:var(--sub)}
 .go{font:400 15px 'Jua',sans-serif;color:#fff;background:var(--blue);border:3px solid var(--ink);padding:5px 10px;white-space:nowrap}
 .card .edit{position:absolute;top:24px;left:80px}
@@ -117,7 +102,7 @@ main.wide{max-width:none;padding-inline:0}
 
 .ov{position:fixed;inset:0;z-index:10;background:rgba(27,31,59,.55);display:flex;align-items:flex-start;justify-content:center;padding:clamp(16px,8vh,90px) 16px 16px;overflow-y:auto}
 .dlg{width:100%;max-width:520px;background:var(--paper);padding:22px;display:flex;flex-direction:column;gap:10px}
-.dlg .top{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.dlg .top{display:flex;align-items:center;justify-content:flex-start;gap:10px;margin-bottom:4px;padding:0}
 .dlg h2{margin:0;font-size:24px}
 .dlg label{font-size:14px;font-weight:700}
 .dlg p{margin:0;font-size:14px;line-height:1.7}
@@ -138,7 +123,7 @@ footer .studio{letter-spacing:.08em}
 .trow .tdot{width:18px;height:18px;border:3px solid var(--ink);flex:none}
 .trow .tinfo{flex:1;min-width:200px;display:flex;flex-direction:column;gap:3px}
 .trow .tinfo b{font-size:17px;overflow-wrap:anywhere}
-.trow .tinfo small{font-size:13px;color:#4B4F6B}
+.trow .tinfo small{font-size:13px;color:var(--sub)}
 .trow .tleft{font-size:13px;font-weight:700;padding:4px 8px;background:#fff;border:2px solid var(--ink);white-space:nowrap}
 .trow .tleft.soon{background:#FFD6D0}
 .mini.del{background:#FF8F8F}
@@ -150,10 +135,11 @@ footer .studio{letter-spacing:.08em}
 <header id="hdr"></header>
 <main id="main"><p class="note">불러오는 중…</p></main>
 <div id="dlg"></div>
-<input type="file" id="fileIn" accept=".csv,.xlsx,.xls,text/csv" hidden>
+<input type="file" id="fileIn" accept=".csv,.xlsx,text/csv" hidden>
 <footer><span class="studio">© 2026 MOAPANG STUDIO</span><span>Created by Eunkyung Kim</span><a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a></footer>
 <script type="module">
-import { fs, rt, ref, set, auth, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, getDocs, serverTimestamp } from './js/fb.js';
+import { fs, rt, ref, set, auth, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, getDocs, serverTimestamp, esc, safeUrl } from './js/fb.js';
+import { readXlsx, readCSV } from './js/xlsx.js';
 import { TRASH_DAYS, inTrash, daysLeft, trashTime, trashBoard, restoreBoard, purgeBoard, purgeExpired } from './js/trash.js';
 {
 const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
@@ -162,23 +148,13 @@ const AV = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF'];
 const MAX_CLASSES = 20, PART_BYTES = 200000;
 const S = { db: null, mode: 'wait', classes: [], boards: [], parts: [], live: [], cmts: [], view: 'home', cid: null, bid: null, filter: '전체', q: '', msg: '', bad: false, saving: 0, saveErr: '', loaded: { classes: false, boards: false }, slow: false };
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const bytes = (o) => new TextEncoder().encode(JSON.stringify(o)).length;
 const uid = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const todayISO = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const md = (iso) => { const m = /^(\d+)-(\d+)-(\d+)/.exec(iso || ''); return m ? (+m[2]) + '월 ' + (+m[3]) + '일' : ''; };
-const safeUrl = (u) => /^https?:\/\//i.test((u || '').trim()) ? u.trim() : '';
 const byCreated = (a, b) => String(a.created || '').localeCompare(String(b.created || '')) || a.id.localeCompare(b.id);
 
 /* ---------- 저장소 ---------- */
-const mem = new Map();
-let memSubs = [];
-function memEmit() { memSubs.forEach((f) => f()); draw(); }
-function memList(col, filter) {
-  const out = [];
-  for (const [p, d] of mem) { const [c, id] = p.split('/'); if (c === col && (!filter || filter(d))) out.push(Object.assign({ id }, d)); }
-  return out;
-}
 const chains = new Map();
 function errText(e) {
   const c = e && e.code;
@@ -199,11 +175,11 @@ function queued(path, fn) {
 }
 function put(path, data) {
   if (S.db) return queued(path, () => S.db.doc(path).set(data));
-  mem.set(path, JSON.parse(JSON.stringify(data))); memEmit(); return Promise.resolve();
+  return Promise.reject(Object.assign(new Error('not connected'), { code: 'not_granted' }));
 }
 function del(path) {
   if (S.db) return queued(path, () => S.db.doc(path).delete());
-  mem.delete(path); memEmit(); return Promise.resolve();
+  return Promise.reject(Object.assign(new Error('not connected'), { code: 'not_granted' }));
 }
 const docs = (snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
 let partsOff = null, partsFor = null, liveOff = null;
@@ -221,9 +197,6 @@ function watchParts() {
     const o1 = onSnapshot(collection(fs, 'boards', bid, 'posts'), (snap) => { if (partsFor !== bid) return; S.live = liveRows(snap); draw(); }, () => {});
     const o2 = onSnapshot(collection(fs, 'boards', bid, 'comments'), (snap) => { if (partsFor !== bid) return; S.cmts = liveRows(snap); draw(); }, () => {});
     liveOff = () => { o1(); o2(); };
-  } else {
-    const f = () => { if (partsFor === bid) { S.parts = memList('parts', (d) => d.bid === bid); } };
-    memSubs.push(f); f(); partsOff = () => { memSubs = memSubs.filter((x) => x !== f); };
   }
 }
 // 함께 쓰는 선생님(teacher): 자기가 만든 반·패들렛만 (주인 owner 칸을 붙여 저장하고, 자기 것만 불러옴)
@@ -272,7 +245,9 @@ const classes = () => S.classes.slice().sort(byCreated);
 const boardsOf = (cid) => S.boards.filter((b) => b.cid === cid && !inTrash(b)).sort(byCreated);
 const trashed = () => S.boards.filter(inTrash).sort((a, b) => trashTime(b) - trashTime(a));
 const homeRefP = () => doc(fs, 'config', isMate() ? 'home_' + S.uid : 'home');
-const curClass = () => S.classes.find((c) => c.id === S.cid) || null;
+// 📦 과제 보관함: 반에 묶이지 않은 패들렛(과제방)을 미리 만들어 두는 곳 (cid 'lib') → '여러 반에 보내기'로 반마다 복사
+const LIBC = { id: 'lib', name: '📦 과제 보관함', color: '#C8F171', kind: '보관함', lib: true };
+const curClass = () => S.cid === 'lib' ? LIBC : S.classes.find((c) => c.id === S.cid) || null;
 const curBoard = () => S.boards.find((b) => b.id === S.bid) || null;
 function postsOfBoard() {
   const out = [];
@@ -312,40 +287,18 @@ async function deleteBoard(b) {
   await del('boards/' + b.id);
 }
 
-/* ---------- CSV · 엑셀 가져오기 ---------- */
-function parseCSV(text) {
-  const rows = []; let row = [], cell = '', q = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; }
-    else if (ch === '"') q = true;
-    else if (ch === ',') { row.push(cell); cell = ''; }
-    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
-    else cell += ch;
-  }
-  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
-  return rows.filter((r) => r.some((c) => String(c).trim() !== ''));
-}
+/* ---------- CSV · 엑셀 가져오기 (읽기는 js/xlsx.js) ---------- */
 function pick(head, words) {
   const h = head.map((x) => String(x).trim().toLowerCase());
   for (const w of words) { const i = h.indexOf(w); if (i >= 0) return i; }
   for (const w of words) { const i = h.findIndex((x) => x.includes(w)); if (i >= 0) return i; }
   return -1;
 }
-function loadXLSX() {
-  if (window.XLSX) return Promise.resolve(window.XLSX);
-  return new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload = () => ok(window.XLSX); s.onerror = no; document.head.appendChild(s); });
-}
 async function readRows(file) {
+  if (/\.xls$/i.test(file.name)) throw new Error('xls'); // 옛날 엑셀은 .xlsx로 저장해서 올리기
   const buf = await file.arrayBuffer();
-  if (/\.xlsx?$/i.test(file.name)) {
-    const X = await loadXLSX(); const wb = X.read(buf, { type: 'array' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    return X.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' }).filter((r) => r.some((c) => String(c).trim() !== ''));
-  }
-  let text;
-  try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); } catch (e) { text = new TextDecoder('euc-kr').decode(buf); }
-  return parseCSV(text.replace(/^﻿/, ''));
+  const rows = /\.xlsx$/i.test(file.name) ? await readXlsx(buf) : readCSV(buf);
+  return rows.filter((r) => r.some((c) => String(c).trim() !== ''));
 }
 function rowsToBoard(rows) {
   const head = rows[0];
@@ -370,7 +323,7 @@ async function importFile(file) {
   const c = curClass(); if (!c || !file) return;
   toast('읽는 중… ' + file.name);
   let rows;
-  try { rows = await readRows(file); } catch (e) { toast('파일을 읽지 못했어요. 패들렛에서 내보낸 CSV나 엑셀 파일인지 확인해 주세요.', true); return; }
+  try { rows = await readRows(file); } catch (e) { toast(e && e.message === 'xls' ? '옛날 엑셀(.xls)이에요. 엑셀에서 "다른 이름으로 저장 → Excel 통합 문서(.xlsx)"로 바꿔서 넣어 주세요.' : '파일을 읽지 못했어요. 패들렛에서 내보낸 CSV나 엑셀 파일인지 확인해 주세요.', true); return; }
   if (!rows || rows.length < 2) { toast('읽을 글이 없어요. 패들렛에서 내보낸 파일인지 확인해 주세요.', true); return; }
   const { secs, posts } = rowsToBoard(rows);
   if (!posts.length) { toast('제목·내용·링크가 있는 줄을 찾지 못했어요.', true); return; }
@@ -385,7 +338,7 @@ let toastTimer = null;
 function toast(m, bad) { S.msg = m; S.bad = !!bad; draw(); clearTimeout(toastTimer); if (!bad) toastTimer = setTimeout(() => { S.msg = ''; draw(); }, 6000); }
 function drawStatus() {
   const el = document.querySelector('.save'); if (!el) return;
-  const [cls, txt] = S.mode === 'mem' ? ['save mem', '저장소 없음 · 새로 고치면 사라져요'] : S.saveErr ? ['save bad', '저장 안 됨'] : S.saving ? ['save busy', '저장 중…'] : S.mode === 'db' ? ['save', '모두 저장됨 ✓'] : ['save busy', '연결 중…'];
+  const [cls, txt] = S.saveErr ? ['save bad', '저장 안 됨'] : S.saving ? ['save busy', '저장 중…'] : S.mode === 'db' ? ['save', '모두 저장됨 ✓'] : ['save busy', '연결 중…'];
   el.className = cls; el.textContent = txt;
 }
 const logo = '<div class="brands sm"><a class="brand" href="taja/" title="타자팡으로 가기"><img src="assets/brand/tajapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/tajapang_word.webp" alt="타자팡" class="brand-word" draggable="false"></a><span class="brand-sep" aria-hidden="true">✦</span><a class="brand" href="./" title="모아팡 첫 화면"><img src="assets/brand/moapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/moapang_word.webp" alt="모아팡" class="brand-word" draggable="false"></a></div><span class="bar" aria-hidden="true"></span>';
@@ -395,13 +348,12 @@ function msgHTML() {
   if (S.msg) h += '<p class="toast' + (S.bad ? ' bad' : '') + '" role="status">' + esc(S.msg) + '</p>';
   if (S.saveErr) h += '<p class="toast bad" role="alert">' + esc(S.saveErr) + '</p>';
   if (S.slow) h += '<p class="toast bad" role="status">저장소에 아직 연결되지 않았어요. 인터넷이 연결되면 저절로 불러와요.</p>';
-  if (S.mode === 'mem') h += '<p class="note">이 화면에서는 저장소를 쓸 수 없어요. claude.ai에서 이 페이지를 열면 저장돼요. 지금 만든 것은 새로 고치면 사라져요.</p>';
   return h;
 }
 function draw() {
   if (S.mode === 'nologin' || S.mode === 'wait') { if (S.mode === 'wait') { $('main').innerHTML = '<p class="note" style="padding:16px">불러오는 중…</p>'; } return; }
   const ae = document.activeElement, keep = ae && ae.id === 'q' ? [ae.selectionStart, ae.selectionEnd] : null;
-  const ready = S.mode === 'mem' || (S.loaded.classes && S.loaded.boards) || S.slow;
+  const ready = (S.loaded.classes && S.loaded.boards) || S.slow;
   if (S.view === 'board' && !curClass() && ready) { S.view = 'home'; S.cid = null; S.bid = null; }
   if (S.view === 'board') drawBoard(); else if (S.view === 'trash') drawTrash(ready); else drawHome(ready);
   drawStatus();
@@ -448,7 +400,10 @@ async function doRestore(b, cid) {
 function gridHTML(cs, full) {
   const q = S.q.trim();
   const list = cs.filter((c) => (S.filter === '전체' || c.kind === S.filter) && (!q || (c.name || '').includes(q)));
-  let h = list.map((c) => {
+  const lb = boardsOf('lib');
+  let h = S.filter === '전체' && !q ? '<article class="card pf" style="--c:#C8F171"><button class="open" data-act="open" data-id="lib" aria-label="과제 보관함 열기"><span class="band" style="background-color:#C8F171"><span class="kind sp">보관함</span></span><span class="cbody"><span class="cname">📦 과제 보관함</span><span class="cmeta">미리 만들어 둔 과제방 ' + lb.length + '개 · 반을 골라 한꺼번에 보내요</span>' +
+    (lb.length ? '<span class="recent">' + lb.slice(-3).reverse().map((b) => '<span style="--c:#C8F171">' + esc(b.title) + '</span>').join('') + '</span>' : '<span class="empty">과제방(패들렛)을 여기에 만들어 두고 \'🚀 여러 반에 보내기\'로 반마다 나눠 줘요.</span>') + '<span class="cfoot"><span>반마다 따로 복사돼요</span><span class="go">보관함 열기 ▶</span></span></span></button></article>' : '';
+  h += list.map((c) => {
     const bs = boardsOf(c.id), posts = bs.reduce((n, b) => n + (b.postCount || 0), 0), last = bs[bs.length - 1];
     const recent = bs.slice(-3).reverse();
     return '<article class="card pf" style="--c:' + esc(c.color) + '"><button class="open" data-act="open" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 패들렛 열기"><span class="band" style="background-color:' + esc(c.color) + '"><span aria-hidden="true" style="width:54px;height:46px;background:#1B1F3B;display:flex;align-items:flex-start;gap:3px;padding:3px"><span style="flex:1;height:30px;background:#fff"></span><span style="flex:1;height:20px;background:#fff"></span><span style="flex:1;height:25px;background:#fff"></span></span><span class="kind' + (c.kind === '특강반' ? ' sp' : '') + '">' + esc(c.kind) + '</span></span><span class="cbody"><span class="cname">' + esc(c.name) + '</span><span class="cmeta">방번호 ' + esc(c.room) + ' · 패들렛 ' + bs.length + '개 · 글 ' + posts + '개</span>' +
@@ -469,7 +424,7 @@ function drawBoard() {
   if (S.wantBid && bs.find((b) => b.id === S.wantBid)) S.wantBid = null;
   watchParts();
   const b = curBoard();
-  $('hdr').innerHTML = logo + '<button class="btn" data-act="home">◀ 내 패들렛</button><div class="htxt"><small style="font-weight:700;display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:14px;height:14px;flex:none;background:' + esc(c.color) + ';border:3px solid #1B1F3B"></span>' + esc(c.name) + ' · ' + esc(c.kind) + ' · 방번호 ' + esc(c.room) + '</small><h1>' + esc(b ? b.title : c.name) + '</h1></div><span class="save"></span><div class="hbtns">' + fileBtn('패들렛에서 가져오기', 'yel') + '<button class="btn blue" data-act="write" data-s="0"' + (b ? '' : ' disabled') + '>+ 글 쓰기</button></div>';
+  $('hdr').innerHTML = logo + '<button class="btn" data-act="home">◀ 내 패들렛</button><div class="htxt"><small style="font-weight:700;display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:14px;height:14px;flex:none;background:' + esc(c.color) + ';border:3px solid #1B1F3B"></span>' + esc(c.name) + (c.lib ? ' · 반을 골라 보내는 과제방' : ' · ' + esc(c.kind) + ' · 방번호 ' + esc(c.room)) + '</small><h1>' + esc(b ? b.title : c.name) + '</h1></div><span class="save"></span><div class="hbtns">' + fileBtn('패들렛에서 가져오기', 'yel') + '<button class="btn blue" data-act="write" data-s="0"' + (b ? '' : ' disabled') + '>+ 글 쓰기</button></div>';
   let h = '<div class="tabs" style="--c:' + esc(c.color) + '"><span class="lbl">이 클래스의 패들렛 ' + bs.length + '개</span>' + bs.map((x) => '<button class="tab" data-act="tab" data-id="' + esc(x.id) + '" aria-pressed="' + (b && x.id === b.id) + '" style="--c:' + esc(c.color) + '">' + esc(x.title) + '</button>').join('') + '<button class="mini" data-act="newboard">+ 빈 패들렛</button><button class="mini" data-act="trash">🗑 휴지통' + (trashed().length ? ' ' + trashed().length : '') + '</button></div>';
   h += '<div style="padding:12px max(3vw,16px) 0;display:flex;flex-direction:column;gap:8px">' + msgHTML() + '</div>';
   if (!b) {
@@ -480,10 +435,12 @@ function drawBoard() {
   const posts = postsOfBoard();
   h += '<div class="meta"><p>' + esc(b.from || '') + ' · ' + md(b.date) + ' · 칸 ' + (b.sections || []).length + '개 · 글 ' + ((b.postCount || 0) + S.live.length) + '개' + (S.live.length ? ' (함께 쓴 글 ' + S.live.length + '개)' : '') + ' · 댓글 ' + S.cmts.length + '개</p>' +
     '<a class="mini" href="board.html?b=' + encodeURIComponent(b.id) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none;background:#FFD23F">▶ 함께 쓰는 화면 열기</a>' +
-    '<button class="mini" data-act="pubboard" aria-pressed="' + !!b.public + '" style="' + (b.public ? 'background:#7CFF8A' : '') + '">' + (b.public ? '✓ 학생에게 보여요' : '학생에게 보이기') + '</button>' +
+    '<a class="mini" href="board.html?b=' + encodeURIComponent(b.id) + '&preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '') + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none;background:#C8F171" title="학생에게 이 패들렛이 어떻게 보이는지 새 탭에서 봐요">👀 학생 화면으로 보기</a>' +
+    '<button class="mini" data-act="deploy" style="background:#C8F171">🚀 여러 반에 보내기</button>' +
+    (c.lib ? '' : '<button class="mini" data-act="pubboard" aria-pressed="' + !!b.public + '" style="' + (b.public ? 'background:#7CFF8A' : '') + '">' + (b.public ? '✓ 학생에게 보여요' : '학생에게 보이기') + '</button>') +
     '<button class="mini" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김' : '✎ 학생 글쓰기 열림') + '</button>' +
     '<button class="mini" data-act="copyboard" style="background:#C7B2FF">다른 패들렛으로 복사</button>' +
-    '<button class="mini" data-act="pinhome">첫 화면 링크에 올리기</button><button class="mini" data-act="renameboard">이름 바꾸기</button><button class="mini del" data-act="delboard">🗑 이 패들렛 삭제</button></div>';
+    (c.lib ? '' : '<button class="mini" data-act="pinhome">첫 화면 링크에 올리기</button>') + '<button class="mini" data-act="renameboard">이름 바꾸기</button><button class="mini del" data-act="delboard">🗑 이 패들렛 삭제</button></div>';
   if (loading) { h += '<p class="note" style="margin:16px max(3vw,16px)">글을 불러오는 중…</p>'; $('main').className = 'wide'; $('main').innerHTML = h; return; }
   h += '<div class="cols"><div>' + (b.sections || []).map((name, i) => {
     const ps = posts.filter((p) => (p.sec || 0) === i);
@@ -513,7 +470,7 @@ function liveHTML(p) {
   let host = link; try { host = new URL(link).hostname.replace(/^www\./, ''); } catch (e) {}
   const img = /^data:image\/(jpeg|png|webp);base64,/.test(p.img || '') ? p.img : '';
   const author = p.author || '학생', nc = cmtCount(p.id), d = new Date(liveMs(p.at));
-  return '<article class="post" style="box-shadow:3px 3px 0 #2F5FE0">' + (img ? '<img src="' + img + '" alt="' + esc(p.title || author + '의 사진') + '" loading="lazy" style="display:block;width:100%;max-height:220px;object-fit:cover;border-bottom:4px solid #1B1F3B">' : '') +
+  return '<article class="post" style="box-shadow:3px 3px 0 #3A6FF2">' + (img ? '<img src="' + img + '" alt="' + esc(p.title || author + '의 사진') + '" loading="lazy" style="display:block;width:100%;max-height:220px;object-fit:cover;border-bottom:4px solid #1B1F3B">' : '') +
     '<div class="pin">' + (p.title ? '<h3>' + esc(p.title) + '</h3>' : '') + (p.body ? '<p>' + esc(p.body) + '</p>' : '') +
     (link ? '<a class="lnk" href="' + esc(link) + '" target="_blank" rel="noopener">' + (video ? svgVid : svgLink) + esc((video ? '영상 · ' : '') + host) + '</a>' : '') + '</div>' +
     '<div class="pfoot"><span class="who"><i aria-hidden="true" style="background:' + AV[author.length % AV.length] + '">' + esc(author.charAt(0)) + '</i>' + esc(author) + ' · ' + (d.getMonth() + 1) + '/' + d.getDate() + '</span><span class="acts">' +
@@ -580,6 +537,34 @@ function fillTargets() {
   const sel = $('cb'), cid = $('cc') && $('cc').value; if (!sel || !cid) return;
   const bs = boardsOf(cid).filter((x) => x.id !== pending.bid);
   sel.innerHTML = '<option value="new">＋ 새 패들렛으로 만들기</option>' + bs.slice().reverse().map((x) => '<option value="' + esc(x.id) + '">' + esc(x.title) + ' (글 ' + (x.postCount || 0) + '개)</option>').join('');
+}
+// 🚀 여러 반에 보내기: 지금 패들렛(과제방)을 고른 반마다 새 패들렛으로 복사 (반마다 학생 글·댓글은 따로 쌓임)
+function deployDlg() {
+  const b = curBoard(), c = curClass(); if (!b || !c) return;
+  const cs = classes().filter((x) => x.id !== c.id);
+  if (!cs.length) { toast('보낼 반이 없어요. 먼저 클래스를 만들어 주세요.', true); return; }
+  const got = (cid) => S.boards.some((x) => x.cid === cid && !inTrash(x) && (x.src === b.id || (b.src && x.src === b.src && x.id !== b.id)));
+  pending = { bid: b.id };
+  openDlg(dlgTop('🚀 여러 반에 보내기') +
+    '<p><b>' + esc(b.title) + '</b>을(를) 고른 반마다 <b>새 패들렛으로 복사</b>해서 보내요. 반마다 학생 글·댓글은 따로 쌓여요. 지금 패들렛은 그대로 남아요.</p>' +
+    '<div class="row"><button type="button" class="mini" data-act="dpall">모두 고르기</button><button type="button" class="mini" data-act="dpnone">모두 빼기</button></div>' +
+    '<div id="dpL" style="display:flex;flex-direction:column;gap:6px;max-height:40vh;overflow:auto">' + cs.map((x) => '<label style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fff;border:3px solid var(--ink);cursor:pointer"><input type="checkbox" value="' + esc(x.id) + '" style="width:20px;height:20px"' + (got(x.id) ? '' : ' checked') + '><span aria-hidden="true" style="width:14px;height:14px;background:' + esc(x.color) + ';border:2px solid var(--ink)"></span><b style="flex:1">' + esc(x.name) + '</b>' + (got(x.id) ? '<small style="color:#4B4F6B">이미 받았어요 · 고르면 하나 더</small>' : '') + '</label>').join('') + '</div>' +
+    '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="dpPub" checked style="width:20px;height:20px"> 학생에게 바로 보이기 (반 화면 → 게시판)</label>' +
+    '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="dpLock" style="width:20px;height:20px"> 학생 글쓰기 잠그기 (읽기만)</label>' +
+    '<div class="row"><button type="submit" class="btn blue" data-form="deploy">보내기 ▶</button></div>', '#dpL input');
+}
+async function deployBoard(cids, opts) {
+  const src = curBoard(), from = curClass(); if (!src || !cids.length) return;
+  const posts = postsOfBoard().map((p) => { const q = Object.assign({}, p, { id: uid('p'), likes: 0, liked: false, comments: 0 }); delete q.part; return q; });
+  toast(cids.length + '개 반에 보내는 중…');
+  let n = 0;
+  try {
+    for (const cid of cids) {
+      const meta = { id: uid('b'), cid, title: src.title, from: from.lib ? '과제 보관함에서 보냄' : from.name + '에서 보냄', date: todayISO(), created: new Date().toISOString(), sections: (src.sections || ['글 모음']).slice(), src: src.src || src.id, public: !!opts.pub, lock: !!opts.lock };
+      await writeBoard(meta, posts); n++;
+    }
+    toast('\'' + src.title + '\'을(를) ' + n + '개 반에 보냈어요.' + (opts.pub ? ' 학생 화면 → 게시판에 보여요.' : ' (학생에게는 아직 안 보여요)'));
+  } catch (e) { toast((S.saveErr || errText(e)) + (n ? ' (' + n + '개 반은 보냈어요)' : ''), true); }
 }
 async function copyBoard(sec, tcid, tbid) {
   const src = curBoard(); if (!src) return;
@@ -714,7 +699,7 @@ function openTrash() { S.view = 'trash'; S.cid = null; S.bid = null; S.msg = '';
 function goHome() { S.view = 'home'; S.cid = null; S.bid = null; S.msg = ''; watchParts(); if (location.hash && location.hash !== '#home') history.replaceState(null, '', '#home'); draw(); }
 function route() {
   const m = /^#class-([A-Za-z0-9]+)$/.exec(location.hash);
-  if (m && S.classes.find((c) => c.id === m[1])) { if (S.cid !== m[1]) openClass(m[1]); }
+  if (m && (m[1] === 'lib' || S.classes.find((c) => c.id === m[1]))) { if (S.cid !== m[1]) openClass(m[1]); }
   else if (location.hash === '#trash') { if (S.view !== 'trash') openTrash(); else draw(); }
   else if (S.view !== 'home') goHome(); else draw();
 }
@@ -746,6 +731,8 @@ document.addEventListener('click', (e) => {
   else if (a === 'pinhome') { const b = curBoard(); if (b) pinHome(b); }
   else if (a === 'lockboard') { const b = curBoard(); if (b) saveBoard(b, { lock: !b.lock }).then(() => toast(b.lock ? '학생 글쓰기를 열었어요.' : '학생 글쓰기를 잠갔어요. 읽기만 할 수 있어요.'), () => toast(S.saveErr, true)); }
   else if (a === 'copyboard') copyDlg();
+  else if (a === 'deploy') deployDlg();
+  else if (a === 'dpall' || a === 'dpnone') document.querySelectorAll('#dpL input').forEach((x) => { x.checked = a === 'dpall'; });
   else if (a === 'dellive') {
     const p = S.live.find((x) => x.id === id); if (!p) return; const b = curBoard();
     confirmDlg('글 지우기', '\'' + (p.author || '') + '\'이(가) 올린 \'' + (p.title || (p.body || '').slice(0, 20) || '사진') + '\'을 지워요. 지운 것은 되돌릴 수 없어요.', '지우기', async () => {
@@ -757,7 +744,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'trash') openTrash();
   else if (a === 'restore') {
     const b = S.boards.find((x) => x.id === id); if (!b) return;
-    if (S.classes.find((x) => x.id === b.cid)) doRestore(b, null);
+    if (b.cid === 'lib' || S.classes.find((x) => x.id === b.cid)) doRestore(b, null);
     else if (!S.classes.length) toast('반이 하나도 없어요. 먼저 클래스를 만들어 주세요.', true);
     else { pending = b.id; openDlg(dlgTop('어느 클래스로 되살릴까요?') + '<p>\'' + esc(b.title) + '\'이 있던 클래스는 지워졌어요. 되살릴 클래스를 골라 주세요.</p><label for="rc">클래스</label><select id="rc" class="field">' + classes().map((x) => '<option value="' + esc(x.id) + '">' + esc(x.name) + ' · ' + esc(x.kind) + '</option>').join('') + '</select><div class="row"><button type="submit" class="btn blue" data-form="restore">되살리기 ▶</button></div>', '#rc'); }
   }
@@ -786,6 +773,7 @@ document.addEventListener('submit', async (e) => {
   else if (f === 'confirm') { const fn = pending; closeDlg(); fn(); }
   else if (f === 'restore') { const b = S.boards.find((x) => x.id === pending), cid = $('rc').value; closeDlg(); if (b && cid) doRestore(b, cid); }
   else if (f === 'copy') { const sec = +$('cw').value, tcid = $('cc').value, tbid = $('cb').value; closeDlg(); copyBoard(sec, tcid, tbid); }
+  else if (f === 'deploy') { const cids = [...document.querySelectorAll('#dpL input')].filter((x) => x.checked).map((x) => x.value); if (!cids.length) { toast('보낼 반을 하나 이상 골라 주세요.', true); return; } const opts = { pub: $('dpPub').checked, lock: $('dpLock').checked }; closeDlg(); deployBoard(cids, opts); }
 });
 document.addEventListener('change', (e) => {
   if (e.target.id === 'cc') { fillTargets(); return; }

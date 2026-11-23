@@ -17,7 +17,7 @@
 @media (max-width:639px){.brands.sm .brand-word{height:24px}.brands.sm .brand-icon{width:32px;height:32px}}
 
 /* 맨 위 띠: 타자팡 위쪽 띠와 같은 모양, 모아팡은 연두 (모아팡 글자 색) */
-@font-face{font-family:'Galmuri11';src:url(../assets/fonts/Galmuri11-Bold.woff2) format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'Galmuri11';src:url(../assets/fonts/Galmuri11-Bold.woff2) format('woff2');font-weight:400 700;font-display:swap}
 .moa-strip{position:relative;z-index:6;display:flex;align-items:center;justify-content:center;gap:10px;padding:5px 12px;background:repeating-linear-gradient(90deg,#C8F171 0 14px,#9EDB4B 14px 28px);color:#1F3A0B;border-bottom:3px solid #1F3A0B;font:700 13px/1.4 'Galmuri11','Jua','Noto Sans KR',monospace;text-align:center}
 .moa-strip-chip{background:#1F3A0B;color:#C8F171;border:2px solid #1F3A0B;border-radius:4px;padding:2px 10px;white-space:nowrap}
 .moa-strip-text{animation:moaBlinkSoft 1.8s steps(2) infinite}
@@ -27,3 +27,9 @@
 @media (prefers-reduced-motion:reduce){.moa-strip-text,.moa-strip .sp{animation:none}}
 @media (max-width:639px){.moa-strip-text{display:none}}
 html.embed .moa-strip{display:none}
+
+/* 학생 화면 미리보기 띠 (선생님) */
+.pv-bar{position:sticky;top:0;z-index:70;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px 12px;padding:7px 12px;background:#1B1F3B;color:#fff;font:700 14px/1.4 'Noto Sans KR',sans-serif;border-bottom:3px solid #C8F171;text-align:center}
+.pv-bar b{color:#C8F171;font:400 17px/1.2 'Jua','Noto Sans KR',sans-serif}
+.pv-back{display:inline-flex;align-items:center;min-height:36px;padding:3px 12px;background:#C8F171;color:#1B1F3B;border:3px solid #fff;text-decoration:none;font:400 16px/1 'Jua','Noto Sans KR',sans-serif;white-space:nowrap}
+.pv-back:hover{background:#fff}

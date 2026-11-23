@@ -13,7 +13,6 @@
 <style>
 /* VOICE: 아이들이 매 시간 처음 보는 문 — 방번호만 누르면 바로 들어가는 게임 시작 화면
    LAYOUT: 왼쪽 위 '타자팡 ✦ 모아팡' 로고(타자팡 화면과 같음), 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 링크 게시판 + 그 아래 내 패들렛 바로가기, 오른쪽 아래 제작자 */
-@font-face{font-family:'Galmuri11';src:url(assets/fonts/Galmuri11-Bold.woff2) format('woff2');font-weight:400 700;font-display:swap}
 body{background:#1897FA url(assets/bg-low.webp) center top/cover no-repeat fixed}
 .dot,.dot *,.dot #room,.dot #nm{font-family:'Galmuri11','Noto Sans KR',monospace!important;font-weight:700!important}
 main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(12px,3vw,24px) 70px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
@@ -123,7 +122,7 @@ footer .studio{letter-spacing:.08em}
 <script src="js/avatar.js"></script>
 <script type="module">
 import { trashBoard, purgeExpired, inTrash, TRASH_DAYS } from './js/trash.js';
-import { fs, rt, auth, ensureUser, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, ref, rget, nameKey, cleanName, getSession, setSession, esc, safeUrl, hostOf, errText } from './js/fb.js';
+import { fs, rt, auth, ensureUser, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, ref, rget, nameKey, cleanName, getSession, setSession, esc, safeUrl, hostOf, errText, PREVIEW } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
 let cls = null; // {cid, room, name, color}
@@ -187,6 +186,7 @@ async function enter(c, name) {
 }
 $('nameF').addEventListener('submit', async (e) => {
   e.preventDefault(); const name = cleanName($('nm').value); if (!name || !cls) return;
+  if (PREVIEW) { $('nameMsg').textContent = '미리보기에서는 위의 \'이어하기\'로 교실에 들어가요. (학생 기록을 만들지 않아요)'; return; }
   $('nameGo').disabled = true;
   try {
     const r = await enter(cls, name);
@@ -238,9 +238,9 @@ function card(l, i) {
 async function loadHome() {
   try {
     const user = await ensureUser();
-    if (isTeacher(user)) { $('tBtn').textContent = '선생님 화면'; }
-    const r = isTeacher(user) ? await teacherRole(user) : null;
-    HOME = await homeOwner(user, r);
+    if (isTeacher(user) && !PREVIEW) { $('tBtn').textContent = '선생님 화면'; }
+    const realR = isTeacher(user) ? await teacherRole(user) : null, r = PREVIEW ? null : realR; // 미리보기: 학생처럼, 첫 화면은 이 선생님 것
+    HOME = await homeOwner(user, realR);
     const s = await getDoc(doc(fs, 'config', HOME ? 'home_' + HOME : 'home'));
     const d = s.exists() ? s.data() : {};
     const links = (d.links || []).filter((l) => !l.hide);
@@ -268,7 +268,7 @@ document.addEventListener('click', async (e) => {
 /* ---------- 내 패들렛 바로가기 (학생에게 보이기로 한 패들렛 · 선생님은 모두) ---------- */
 async function loadPads() {
   try {
-    const user = await ensureUser(), r = isTeacher(user) ? await teacherRole(user) : null;
+    const user = await ensureUser(), r = !PREVIEW && isTeacher(user) ? await teacherRole(user) : null;
     const t = r === 'admin' || r === 'teacher';
     // 주 선생님: owner 없는 패들렛 · 함께 쓰는 선생님: 자기 것 · 학생: 우리 반 선생님(tid)이 보이게 한 것
     const own = r === 'teacher' ? [where('owner', '==', user.uid)] : [];
