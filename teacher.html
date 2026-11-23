@@ -26,6 +26,8 @@
 .add{min-height:200px;border:4px dashed var(--ink);background:rgba(255,255,255,.8);font:400 20px 'Jua',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
 .add:disabled{opacity:.6;cursor:not-allowed}
 .live{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:start}
+.roomv{position:relative;box-sizing:border-box;width:min(100%,calc(58vh * 1280 / 715));aspect-ratio:1280/715;margin:10px auto 0;align-self:center;border:4px solid var(--ink);background:#1B1F3B;overflow:hidden}
+.roomv iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .card{padding:16px;display:flex;flex-direction:column;gap:12px}
 .card h2{font-size:21px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .badge{font:700 13px/1 'Noto Sans KR',sans-serif;border:3px solid var(--ink);padding:5px 8px;background:#fff}
@@ -348,6 +350,9 @@ function drawLive(cid) {
     Promise.all(['ox', 'mc'].map(async (k) => { let l = []; try { const s = await getDoc(doc(fs, 'banks', bankId(c.owner, k))); l = s.exists() ? s.data().list || [] : []; } catch (e) { l = []; } L.saved[k] = l.length > 0; L.bank[k] = l.length ? l : (k === 'ox' ? DEF_OX : DEF_MC); })).then(() => paintQuiz());
   }
   $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">' + esc(c.name) + ' 진행판</h1><div class="row"><span class="badge">방번호 ' + esc(c.room) + '</span><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><a class="btn sm" href="#classes">◀ 우리 반</a></div></div>' +
+    // 교실 화면: 선생님도 캐릭터(👑)로 들어가서 학생들과 같이 보임
+    '<section class="pf card"><div class="row" style="justify-content:space-between;align-items:center"><h2>🏫 교실 화면 <small style="font:700 13px \'Noto Sans KR\',sans-serif;color:var(--sub)">👑 선생님도 캐릭터로 들어가 있어요 · 화면을 누르고 방향키로 움직여요</small></h2><button class="btn sm" type="button" id="roomFull">크게 보기 ⛶</button></div>' +
+      '<div class="roomv"><iframe id="roomF" src="class.html?teach=' + encodeURIComponent(c.id) + '&embed=1" title="' + esc(c.name) + ' 교실 화면" allow="fullscreen"></iframe></div></section>' +
     '<div class="live"><div class="stack">' +
       '<section class="pf card"><h2>수업 <span class="badge" id="phB"></span></h2><div class="row"><button class="btn blue" type="button" id="phGo"></button><button class="btn" type="button" id="callB">모두 부르기</button><button class="btn" type="button" id="frzB"></button></div>' +
       '<div class="mapsel"><select class="field" id="mapS" aria-label="맵 고르기">' + MAPS.map(([id, n]) => '<option value="' + id + '">' + n + '</option>').join('') + '</select><button class="btn" type="button" id="mapB">맵 바꾸기</button></div><p class="note" id="mapN"></p></section>' +
@@ -369,6 +374,7 @@ function drawLive(cid) {
 const stRef = () => ref(rt, 'live/' + L.cid + '/state');
 const setSt = (patch) => update(stRef(), patch).catch((err) => toast(errText(err), true));
 function bindLive(c) {
+  $('roomFull').addEventListener('click', () => { const f = $('roomF'); (f.requestFullscreen ? f.requestFullscreen() : Promise.reject()).catch(() => window.open('class.html?teach=' + encodeURIComponent(c.id), '_blank')); });
   $('phGo').addEventListener('click', () => { const on = L.st.phase === 'class'; setSt({ phase: on ? 'wait' : 'class', map: L.st.map || c.map || 'classroom' }); toast(on ? '대기실로 모았어요.' : '수업을 시작했어요!'); });
   $('callB').addEventListener('click', () => { setSt({ call: Date.now() }); toast('모두 불렀어요.'); });
   $('frzB').addEventListener('click', () => setSt({ freeze: !L.st.freeze }));
@@ -399,7 +405,7 @@ function paintLive() {
   $('chOff').textContent = st.chatOff ? '채팅 켜기' : '채팅 끄기';
   const g = st.game; $('gmB').textContent = g ? g.name + ' 하는 중' : '쉬는 중'; $('gmB').className = 'badge' + (g ? ' go' : '');
   $('gmEnd').disabled = !g;
-  const ps = Object.entries(L.players || {});
+  const ps = Object.entries(L.players || {}).filter(([, p]) => !(p && p.tc)); // 선생님 캐릭터(👑)는 학생 수에서 뺌
   $('plH').textContent = '들어온 학생 ' + ps.length + '명';
   $('plL').innerHTML = ps.map(([, p]) => '<span>' + esc(p.n || '?') + (p.mp && p.mp !== (on ? m : 'playground') ? ' (이동 중)' : '') + '</span>').join('') || '<span>아직 아무도 없어요</span>';
   paintQuizLive(); paintResults();
@@ -576,7 +582,7 @@ function paintQuizLive() {
   $('qzB').textContent = q ? '푸는 중' : '쉬는 중'; $('qzB').className = 'badge' + (q ? ' go' : '');
   if (!q) { $('qzLive').innerHTML = ''; return; }
   const key = L.key[q.qid], opts = q.k === 'ox' ? ['O', 'X'] : q.o || [], ans = Object.values(L.answers || {});
-  const total = Object.keys(L.players || {}).length;
+  const total = Object.values(L.players || {}).filter((p) => !(p && p.tc)).length;
   const rev = q.ans !== undefined && q.ans !== null;
   $('qzLive').innerHTML = '<p style="font:400 20px/1.4 Jua,sans-serif;margin:0">' + esc(q.q) + '</p><p class="note">' + ans.length + ' / ' + total + '명이 답했어요' + (key ? ' · 정답 ' + esc(q.k === 'ox' ? key.a : (key.a + 1) + '번') : '') + '</p>' +
     '<div class="bars">' + opts.map((o, i) => { const v = q.k === 'ox' ? o : i, n = ans.filter((x) => String(x.a) === String(v)).length, ok = key && String(key.a) === String(v); return '<div class="' + (ok ? 'ok' : '') + '"><span>' + (q.k === 'ox' ? '' : (i + 1) + '. ') + esc(o) + (ok ? ' ✓' : '') + '</span><i style="width:' + (ans.length ? n / ans.length * 100 : 0) + '%"></i><b>' + n + '</b></div>'; }).join('') + '</div>' +

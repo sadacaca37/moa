@@ -57,6 +57,12 @@
 .opts .btn.wrong{background:#ffb4a8}
 .res{font:400 22px/1.4 'Jua',sans-serif;text-align:center;padding:10px;border:4px solid var(--ink);background:#fff}
 @media (max-width:900px){.room{grid-template-columns:minmax(0,1fr)}.chat{height:340px}}
+/* 선생님 진행판에 넣은 교실 화면 (?teach=반&embed=1): 지도만 */
+html.embed body{background:#1B1F3B;min-height:0}
+html.embed .bar,html.embed .tabs,html.embed .side,html.embed .pad,html.embed .strip,html.embed .notice,html.embed .maphead,html.embed .ground{display:none!important}
+html.embed .wrap{max-width:none;padding:0}
+html.embed .room{display:block}
+html.embed .mapbox{border:0;box-shadow:none}
 </style>
 </head>
 <body>
@@ -138,14 +144,21 @@
 <script src="js/avatar.js"></script>
 <script type="module">
 import {
-  fs, rt, ensureUser, doc, getDoc, onSnapshot, setDoc, updateDoc, increment, serverTimestamp, collection, query, where,
+  fs, rt, ensureUser, whenAuth, isTeacher, teacherRole, doc, getDoc, onSnapshot, setDoc, updateDoc, increment, serverTimestamp, collection, query, where,
   ref, set, update, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, rquery, limitToLast, rnow, rget,
   getSession, setSession, clearSession, mapName, WAIT_MAP, esc, safeUrl, hostOf, errText, toast
 } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
-const ses = getSession();
+// 선생님 모드: class.html?teach=반ID (&embed=1 은 진행판 안의 작은 화면) — 선생님도 캐릭터로 교실에 들어감
+const PARAMS = new URLSearchParams(location.search), TEACH = PARAMS.get('teach') || '', EMBED = !!TEACH && PARAMS.get('embed') === '1';
+if (EMBED) document.documentElement.classList.add('embed');
+const T_OUTFIT_KEY = 'moaTeacherOutfit';
+const T_OUTFIT = { hair: 'hair_long', top: 'top_shirt_tie', bottom: 'bottom_slacks', shoes: 'shoes_loafers', outer: 'outer_blazer', hand: 'hand_book' };
+const teacherOutfit = () => { try { return JSON.parse(localStorage.getItem(T_OUTFIT_KEY)) || T_OUTFIT; } catch (e) { return T_OUTFIT; } };
+const ses = TEACH ? { cid: TEACH, className: '우리 반', name: '선생님', key: 'teacher', outfit: teacherOutfit(), teacher: true } : getSession();
 if (!ses) location.replace('./');
+const keepSes = (x) => { if (!TEACH) setSession(x); };
 const T = 32, CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const hyp = Math.hypot, rand = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 $('clsT').textContent = ses.className; $('meT').textContent = ses.name;
@@ -165,7 +178,7 @@ function tab(which) {
 }
 $('tabRoom').addEventListener('click', () => tab('room'));
 $('tabBoard').addEventListener('click', () => tab('board'));
-$('out').addEventListener('click', () => { if (myRef) set(myRef, null).catch(() => {}); clearSession(); location.href = './'; });
+$('out').addEventListener('click', () => { if (myRef) set(myRef, null).catch(() => {}); if (TEACH) { location.href = 'teacher.html#live-' + encodeURIComponent(TEACH); return; } clearSession(); location.href = './'; });
 
 /* ---------- 지도 ---------- */
 const loadImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; });
@@ -199,7 +212,7 @@ async function goMap(id, announce) {
 
 /* ---------- 실시간: 내 자리 ---------- */
 let myRef = null, lastSend = 0, sentMoving = false, online = false;
-function rec() { return { n: me.name, k: me.key, o: me.o, x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 0, mp: mapId || '', t: rnow() }; }
+function rec() { const r = { n: me.name, k: me.key, o: me.o, x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 0, mp: mapId || '', t: rnow() }; if (TEACH) r.tc = 1; return r; }
 function sendAll() { if (myRef && online && mapId) set(myRef, rec()).catch(() => {}); }
 function syncMove(now) {
   if (!myRef || !online || !mapId) return;
@@ -213,7 +226,7 @@ function upsert(uid, v) {
   if (!v || uid === user.uid) return;
   let a = actors.get(uid);
   if (!a) { a = { uid, x: v.x, y: v.y, tx: v.x, ty: v.y, dir: 'down', moving: false, step: Math.random() * 4, bubble: '', bubbleT: 0, sheet: null, okey: '' }; actors.set(uid, a); }
-  a.name = String(v.n || '친구').slice(0, 10); a.key = v.k; a.mp = v.mp; a.tx = +v.x || 0; a.ty = +v.y || 0; a.dir = v.d || 'down'; a.remoteMoving = !!v.m;
+  a.name = String(v.n || '친구').slice(0, 10); a.key = v.k; a.mp = v.mp; a.tc = !!v.tc; a.tx = +v.x || 0; a.ty = +v.y || 0; a.dir = v.d || 'down'; a.remoteMoving = !!v.m;
   if (Math.abs(a.x - a.tx) > 300 || Math.abs(a.y - a.ty) > 300) { a.x = a.tx; a.y = a.ty; }
   const ok = JSON.stringify(v.o || {});
   if (ok !== a.okey) { a.okey = ok; const o = A.clean(v.o); a.sheet = null; A.ensure(o).then(() => { a.sheet = A.sheet(o); }); }
@@ -225,7 +238,8 @@ function people() {
   $('cntT').textContent = '접속 ' + (actors.size + 1) + '명';
   $('pplH').textContent = '들어온 친구 ' + n + '명';
   $('meter').style.width = Math.min(100, n / 30 * 100) + '%';
-  $('ppl').innerHTML = '<li class="me">' + esc(me.name) + '</li>' + list.map((a) => '<li>' + esc(a.name) + '</li>').join('');
+  const nm = (a) => (a.tc || (a.isMe && TEACH) ? '👑 ' : '') + esc(a.name);
+  $('ppl').innerHTML = '<li class="me">' + nm(me) + '</li>' + list.sort((x, y) => (y.tc ? 1 : 0) - (x.tc ? 1 : 0)).map((a) => '<li>' + nm(a) + '</li>').join('');
 }
 
 /* ---------- 채팅 ---------- */
@@ -248,7 +262,7 @@ function applyState(prevPhase, prevMap) {
   if (g && g.run && g.id) {
     $('gameStrip').hidden = false; $('gameT').textContent = '지금 미니 게임 중이에요: ' + (g.name || '게임');
     $('gameGo').href = 'games.html?g=' + encodeURIComponent(g.id) + '&run=' + encodeURIComponent(g.run);
-    if (!done.includes(g.run) && Date.now() - (g.t || 0) < 20 * 60000) location.href = $('gameGo').href;
+    if (!TEACH && !done.includes(g.run) && Date.now() - (g.t || 0) < 20 * 60000) location.href = $('gameGo').href;
   } else $('gameStrip').hidden = true;
   if (lastClr !== null && st.chatClr && st.chatClr !== lastClr) { $('log').innerHTML = ''; logLine('선생님이 채팅을 지웠어요', 'sys'); }
   lastClr = st.chatClr || 0;
@@ -267,7 +281,7 @@ function applyState(prevPhase, prevMap) {
 let answered = null, quizSeen = null, scored = new Set(JSON.parse(sessionStorage.getItem('moa_scored') || '[]'));
 async function quizUpdate() {
   const q = st.quiz;
-  if (!q || !q.qid) { $('quiz').hidden = true; $('quizStrip').hidden = true; quizState = null; return; }
+  if (TEACH || !q || !q.qid) { $('quiz').hidden = true; $('quizStrip').hidden = true; quizState = null; return; } // 선생님은 퀴즈 창 없이 칠판에서 봄
   if (!quizState || quizState.qid !== q.qid) {
     quizState = { qid: q.qid }; answered = null;
     try { const s = await rget(ref(rt, 'live/' + ses.cid + '/answers/' + q.qid + '/' + user.uid)); if (s.exists()) answered = s.val().a; } catch (e) { /* 무시 */ }
@@ -389,10 +403,11 @@ function drawActor(a) {
 }
 function drawTag(a) {
   const fs2 = 13 * ui; g.font = `700 ${fs2}px "Noto Sans KR", sans-serif`;
-  const w = g.measureText(a.name).width + fs2 * 0.9, h = fs2 * 1.55, x = a.x - w / 2, y = a.y - 98 - h;
-  g.fillStyle = a.isMe ? '#ffd23f' : 'rgba(23,24,28,.78)'; rr(x, y, w, h, h / 2); g.fill();
-  if (a.isMe) { g.lineWidth = 2 * ui; g.strokeStyle = '#111'; g.stroke(); }
-  g.fillStyle = a.isMe ? '#17181c' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(a.name, a.x, y + h / 2 + 1);
+  const tch = a.tc || (a.isMe && TEACH), label = (tch ? '👑 ' : '') + a.name;
+  const w = g.measureText(label).width + fs2 * 0.9, h = fs2 * 1.55, x = a.x - w / 2, y = a.y - 98 - h;
+  g.fillStyle = tch ? '#FF6B4A' : a.isMe ? '#ffd23f' : 'rgba(23,24,28,.78)'; rr(x, y, w, h, h / 2); g.fill();
+  if (a.isMe || tch) { g.lineWidth = 2 * ui; g.strokeStyle = '#111'; g.stroke(); }
+  g.fillStyle = tch ? '#fff' : a.isMe ? '#17181c' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, a.x, y + h / 2 + 1);
   if (a.bubbleT > 0 && a.bubble) {
     const bf = 15 * ui; g.font = `700 ${bf}px "Noto Sans KR", sans-serif`;
     const bw = g.measureText(a.bubble).width + bf * 1.2, bh = bf * 1.7, bx = clamp(a.x - bw / 2, 4, cv.width - bw - 4), by = y - bh - 8 * ui;
@@ -452,7 +467,13 @@ function frame(now) {
 /* ---------- 시작 ---------- */
 (async () => {
   try {
-    user = await ensureUser();
+    if (TEACH) {
+      user = await whenAuth();
+      const r = isTeacher(user) ? await teacherRole(user) : null;
+      if (r !== 'admin' && r !== 'teacher') { location.replace('teacher.html'); return; }
+      $('meT').textContent = '👑 선생님'; $('scoreT').textContent = '선생님 화면';
+      document.querySelector('a[href="dress.html"]').hidden = true; $('out').textContent = '진행판으로';
+    } else user = await ensureUser();
   } catch (err) { toast(errText(err), true); return; }
   me.uid = user.uid;
   await A.ensure(me.o); me.sheet = A.sheet(me.o);
@@ -460,12 +481,12 @@ function frame(now) {
 
   // 반 정보 (기본 맵, 링크)
   onSnapshot(doc(fs, 'classes', ses.cid), (s) => {
-    if (!s.exists()) { toast('이 반이 없어졌어요. 첫 화면으로 가요.', true); clearSession(); setTimeout(() => { location.href = './'; }, 1500); return; }
-    cls = s.data(); if (cls.name && cls.name !== ses.className) { ses.className = cls.name; setSession(ses); $('clsT').textContent = cls.name; }
+    if (!s.exists()) { toast('이 반이 없어졌어요. 첫 화면으로 가요.', true); if (!TEACH) clearSession(); setTimeout(() => { location.href = TEACH ? 'teacher.html' : './'; }, 1500); return; }
+    cls = s.data(); if (cls.name && cls.name !== ses.className) { ses.className = cls.name; keepSes(ses); $('clsT').textContent = cls.name; document.title = cls.name + ' · 모아팡'; }
     drawLinks();
   }, (err) => toast(errText(err), true));
   // 학생 기록 (점수, 다른 기기에서 바꾼 옷)
-  onSnapshot(doc(fs, 'classes', ses.cid, 'students', ses.key), (s) => {
+  if (!TEACH) onSnapshot(doc(fs, 'classes', ses.cid, 'students', ses.key), (s) => {
     if (!s.exists()) return;
     const d = s.data(); $('scoreT').textContent = '점수 ' + (d.score || 0);
     if (d.outfit && JSON.stringify(A.clean(d.outfit)) !== JSON.stringify(me.o)) {
