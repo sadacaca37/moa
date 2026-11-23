@@ -1,3 +1,4 @@
+@import url("brand.css"); /* 대표 로고 (모든 화면 같이 씀) */
 /* 모아팡 공통 모양 — 밝은 도트 게임 화면: 굵은 남색 테두리 상자, 제미나이 꽃밭 하늘 배경
    글꼴: 제목·버튼 Jua, 본문 Noto Sans KR */
 :root{color-scheme:light;--ink:#1B1F3B;--sub:#4B4F6B;--paper:#FFF8E7;--paper2:#FFF1C2;--blue:#3A6FF2;--yel:#FFD23F;--red:#FF6B4A;--grn:#7CFF8A;--off:#C9C3B0;--sky:#7EC8F5}

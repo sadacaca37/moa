@@ -48,6 +48,11 @@
 .links .tx small{color:var(--sub);overflow-wrap:anywhere}
 .lform{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .lform .wide{grid-column:1/-1}
+.qtools{gap:6px}
+.aiout{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px;max-height:42vh;overflow:auto}
+.aiout li{font-size:14px;line-height:1.5}
+.aiout label{display:flex;gap:6px;align-items:flex-start;cursor:pointer}
+.aiout input{margin-top:4px;width:18px;height:18px;flex:none}
 .qr{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
 .qr svg{width:min(320px,70vw);height:auto;background:#fff;border:4px solid var(--ink)}
 .qr .code{font:700 44px/1 'Noto Sans KR',monospace;letter-spacing:.3em;background:var(--ink);color:var(--grn);padding:10px 14px 10px calc(14px + .3em)}
@@ -62,7 +67,7 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
 </head>
 <body>
 <header class="top">
-  <a class="logo" href="./" aria-label="모아팡 첫 화면"><i aria-hidden="true"><b></b><b></b><b></b><b></b></i><span>모아팡</span></a>
+  <div class="brands sm"><a class="brand" href="taja/" title="타자팡으로 가기"><img src="assets/brand/tajapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/tajapang_word.webp" alt="타자팡" class="brand-word" draggable="false"></a><span class="brand-sep" aria-hidden="true">✦</span><a class="brand" href="./" title="모아팡 첫 화면"><img src="assets/brand/moapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/moapang_word.webp" alt="모아팡" class="brand-word" draggable="false"></a></div>
   <nav class="menu" id="menu" hidden>
     <a class="btn sm" href="#classes" data-nav="classes">우리 반</a>
     <a class="btn sm" href="#home" data-nav="home" id="navHome">첫 화면 꾸미기</a>
@@ -87,6 +92,8 @@ import {
   ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast
 } from './js/fb.js';
 import { DEF_OX, DEF_MC } from './js/questions.js';
+import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
+import { aiQuiz, AGES, CATS } from './js/ai.js';
 import { trashBoard, inTrash, TRASH_DAYS } from './js/trash.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
@@ -331,14 +338,14 @@ function drawLive(cid) {
   if (!c) { $('view').innerHTML = '<p class="pf pad">반을 찾을 수 없어요. <a href="#classes">우리 반 목록</a></p>'; return; }
   if (!L || L.cid !== cid) {
     stopLive();
-    L = { cid, st: {}, players: {}, chat: [], answers: {}, results: {}, students: [], key: {}, qkind: 'ox', bank: { ox: [], mc: [] } };
+    L = { cid, st: {}, players: {}, chat: [], answers: {}, results: {}, students: [], key: {}, qkind: 'ox', bank: { ox: [], mc: [] }, saved: { ox: false, mc: false } };
     const base = 'live/' + cid;
     liveOffs.push(onValue(ref(rt, base + '/state'), (s) => { L.st = s.val() || {}; if (L.st.quiz && L.st.quiz.qid !== L.ansFor) watchAnswers(L.st.quiz.qid); if (L.st.game && L.st.game.run !== L.resFor) watchResults(L.st.game.run); paintLive(); }));
     liveOffs.push(onValue(ref(rt, base + '/players'), (s) => { L.players = s.val() || {}; paintLive(); }));
     liveOffs.push(onValue(rquery(ref(rt, base + '/chat'), limitToLast(40)), (s) => { L.chat = []; s.forEach((x) => { L.chat.push(x.val()); }); paintChat(); }));
     liveOffs.push(onValue(ref(rt, base + '/lastRun'), (s) => { const r = s.val(); if (r && r !== L.resFor && !(L.st.game && L.st.game.run)) watchResults(r); }));
     liveOffs.push(onSnapshot(collection(fs, 'classes', cid, 'students'), (s) => { L.students = s.docs.map((d) => Object.assign({ id: d.id }, d.data())); paintStudents(); }, () => {}));
-    Promise.all(['ox', 'mc'].map(async (k) => { let l = []; try { const s = await getDoc(doc(fs, 'banks', bankId(c.owner, k))); l = s.exists() ? s.data().list || [] : []; } catch (e) { l = []; } L.bank[k] = l.length ? l : (k === 'ox' ? DEF_OX : DEF_MC); })).then(() => paintQuiz());
+    Promise.all(['ox', 'mc'].map(async (k) => { let l = []; try { const s = await getDoc(doc(fs, 'banks', bankId(c.owner, k))); l = s.exists() ? s.data().list || [] : []; } catch (e) { l = []; } L.saved[k] = l.length > 0; L.bank[k] = l.length ? l : (k === 'ox' ? DEF_OX : DEF_MC); })).then(() => paintQuiz());
   }
   $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 style="color:#fff;text-shadow:3px 3px 0 var(--ink);font-size:30px">' + esc(c.name) + ' 진행판</h1><div class="row"><span class="badge">방번호 ' + esc(c.room) + '</span><button class="btn sm" type="button" data-qr="' + esc(c.id) + '">QR·링크</button><a class="btn sm" href="#classes">◀ 우리 반</a></div></div>' +
     '<div class="live"><div class="stack">' +
@@ -423,6 +430,8 @@ function paintQuiz() {
   const k = L.qkind, bank = L.bank[k] || [];
   $('quizC').innerHTML = '<h2>퀴즈 <span class="badge" id="qzB"></span></h2><div id="qzLive"></div><details id="qzNew" open><summary>새 퀴즈 내기</summary><div class="stack" style="margin-top:10px">' +
     '<div class="seg" id="qzK"><button type="button" class="btn sm" data-k="ox" aria-pressed="' + (k === 'ox') + '">OX 퀴즈</button><button type="button" class="btn sm" data-k="mc" aria-pressed="' + (k === 'mc') + '">객관식</button></div>' +
+    '<div class="row qtools"><button type="button" class="btn sm" id="qzXl">📥 엑셀로 문제 올리기</button><button type="button" class="btn sm" id="qzTpl">엑셀 양식 받기</button><button type="button" class="btn sm yel" id="qzAi">🤖 AI로 문제 만들기</button><input type="file" id="qzFile" accept=".xlsx,.csv" hidden></div>' +
+    '<p class="note" style="margin:0">' + (k === 'ox' ? 'OX' : '객관식') + ' 문제 상자 ' + bank.length + '문제' + (L.saved[k] ? '' : ' (아직 기본 문제예요)') + ' · 엑셀이나 AI로 넣은 문제는 문제 상자에 저장돼서 미니 게임에서도 같이 써요.</p>' +
     '<label class="lb">문제 상자에서 고르기<select class="field" id="qzPick"><option value="">' + (bank.length ? '직접 쓰기 (아래 칸)' : '저장된 문제가 없어요 — 아래에 직접 써요') + '</option>' + bank.map((x, i) => '<option value="' + i + '">' + esc(String(x.q).slice(0, 60)) + '</option>').join('') + '</select></label>' +
     '<label class="lb">문제<input class="field" id="qzQ" maxlength="120"></label>' +
     (k === 'ox' ? '<div class="lb">정답<div class="seg" id="qzA"><button type="button" class="btn sm" data-a="O" aria-pressed="true">O</button><button type="button" class="btn sm" data-a="X" aria-pressed="false">X</button></div></div><label class="lb">해설 (없어도 돼요)<input class="field" id="qzW" maxlength="80"></label>'
@@ -437,7 +446,108 @@ function paintQuiz() {
     else { document.querySelectorAll('#quizC [data-o]').forEach((inp) => { inp.value = (x.o || [])[+inp.dataset.o] || ''; }); $('qzMA').value = String(x.a || 0); }
   });
   $('qzGo').addEventListener('click', sendQuiz);
+  bindQuizTools(k);
   paintQuizLive();
+}
+/* 퀴즈 문제: 엑셀로 올리기 · AI로 만들기 → 문제 상자(banks)에 저장 */
+const qClean = (v) => String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim();
+const toOX = (v) => { const s = qClean(v).toUpperCase(); if (/^(O|○|◯|TRUE|T|참|맞음|맞아요|YES|Y)$/.test(s)) return 'O'; if (/^(X|×|✕|FALSE|F|거짓|틀림|틀려요|NO|N)$/.test(s)) return 'X'; return ''; };
+const QFMT = {
+  ox: {
+    name: 'OX 퀴즈', head: ['문제', '정답 (O 또는 X)', '해설 (없어도 돼요)'], widths: [52, 16, 44],
+    sample: [['컴퓨터는 0과 1로 정보를 나타내요', 'O', '컴퓨터는 이진수로 정보를 저장해요'], ['마우스는 출력 장치예요', 'X', '마우스는 입력 장치예요']],
+    fromRow: (r) => { const q = qClean(r[0]), a = toOX(r[1]); return q && a ? { q: q.slice(0, 120), a, why: qClean(r[2]).slice(0, 80) } : null; },
+    show: (x) => x.q + ' → ' + x.a + (x.why ? ' (' + x.why + ')' : '')
+  },
+  mc: {
+    name: '객관식 퀴즈', head: ['문제', '보기1', '보기2', '보기3', '보기4', '정답 번호 (1~4)'], widths: [46, 16, 16, 16, 16, 15],
+    sample: [['컴퓨터에게 시킬 일을 순서대로 적은 것은?', '그림책', '프로그램', '노래', '지도', 2], ['로봇이 주변을 느끼게 해 주는 부품은?', '센서', '바퀴', '리본', '연필', 1]],
+    fromRow: (r) => {
+      const q = qClean(r[0]), raw = [1, 2, 3, 4].map((i) => qClean(r[i]).slice(0, 40)), o = raw.filter(Boolean);
+      let a = parseInt(r[5], 10) - 1; a = a >= 0 && a < 4 && raw[a] ? o.indexOf(raw[a]) : o.indexOf(qClean(r[5]));
+      return q && o.length >= 2 && a >= 0 ? { q: q.slice(0, 120), o, a } : null;
+    },
+    show: (x) => x.q + ' → ' + (x.o[x.a] || '')
+  }
+};
+async function saveQuizBank(k, list) {
+  const c = classes.find((x) => x.id === L.cid); if (!c) return;
+  await setDoc(doc(fs, 'banks', bankId(c.owner, k)), { list, at: Date.now() });
+  L.bank[k] = list; L.saved[k] = true; paintQuiz();
+}
+// 새 문제를 문제 상자에 넣기: 더하기 또는 바꾸기 (기본 문제만 있을 때는 바로 바꾸기)
+function putQuizItems(k, items, from) {
+  const cur = L.saved[k] ? (L.bank[k] || []) : [];
+  const go = async (replace) => {
+    closeDlg();
+    try { const list = (replace ? [] : cur).concat(items).slice(0, 300); await saveQuizBank(k, list); toast(from + ' ' + items.length + '문제를 ' + QFMT[k].name + ' 문제 상자에 ' + (replace || !cur.length ? '넣었어요' : '더했어요') + '. 위 \'문제 상자에서 고르기\'에서 골라 내요.'); }
+    catch (err) { toast(errText(err), true); }
+  };
+  if (!cur.length) { go(true); return; }
+  openDlg(dlgTop('문제 상자에 넣기') + '<p class="note" style="color:var(--ink)">' + esc(from) + ' ' + items.length + '문제를 어떻게 넣을까요? 지금 문제 상자에는 ' + cur.length + '문제가 있어요.</p><div class="row"><button type="button" class="btn blue" id="qAdd">뒤에 더하기</button><button type="button" class="btn red" id="qRep">이걸로 바꾸기</button><button type="button" class="btn" data-x>그만두기</button></div>', '#qAdd');
+  $('qAdd').addEventListener('click', () => go(false));
+  $('qRep').addEventListener('click', () => go(true));
+}
+function bindQuizTools(k) {
+  const F = QFMT[k];
+  $('qzTpl').addEventListener('click', () => { downloadBlob('모아팡_' + F.name.replace(/\s/g, '') + '_양식.xlsx', makeXlsx(F.head, F.sample, F.widths)); toast('엑셀 양식을 내려받았어요. 한 줄에 한 문제씩 채워서 올려요.'); });
+  $('qzXl').addEventListener('click', () => $('qzFile').click());
+  $('qzFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    if (/\.xls$/i.test(f.name)) { toast('옛날 엑셀(.xls)이에요. 엑셀에서 "다른 이름으로 저장 → Excel 통합 문서(.xlsx)"로 바꿔서 올려 주세요.', true); return; }
+    try {
+      const buf = await f.arrayBuffer(), rows = /\.csv$/i.test(f.name) ? readCSV(buf) : await readXlsx(buf);
+      const body = rows.filter((r) => r.some((v) => qClean(v)));
+      if (body.length && /문제|question/i.test(qClean(body[0][0]))) body.shift();
+      const items = body.map(F.fromRow).filter(Boolean), skip = body.length - items.length;
+      if (!items.length) { toast('읽을 수 있는 문제가 없어요. 칸 순서를 확인해 주세요: ' + F.head.join(' | '), true); return; }
+      if (skip) toast('빈칸이 있거나 정답을 알 수 없는 ' + skip + '줄은 뺐어요.');
+      putQuizItems(k, items, '"' + f.name + '"에서');
+    } catch (err) { toast('파일을 읽지 못했어요. 엑셀 통합 문서(.xlsx)나 CSV 파일인지 확인해 주세요.', true); }
+  });
+  $('qzAi').addEventListener('click', () => aiQuizDlg(k));
+}
+let aiAbort = null, aiItems = [];
+function aiQuizDlg(k) {
+  const F = QFMT[k], last = (() => { try { return JSON.parse(localStorage.getItem('moaAiQuiz')) || {}; } catch (e) { return {}; } })();
+  const opt = (list, v) => list.map((x) => '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>').join('');
+  openDlg(dlgTop('🤖 AI로 ' + F.name + ' 만들기') +
+    '<p class="note">분야와 나이를 고르면 AI가 문제를 만들어요. 마음에 드는 문제만 골라 문제 상자에 넣어요.</p>' +
+    '<div class="lform"><label class="lb">분야 (카테고리)<select class="field" id="aiCat">' + opt(CATS, last.cat || CATS[0]) + '</select></label>' +
+    '<label class="lb">나이 (학년)<select class="field" id="aiAge">' + opt(AGES, last.age || AGES[1]) + '</select></label>' +
+    '<label class="lb">난이도<select class="field" id="aiLv">' + opt(['쉬움', '보통', '어려움'], last.lv || '보통') + '</select></label>' +
+    '<label class="lb">문제 수<select class="field" id="aiN">' + opt(['5', '10', '15', '20'], last.n || '10') + '</select></label></div>' +
+    '<label class="lb">주제·차시 (없어도 돼요)<input class="field" id="aiTopic" maxlength="120" placeholder="예: 엔트리 반복 블록, 3학년 과학 자석" value="' + esc(last.topic || '') + '"></label>' +
+    '<div class="row"><button type="button" class="btn yel" id="aiGo">AI에게 문제 받기</button></div>' +
+    '<p class="note" id="aiMsg" role="status"></p><ol class="aiout" id="aiOut"></ol>' +
+    '<div class="row" id="aiAct" hidden><button type="button" class="btn blue" id="aiPut">고른 문제 넣기</button><button type="button" class="btn" id="aiAgain">다시 만들기</button></div>' +
+    '<p class="note">AI가 만든 문제도 틀릴 수 있어요. 넣기 전에 한 번 읽어 봐요.</p>', '#aiCat');
+  const make = async () => {
+    const p = { kind: k, cat: $('aiCat').value, age: $('aiAge').value, level: $('aiLv').value, n: +$('aiN').value, topic: qClean($('aiTopic').value).slice(0, 120) };
+    try { localStorage.setItem('moaAiQuiz', JSON.stringify({ cat: p.cat, age: p.age, lv: p.level, n: String(p.n), topic: p.topic })); } catch (e) { /* 무시 */ }
+    p.have = (L.bank[k] || []).map((x) => x.q);
+    if (aiAbort) aiAbort.abort(); aiAbort = new AbortController();
+    $('aiGo').disabled = true; $('aiAct').hidden = true; $('aiOut').innerHTML = ''; $('aiMsg').textContent = 'AI가 ' + p.cat + ' 문제 ' + p.n + '개를 만드는 중이에요… (10초쯤 걸려요)';
+    try {
+      aiItems = await aiQuiz(p, { signal: aiAbort.signal });
+      if (!$('aiOut')) return;
+      if (!aiItems.length) { $('aiMsg').textContent = 'AI가 쓸 만한 문제를 못 만들었어요. 조건을 바꿔서 다시 해 봐요.'; return; }
+      $('aiOut').innerHTML = aiItems.map((x, i) => '<li><label><input type="checkbox" data-ai="' + i + '" checked> <span>' + esc(F.show(x)) + '</span></label></li>').join('');
+      $('aiAct').hidden = false; $('aiMsg').textContent = aiItems.length + '문제를 만들었어요. 마음에 드는 문제만 골라 넣어요.';
+    } catch (err) {
+      if (!$('aiMsg') || (err && err.name === 'AbortError')) return;
+      $('aiMsg').textContent = err && err.code === 'rate_limited' ? 'AI 무료 사용량이 잠깐 다 찼어요. 1분쯤 뒤에 다시 눌러 주세요.' : 'AI가 문제를 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.';
+    } finally { if ($('aiGo')) $('aiGo').disabled = false; }
+  };
+  $('aiGo').addEventListener('click', make);
+  $('aiAgain').addEventListener('click', make);
+  $('aiPut').addEventListener('click', () => {
+    const pick = [...document.querySelectorAll('#aiOut [data-ai]')].filter((c) => c.checked).map((c) => aiItems[+c.dataset.ai]);
+    if (!pick.length) { $('aiMsg').textContent = '넣을 문제를 하나 이상 골라 주세요.'; return; }
+    const items = pick.map((x) => (k === 'ox' ? { q: x.q, a: x.a, why: x.why || '' } : { q: x.q, o: x.o, a: x.a }));
+    if (aiAbort) aiAbort.abort();
+    putQuizItems(k, items, 'AI가 만든');
+  });
 }
 async function sendQuiz() {
   const k = L.qkind, q = $('qzQ').value.trim(); if (!q) { $('qzQ').focus(); return; }
