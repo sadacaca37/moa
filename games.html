@@ -45,7 +45,14 @@ textarea{width:100%;min-height:84px;resize:vertical;font-size:15px}
 .pick .duo{position:relative;width:38px;height:38px;flex:none}.pick .duo img{position:absolute;left:0;top:0;width:26px;height:26px}.pick .duo img+img{left:auto;top:auto;right:0;bottom:0}
 .pick small{display:block;font:500 12px/1.2 var(--f-b);color:#4b5466}
 .pick[aria-pressed=true]{background:var(--yellow);transform:translate(2px,2px);box-shadow:1px 1px 0 var(--edge)}
-.game{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:18px;padding-top:18px;padding-bottom:40px;align-items:start}
+.game{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:12px;padding-top:10px;padding-bottom:24px;align-items:start}
+main.wrap.game{max-width:none;padding-left:10px;padding-right:10px}
+main.game.noside{grid-template-columns:minmax(0,1fr)}main.game.noside .side{display:none}
+main.game:fullscreen{max-width:none;margin:0;padding:8px;height:100vh;overflow:auto;background:#bfe3ff;align-content:start}
+.camIn{margin:0 auto}
+.side .rule{font-size:13px;line-height:1.45}.side h2{font-size:24px}.side h3{font-size:16px}.side{padding:12px;gap:8px}.side .set{font-size:14px}.side .note{font-size:12px}.side .set label{gap:6px}.side .set label>span,.side .set label{white-space:nowrap}.side .set select{min-width:0;max-width:62%;font-size:13px}
+.side ol.rank li{font-size:13px;padding:2px 4px}.side ol.rank li b{font-size:14px}
+.vbtns{display:flex;gap:6px;flex-wrap:wrap}.vbtns .btn{font-size:14px;min-height:36px;padding:5px 10px}
 .stage{padding:10px}
 .screen{position:relative;border:3px solid var(--edge);border-radius:0;overflow:hidden;background:#7fbf6a;touch-action:none}
 #cv{display:block;position:sticky;left:0;top:0;width:100%;height:auto;image-rendering:auto;cursor:pointer}
@@ -123,7 +130,7 @@ ol.rank li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
 .result ol li{display:flex;justify-content:space-between;gap:10px;padding:4px 8px;border-radius:0;background:var(--panel2)}
 .result ol li>b,.result ol li>span:last-child{white-space:nowrap;flex:none}
 .loading{padding:40px;text-align:center;font:400 22px var(--f-t)}
-@media (max-width:960px){.game{grid-template-columns:minmax(0,1fr)}ol.rank{max-height:none}}
+@media (max-width:960px){.game{grid-template-columns:minmax(0,1fr)}ol.rank{max-height:none}main.game:fullscreen{grid-template-columns:minmax(0,1fr) 220px}}
 @media (max-width:600px){.pick{padding:4px 10px 4px 4px;font-size:16px}.pick img{width:30px;height:30px}.me canvas{width:52px;height:52px}.opts{grid-template-columns:minmax(0,1fr)}}
 .snd[aria-pressed=false]{background:#e8e8e8;color:#666}
 .emo{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
@@ -220,6 +227,7 @@ ol.rank li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
         <button class="btn" type="button" data-k="right" aria-label="오른쪽">→</button>
       </div>
       <p class="how" id="how">방향키나 W·A·S·D로 움직여요. 맵을 누르면 그쪽으로 걸어가요.</p>
+      <div class="vbtns"><button class="btn" type="button" id="fsBtn" aria-pressed="false">⛶ 전체 화면</button><button class="btn" type="button" id="sideBtn" aria-pressed="false">진행판 숨기기</button></div>
       <button class="btn y" type="button" id="actBtn">행동</button>
     </div>
     <div class="emo" id="emo" aria-label="응원 말풍선"></div>
@@ -2011,15 +2019,20 @@ function fitCanvas() {
   if (!V || !M) return;
   const ws = M.ws || 1, vw = V[2] - V[0], vh = V[3] - V[1];
   cam.classList.toggle('big', ws > 1);
-  const box = cam.clientWidth || 800;
-  VS = box / (vw / ws);                                      // 1배 맵일 때와 같은 크기로 보이게
-  const fullH = vh * VS, baseH = fullH / ws;
-  const h = ws > 1 ? Math.round(Math.min(fullH, Math.max(baseH, Math.min(baseH * 1.4, innerHeight * 0.82)))) : Math.round(fullH);
-  camIn.style.width = Math.round(vw * VS) + 'px'; camIn.style.height = Math.round(fullH) + 'px';
-  cv.style.width = box + 'px'; cv.style.height = h + 'px';
+  const box = cam.clientWidth || 800, avail = Math.max(260, innerHeight - (document.fullscreenElement ? 40 : 60)); // 창 높이에 가득
+  let w, h;
+  if (ws > 1) { // 넓은 맵: 1배 맵을 상자 너비에 맞춘 크기(캐릭터가 너무 커지지 않게 최대 1.1배)로, 나머지는 스크롤
+    VS = Math.min(box / (vw / ws), 1.1);
+    w = box; h = Math.round(Math.min(vh * VS, avail));
+  } else { // 보통 맵: 맵 전체가 상자 안에 들어오게
+    VS = Math.min(box / vw, avail / vh);
+    w = Math.round(vw * VS); h = Math.round(vh * VS);
+  }
+  camIn.style.width = Math.round(vw * VS) + 'px'; camIn.style.height = Math.round(vh * VS) + 'px';
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
   cam.style.height = h + 'px'; cam.style.height = (h + Math.max(0, cam.offsetHeight - cam.clientHeight)) + 'px'; // 가로 스크롤 막대만큼 더
   RES = clamp(devicePixelRatio || 1, 1, 2);
-  const bw = Math.round(box * RES), bh = Math.round(h * RES);
+  const bw = Math.round(w * RES), bh = Math.round(h * RES);
   if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
 }
 function camTo(x, y) { // 상자 가운데에 이 자리가 오게
@@ -2039,7 +2052,14 @@ function follow(dt) { // 내가 움직이면 화면이 나를 따라가요 (구�
   const sx = Math.trunc(camAcc[0]), sy = Math.trunc(camAcc[1]);
   if (sx || sy) { cam.scrollLeft += sx; cam.scrollTop += sy; camAcc[0] -= sx; camAcc[1] -= sy; }
 }
-addEventListener('resize', () => { if (G) { const x = camX() + cam.clientWidth / 2 / VS, y = camY() + cam.clientHeight / 2 / VS + 48; fitCanvas(); camTo(x, y); } });
+function refit() { if (G) { const x = camX() + cam.clientWidth / 2 / VS, y = camY() + cam.clientHeight / 2 / VS + 48; fitCanvas(); camTo(x, y); } }
+addEventListener('resize', refit);
+// 전체 화면 · 진행판 숨기기
+const gameMain = $('main.game');
+if (!document.fullscreenEnabled || !gameMain.requestFullscreen) $('#fsBtn').hidden = true;
+$('#fsBtn').addEventListener('click', () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); else gameMain.requestFullscreen().catch(() => toast('이 기기에서는 전체 화면을 쓸 수 없어요')); });
+document.addEventListener('fullscreenchange', () => { const on = !!document.fullscreenElement; $('#fsBtn').textContent = on ? '⛶ 전체 화면 끝' : '⛶ 전체 화면'; $('#fsBtn').setAttribute('aria-pressed', String(on)); setTimeout(refit, 60); cv.focus({ preventScroll: true }); });
+$('#sideBtn').addEventListener('click', () => { const on = gameMain.classList.toggle('noside'); $('#sideBtn').textContent = on ? '진행판 보이기' : '진행판 숨기기'; $('#sideBtn').setAttribute('aria-pressed', String(on)); refit(); });
 
 /* ---------- 시작 ---------- */
 let USER = null, sentRun = false;
