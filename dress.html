@@ -56,7 +56,7 @@
     <div class="pf">
       <div class="tabs" id="tabs" role="tablist" aria-label="옷 종류"></div>
       <div class="items" id="items" role="radiogroup"></div>
-      <div class="colors" id="colors"><b class="hd">색 고르기</b><div class="sws" id="sws" role="radiogroup" aria-label="색 고르기"></div></div>
+      <div class="colors" id="colors"><b class="hd" id="colorTitle">색 고르기</b><div class="sws" id="sws" role="radiogroup" aria-label="색 고르기"></div></div>
     </div>
   </section>
 </main>
@@ -111,14 +111,16 @@ function renderCloset() {
     if (cat.id === 'hat') bare.hair = 'hair_short';
     cat.items.forEach(([id, label]) => { if (have(id)) add(label, id, Object.assign({}, bare, { [cat.id]: id, [cat.id + 'Color']: me[cat.id + 'Color'] })); });
   }
-  const list = cat.skin ? null : cat.colors;
-  $('colors').hidden = !list || !me[cat.id];
+  // 피부·눈 탭의 색 줄 = 눈동자 색
+  const list = cat.skin ? A.EYE : cat.colors, ck = cat.skin ? 'eyeColor' : cat.id + 'Color', plain = cat.skin || cat.id === 'hair';
+  $('colors').hidden = !list || (!cat.skin && !me[cat.id]);
+  $('colorTitle').textContent = cat.skin ? '눈동자 색' : '색 고르기'; $('sws').setAttribute('aria-label', $('colorTitle').textContent);
   $('sws').innerHTML = '';
   if (list) list.forEach((cl) => {
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'sw' + (cl.k === 'orig' && cat.id !== 'hair' ? ' orig' : ''); b.setAttribute('role', 'radio'); b.setAttribute('aria-label', cl.name); b.title = cl.name;
-    if (!(cl.k === 'orig' && cat.id !== 'hair')) b.style.background = cl.c;
-    b.setAttribute('aria-checked', String(me[cat.id + 'Color'] === cl.k));
-    b.addEventListener('click', () => { me[cat.id + 'Color'] = cl.k; changed(); });
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'sw' + (cl.k === 'orig' && !plain ? ' orig' : ''); b.setAttribute('role', 'radio'); b.setAttribute('aria-label', cl.name); b.title = cl.name;
+    if (!(cl.k === 'orig' && !plain)) b.style.background = cl.c;
+    b.setAttribute('aria-checked', String((me[ck] || 'orig') === cl.k));
+    b.addEventListener('click', () => { me[ck] = cl.k; changed(); });
     $('sws').append(b);
   });
 }
