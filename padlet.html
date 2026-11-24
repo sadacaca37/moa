@@ -110,7 +110,46 @@ main.wide{max-width:none;padding-inline:0}
 .mi{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:0 10px;border:2px solid var(--ink);background:#fff;color:var(--ink);font:700 14px 'Noto Sans KR',sans-serif;text-decoration:none;text-align:left;cursor:pointer}
 .mi:hover{background:#FFF1B8}
 .mi.del{background:#FFE4DE}.mi.del:hover{background:#FFC9BE}
-.bframe{display:block;width:100%;height:calc(100vh - 200px);min-height:560px;border:0;border-top:4px solid var(--ink);margin-top:12px;background:transparent}
+.bframe{display:block;width:100%;height:calc(100vh - 112px);min-height:520px;border:0;background:transparent}
+/* 패들렛 판 머리 띠: 패들렛처럼 얇은 한 줄, 버튼은 오른쪽 한곳에 */
+header.compact{padding:6px max(2vw,12px);gap:6px 10px;background:rgba(255,255,255,.94);border-bottom:1px solid rgba(16,24,40,.12);box-shadow:0 1px 6px rgba(16,24,40,.08)}
+header.compact .brands{gap:4px}
+header.compact .brand-word,header.compact .brands>span:not(.brand){display:none}
+header.compact .brand-icon{width:34px;height:34px}
+header.compact .bar{display:none}
+header.compact .htxt{min-width:160px;gap:0}
+header.compact .htxt small{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#6B7085}
+header.compact .htxt .dot{width:10px;height:10px;border-radius:3px;flex:none}
+.hb{min-height:38px;padding:0 12px;border:1px solid #CDD2DC;border-radius:10px;background:#fff;color:#1D2030;font:700 14px 'Noto Sans KR',sans-serif;cursor:pointer;white-space:nowrap}
+.hb:hover{background:#F2F4F7}
+.hb[aria-expanded=true]{background:#1D2030;color:#fff;border-color:#1D2030}
+.hb.on{background:#DDF7E3;border-color:#3FB66B;color:#14532D}
+.hb.go{background:var(--blue);border-color:var(--blue);color:#fff}
+.hb.go:hover{filter:brightness(1.08)}
+.hb.back{width:38px;padding:0;font-size:15px}
+.hright{margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px}
+header.compact .save{border:0;background:none;color:#3FB66B;padding:0 4px;font-size:12px}
+header.compact .save.busy{color:#B7791F}header.compact .save.bad{background:#FF6B4A;color:#fff;border-radius:6px;padding:2px 8px}
+.bpw{position:relative;min-width:0}
+.bpick{display:flex;align-items:center;gap:6px;max-width:100%;padding:0 6px 0 0;border:0;background:none;color:#1D2030;font:800 21px/1.25 'Noto Sans KR',sans-serif;cursor:pointer;text-align:left}
+.bpick span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bpick i{font-style:normal;font-size:13px;color:#6B7085}
+.bpick:hover span{text-decoration:underline}
+.bpm{position:absolute;left:0;top:calc(100% + 6px);z-index:8;width:min(90vw,300px);padding:8px;display:flex;flex-direction:column;gap:4px;background:#fff}
+.bpm .mi[aria-current=true]{background:#FFF3C4}
+header.compact .bset{margin-left:0}
+.bmsg{padding:8px max(2vw,12px) 0;display:flex;flex-direction:column;gap:6px}
+header.compact .bmenu.pf,header.compact .bpm.pf{border:0;border-radius:14px;box-shadow:0 12px 32px rgba(16,24,40,.22);padding:8px;gap:6px;background:#fff}
+header.compact .bmenu{top:calc(100% + 6px);max-height:calc(100vh - 120px);overflow-y:auto}
+header.compact .bminfo{padding:4px 8px 6px;border-bottom:1px solid #EEF0F4;font-weight:500}
+header.compact .bmg{gap:0}
+header.compact .bmg>b{padding:6px 8px 2px;font-size:11px;font-weight:700;color:#8A8FA3}
+header.compact .mi{min-height:40px;border:0;border-radius:8px;background:none;font:500 14px 'Noto Sans KR',sans-serif;color:#1D2030}
+header.compact .mi:hover,header.compact .mi:focus-visible{background:#F1F3F7}
+header.compact .mi.del{background:none;color:#C0362C}
+header.compact .mi.del:hover{background:#FDECEA}
+header.compact .bpm .mi[aria-current=true]{background:#FFF3C4;font-weight:700}
+@media (max-width:700px){header.compact .htxt{flex-basis:calc(100% - 140px)}.hright{width:100%}.bframe{height:calc(100vh - 160px)}}
 .nob{margin:24px max(3vw,16px);max-width:600px;background:var(--paper);padding:24px;display:flex;flex-direction:column;gap:14px}
 .nob h2{margin:0;font-size:24px}.nob p{margin:0;font-size:14px;line-height:1.7;color:#333A55}
 
@@ -359,6 +398,7 @@ function draw() {
   const ae = document.activeElement, keep = ae && ae.id === 'q' ? [ae.selectionStart, ae.selectionEnd] : null;
   const ready = (S.loaded.classes && S.loaded.boards) || S.slow;
   if (S.view === 'board' && !curClass() && ready) { S.view = 'home'; S.cid = null; S.bid = null; }
+  $('hdr').classList.toggle('compact', S.view === 'board');
   if (S.view === 'board') drawBoard(); else if (S.view === 'trash') drawTrash(ready); else drawHome(ready);
   drawStatus();
   if (keep && $('q')) { $('q').focus(); try { $('q').setSelectionRange(keep[0], keep[1]); } catch (e) {} }
@@ -426,23 +466,29 @@ function drawBoard() {
   if (S.wantBid && bs.find((b) => b.id === S.wantBid)) S.wantBid = null;
   watchParts();
   const b = curBoard();
-  $('hdr').innerHTML = logo + '<button class="btn" data-act="home">◀ 내 패들렛</button><div class="htxt"><small style="font-weight:700;display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:14px;height:14px;flex:none;background:' + esc(c.color) + ';border:3px solid #1B1F3B"></span>' + esc(c.name) + (c.lib ? ' · 반을 골라 보내는 과제방' : ' · ' + esc(c.kind) + ' · 방번호 ' + esc(c.room)) + '</small><h1>' + esc(b ? b.title : c.name) + '</h1></div><span class="save"></span><div class="hbtns">' + fileBtn('패들렛에서 가져오기', 'yel') + '</div>';
-  // 한 줄: 패들렛 탭 + (학생에게 보이기) + ⚙ 설정 (누르면 나머지 기능이 펼쳐짐)
-  let h = '<div class="bbar"><div class="tabs" style="--c:' + esc(c.color) + '"><span class="lbl">이 클래스의 패들렛 ' + bs.length + '개</span>' + bs.map((x) => '<button class="tab" data-act="tab" data-id="' + esc(x.id) + '" aria-pressed="' + (b && x.id === b.id) + '" style="--c:' + esc(c.color) + '">' + esc(x.title) + '</button>').join('') + '<button class="mini" data-act="newboard">+ 빈 패들렛</button></div><div class="bset">';
+  // 패들렛처럼 한 줄 머리 띠: 왼쪽 ◀·반 이름·패들렛 이름(▾ 누르면 이 반 패들렛 고르기), 오른쪽 한곳에 버튼 모두
+  const F = b ? FORMATS.find((f) => f[0] === layoutOf(b)) || FORMATS[1] : null, nT = trashed().length;
+  const pick = '<div class="bpw"><button type="button" class="bpick" data-act="pick" aria-expanded="' + !!S.pick + '" aria-haspopup="true" title="이 반 패들렛 고르기"><span>' + esc(b ? b.title : c.name) + '</span><i aria-hidden="true">▾</i></button>' +
+    (S.pick ? '<div class="bpm pf" role="menu">' + bs.map((x) => '<button type="button" class="mi" role="menuitem" data-act="tab" data-id="' + esc(x.id) + '" aria-current="' + (b && x.id === b.id) + '">' + (b && x.id === b.id ? '✓ ' : '') + esc(x.title) + '</button>').join('') + '<button type="button" class="mi" role="menuitem" data-act="newboard">＋ 빈 패들렛 만들기</button></div>' : '') + '</div>';
+  let right = '<span class="save"></span>';
   if (b) {
-    const F = FORMATS.find((f) => f[0] === layoutOf(b)), nT = trashed().length;
-    h += (c.lib ? '' : '<button class="mini setbtn" data-act="pubboard" aria-pressed="' + !!b.public + '" style="' + (b.public ? 'background:#7CFF8A' : '') + '">' + (b.public ? '✓ 학생에게 보여요' : '학생에게 보이기') + '</button>') +
-      '<button class="mini setbtn" data-act="menu" aria-expanded="' + !!S.menu + '" aria-controls="bmenu">⚙ 설정 ' + (S.menu ? '▴' : '▾') + '</button>';
-    if (S.menu) {
-      h += '<div class="bmenu pf" id="bmenu"><p class="bminfo">' + esc(b.from || '') + ' · ' + md(b.date) + ' · ' + F[2] + ' ' + F[1] + ' 형식 · 글 ' + ((b.postCount || 0) + S.live.length) + '개 · 댓글 ' + S.cmts.length + '개</p>' +
-        '<div class="bmg"><b>보기</b><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '" target="_blank" rel="noopener" data-menu>↗ 새 창으로 크게 보기</a><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '&preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '') + '" target="_blank" rel="noopener" data-menu>👀 학생 화면으로 보기</a></div>' +
+    right += '<button type="button" class="hb" data-act="bfmt" title="형식 바꾸기">' + F[2] + ' 형식: ' + F[1] + '</button>' +
+      (c.lib ? '' : '<button type="button" class="hb' + (b.public ? ' on' : '') + '" data-act="pubboard" aria-pressed="' + !!b.public + '" title="학생 첫 화면에 보이기">' + (b.public ? '✓ 학생에게 보여요' : '👀 학생에게 보이기') + '</button>');
+  }
+  right += '<div class="bset"><button type="button" class="hb" data-act="menu" aria-expanded="' + !!S.menu + '" aria-controls="bmenu" title="설정">⚙ 설정</button>';
+  if (S.menu) {
+    right += '<div class="bmenu pf" id="bmenu">' + (b ? '<p class="bminfo">' + esc(b.from || '') + ' · ' + md(b.date) + ' · ' + F[2] + ' ' + F[1] + ' 형식 · 글 ' + ((b.postCount || 0) + S.live.length) + '개 · 댓글 ' + S.cmts.length + '개</p>' : '') +
+      '<div class="bmg"><b>패들렛</b><button class="mi" data-act="pickfile">📥 패들렛에서 가져오기 (CSV·엑셀)</button><button class="mi" data-act="newboard">＋ 빈 패들렛 만들기</button></div>' +
+      (b ? '<div class="bmg"><b>보기</b><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '" target="_blank" rel="noopener" data-menu>↗ 새 창으로 크게 보기</a><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '&preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '') + '" target="_blank" rel="noopener" data-menu>👀 학생 화면으로 보기</a></div>' +
         '<div class="bmg"><b>학생</b><button class="mi" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김 (누르면 열기)' : '✎ 학생 글쓰기 열림 (누르면 잠그기)') + '</button></div>' +
         '<div class="bmg"><b>보내기</b><button class="mi" data-act="deploy">🚀 여러 반에 보내기</button><button class="mi" data-act="copyboard">📋 다른 패들렛으로 복사</button>' + (c.lib ? '' : '<button class="mi" data-act="pinhome">🏠 첫 화면 링크에 올리기</button>') + '</div>' +
-        '<div class="bmg"><b>관리</b><button class="mi" data-act="renameboard">✏️ 이름 바꾸기</button><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button><button class="mi del" data-act="delboard">🗑 이 패들렛 삭제</button></div></div>';
-    }
-  } else h += '<button class="mini setbtn" data-act="trash">🗑 휴지통' + (trashed().length ? ' ' + trashed().length : '') + '</button>';
-  h += '</div></div>';
-  h += '<div style="padding:12px max(3vw,16px) 0;display:flex;flex-direction:column;gap:8px">' + msgHTML() + '</div>';
+        '<div class="bmg"><b>관리</b><button class="mi" data-act="renameboard">✏️ 이름 바꾸기</button><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button><button class="mi del" data-act="delboard">🗑 이 패들렛 삭제</button></div>'
+        : '<div class="bmg"><b>관리</b><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button></div>') + '</div>';
+  }
+  right += '</div>' + (b ? '<button type="button" class="hb go" data-act="bwrite">＋ 글 쓰기</button>' : '');
+  $('hdr').innerHTML = logo + '<button class="hb back" data-act="home" title="내 패들렛 목록으로" aria-label="내 패들렛 목록으로">◀</button><div class="htxt"><small><span class="dot" aria-hidden="true" style="background:' + esc(c.color) + '"></span>' + esc(c.name) + (c.lib ? ' · 반을 골라 보내는 과제방' : ' · ' + esc(c.kind) + ' · 방번호 ' + esc(c.room)) + '</small>' + pick + '</div><div class="hright">' + right + '</div>';
+  let h = '';
+  const msgs = msgHTML(); if (msgs) h += '<div class="bmsg">' + msgs + '</div>';
   if (!b) {
     h += '<section class="nob pf"><h2>아직 가져온 패들렛이 없어요</h2><p>패들렛 보드에서 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 뒤 아래 버튼으로 넣으면 이 클래스에 저장돼요. 여러 개를 넣으면 위에 탭으로 쌓여요. 빈 패들렛을 만들어 바로 써도 돼요.</p><div class="row">' + fileBtn('패들렛 파일 넣기', 'yel') + '<button class="btn" data-act="newboard">+ 빈 패들렛 만들기</button></div></section>';
   }
@@ -675,12 +721,21 @@ function route() {
   else if (S.view !== 'home') goHome(); else draw();
 }
 window.addEventListener('hashchange', route);
+// 머리 띠의 '형식'·'글 쓰기'는 안에 넣어 보이는 패들렛 판의 같은 단추를 눌러 줌 (창은 판 안에서 열림)
+function frameAct(btnId) {
+  const f = document.querySelector('.bframe'), d = f && f.contentDocument, b = d && d.getElementById(btnId);
+  if (b && f.contentWindow.document.readyState === 'complete' && d.getElementById('title').textContent !== '불러오는 중…') { b.click(); f.focus(); }
+  else { S.msg = '패들렛을 불러오는 중이에요. 잠시 뒤 다시 눌러 주세요.'; S.bad = false; draw(); }
+}
 
 document.addEventListener('click', (e) => {
   const t = e.target.closest('[data-act]'); if (!t) return;
   const a = t.dataset.act, id = t.dataset.id, si = +t.dataset.s || 0;
   if (a === 'ovclose') { if (e.target === t) closeDlg(); return; }
-  if (a === 'menu') { e.preventDefault(); S.menu = !S.menu; draw(); return; }
+  if (a === 'menu') { e.preventDefault(); S.menu = !S.menu; S.pick = false; draw(); return; }
+  if (a === 'pick') { e.preventDefault(); S.pick = !S.pick; S.menu = false; draw(); return; }
+  if (a === 'bfmt' || a === 'bwrite') { frameAct(a === 'bfmt' ? 'fmtBtn' : 'writeBtn'); return; }
+  if (S.pick && t.closest('.bpm')) S.pick = false;
   if (S.menu && t.closest('.bmenu')) { S.menu = false; setTimeout(draw, 0); } // 설정에서 하나 고르면 접힘
   if (t.tagName === 'A' && a !== 'home') return;
   e.preventDefault();
@@ -736,11 +791,16 @@ document.addEventListener('change', (e) => {
 document.addEventListener('input', (e) => {
   if (e.target.id === 'q') { S.q = e.target.value; const g = $('grid'); if (g) g.innerHTML = gridHTML(classes(), S.classes.length >= MAX_CLASSES); }
 });
-document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if ($('dlg').innerHTML) closeDlg(); else if (S.menu) { S.menu = false; draw(); } });
+document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if ($('dlg').innerHTML) closeDlg(); else if (S.menu || S.pick) { S.menu = false; S.pick = false; draw(); } });
 // 설정 밖을 누르거나(패들렛 판 안을 누르면 창 초점이 옮겨 감) 다른 곳으로 가면 설정을 접음
-document.addEventListener('click', (e) => { if (S.menu && !e.target.closest('.bset')) { S.menu = false; draw(); } });
+document.addEventListener('click', (e) => {
+  let ch = false;
+  if (S.menu && !e.target.closest('.bset')) { S.menu = false; ch = true; }
+  if (S.pick && !e.target.closest('.bpw')) { S.pick = false; ch = true; }
+  if (ch) draw();
+});
 document.addEventListener('click', (e) => { const m = e.target.closest('[data-menu]'); if (m && S.menu) { S.menu = false; setTimeout(draw, 0); } });
-window.addEventListener('blur', () => { if (S.menu) { S.menu = false; draw(); } });
+window.addEventListener('blur', () => { if (S.menu || S.pick) { S.menu = false; S.pick = false; draw(); } });
 
 draw();
 connect();
