@@ -15,10 +15,24 @@ img{max-width:100%}
 
 /* 선생님 화면(진행판·내 패들렛): 꽃밭 그림 없이 깔끔한 바탕 */
 body.tpage{background:#EEF2F7}
+/* 모아팡 공통 장면: 첫 화면과 같은 하늘·풀밭 배경, 땅 위를 걷는 친구들, 땅 띠, 오른쪽 아래 만든 사람 (js/scene.js가 붙임) */
+body.scene{background:#1897FA url(../assets/bg-low.webp) center top/cover no-repeat fixed}
+body.scene::after{content:'';display:block;height:150px}
+body.embed{background:transparent}
+body.embed::after{display:none}
+.walkers{position:fixed;left:0;right:0;bottom:34px;height:104px;z-index:0;pointer-events:none;overflow:hidden}
+.walkers span{position:absolute;left:0;bottom:-2px;height:100px;background-repeat:no-repeat;image-rendering:pixelated;will-change:transform}
+body.scene :is(main,.head,.cols,.lockbar,header.top){position:relative;z-index:1}
+footer.mfoot{position:fixed;right:20px;bottom:8px;z-index:2;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:4px 10px;margin:0;padding:5px 14px;font-size:13px;font-weight:700;color:rgba(255,255,255,.72);text-shadow:0 1px 2px rgba(0,0,0,.35);background:rgba(255,255,255,.16);border:2px solid rgba(255,255,255,.32);border-radius:12px;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+footer.mfoot a{color:rgba(255,255,255,.72);text-decoration:none}
+footer.mfoot a:hover{color:#fff;text-decoration:underline}
+footer.mfoot .studio{letter-spacing:.08em}
+@media (max-width:700px){.walkers{display:none}footer.mfoot{position:static;justify-content:center;width:fit-content;max-width:calc(100% - 32px);margin:0 auto 50px}body.scene::after{height:40px}}
 body.tpage .ground{display:none}
 body.tpage footer{color:var(--sub);text-shadow:none;background:rgba(255,255,255,.75);border-color:rgba(27,31,59,.15);-webkit-backdrop-filter:none;backdrop-filter:none}
 body.tpage footer a{color:var(--sub)}body.tpage footer a:hover{color:var(--ink)}
 .ttl{font-size:30px;color:var(--ink)}
+body.scene .ttl{color:#fff;text-shadow:3px 3px 0 var(--ink)}
 
 /* 상자 */
 .pf{background:var(--paper);border:4px solid var(--ink);box-shadow:inset -4px -4px 0 #E2D6B8,inset 4px 4px 0 #fff,6px 6px 0 var(--ink)}
@@ -58,6 +72,7 @@ label.lb{display:flex;flex-direction:column;gap:6px;font:700 15px/1.3 'Noto Sans
 
 /* 땅 띠 */
 .ground{position:fixed;left:0;right:0;bottom:0;height:34px;border-top:4px solid var(--ink);z-index:0;pointer-events:none;background:repeating-linear-gradient(90deg,rgba(0,0,0,.22) 0 4px,transparent 4px 64px),conic-gradient(#6E4320 25%,transparent 0 50%,#A06B38 0 75%,transparent 0) 0 0/16px 16px,#87552A}
+.ground::after{content:'';position:absolute;left:0;right:0;top:14px;height:8px;background:repeating-linear-gradient(90deg,#4FAE2F 0 8px,transparent 8px 24px,#3F9A24 24px 32px,#4FAE2F 32px 40px,transparent 40px 56px,#3F9A24 56px 64px)}
 .ground::before{content:'';position:absolute;left:0;right:0;top:0;height:14px;background:repeating-linear-gradient(90deg,#62C23C 0 8px,#4FAE2F 8px 16px,#72D04A 16px 24px,#58B838 24px 32px,#4CA82C 32px 40px,#68C842 40px 48px)}
 
 /* 모달 */

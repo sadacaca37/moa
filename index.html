@@ -10,10 +10,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/moa.css">
+<script src="js/scene.js" defer></script>
 <style>
 /* VOICE: 아이들이 매 시간 처음 보는 문 — 방번호만 누르면 바로 들어가는 게임 시작 화면
    LAYOUT: 왼쪽 위 '타자팡 ✦ 모아팡' 로고(타자팡 화면과 같음), 왼쪽 반 입장(이어하기 · 방번호 · 이름), 오른쪽 링크 게시판 + 그 아래 내 패들렛 바로가기, 오른쪽 아래 제작자 */
-body{background:#1897FA url(assets/bg-low.webp) center top/cover no-repeat fixed}
 .dot,.dot *,.dot #room,.dot #nm{font-family:'Galmuri11','Noto Sans KR',monospace!important;font-weight:700!important}
 main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(12px,3vw,24px) 70px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start}
 .left{flex:1 1 290px;max-width:360px;display:flex;flex-direction:column;gap:10px}
@@ -46,15 +46,7 @@ main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(
 .board h2{font-size:21px}
 .board.pad{padding:14px}
 .bhead{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
-footer{position:fixed;right:20px;bottom:8px;z-index:2;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:4px 10px;padding:5px 14px;font-size:13px;font-weight:700;color:rgba(255,255,255,.72);text-shadow:0 1px 2px rgba(0,0,0,.35);background:rgba(255,255,255,.16);border:2px solid rgba(255,255,255,.32);border-radius:12px;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
-footer a{color:rgba(255,255,255,.72);text-decoration:none}
-footer a:hover{color:#fff;text-decoration:underline}
-footer .studio{letter-spacing:.08em}
-.walkers{position:fixed;left:0;right:0;bottom:34px;height:104px;z-index:1;pointer-events:none;overflow:hidden}
-.walkers span{position:absolute;left:0;bottom:-2px;height:100px;background-repeat:no-repeat;image-rendering:pixelated;will-change:transform}
-@media (max-width:700px){.walkers{display:none}}
-.ground::after{content:'';position:absolute;left:0;right:0;top:14px;height:8px;background:repeating-linear-gradient(90deg,#4FAE2F 0 8px,transparent 8px 24px,#3F9A24 24px 32px,#4FAE2F 32px 40px,transparent 40px 56px,#3F9A24 56px 64px)}
-@media (max-width:700px){.left{max-width:none}footer{position:static;justify-content:center;width:fit-content;max-width:calc(100% - 32px);margin:0 auto 50px}}
+@media (max-width:700px){.left{max-width:none}}
 /* 내 패들렛 카드: 선생님만 오른쪽 위 🗑 (휴지통으로) */
 .lkw{position:relative;display:flex}
 .lkw .lk{flex:1}
@@ -299,32 +291,6 @@ async function loadPads() {
   }
 }
 
-/* ---------- 땅 위를 걷는 친구들 (공룡 옷 아이 · 분홍 머리 아이 · 갈색 옷 아이, 걷는 그림 30장) ---------- */
-(() => {
-  const H = 100, N = 30;
-  const kinds = [['dino', 90, 158], ['girl', 103, 163], ['boy', 79, 157]];
-  const box = $('walkers');
-  const list = kinds.map(([n, fw, fh], i) => {
-    const w = Math.round(fw * H / fh);
-    const el = document.createElement('span');
-    el.style.cssText = 'width:' + w + 'px;background-image:url(assets/walk/' + n + '.webp);background-size:' + (w * N) + 'px ' + H + 'px';
-    box.append(el);
-    return { el, w, x: innerWidth * (0.2 + 0.3 * i), v: (i % 2 ? -1 : 1) * (40 + i * 9), f: i * 7 };
-  });
-  let last = performance.now(), t = 0;
-  (function step(now) {
-    const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt;
-    const W = innerWidth;
-    for (const a of list) {
-      a.x += a.v * dt;
-      if (a.x > W - a.w - 10) a.v = -Math.abs(a.v);
-      if (a.x < 10) a.v = Math.abs(a.v);
-      a.el.style.transform = 'translateX(' + a.x.toFixed(1) + 'px)' + (a.v < 0 ? ' scaleX(-1)' : '');
-      a.el.style.backgroundPosition = (-((Math.floor(t / 0.1) + a.f) % N) * a.w) + 'px 0';
-    }
-    requestAnimationFrame(step);
-  })(last);
-})();
 </script>
 </body>
 </html>

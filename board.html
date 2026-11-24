@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/moa.css">
+<script src="js/scene.js" defer></script>
 <style>
 /* VOICE: 선생님이 만든 패들렛에 반 친구들이 함께 글·사진·파일·댓글·이모티콘을 올리는 화면
    형식 6가지: 담벼락(벽돌) · 칸(섹션 세로줄) · 격자 · 스트림(한 줄) · 타임라인(가로 선) · 캔버스(메모를 옮기고 선으로 잇기)
@@ -189,7 +190,7 @@ const NAME_KEY = 'moa_board_name';
 const Q = new URLSearchParams(location.search);
 const bid = Q.get('b');
 const EMBED = Q.get('embed') === '1';
-if (EMBED) document.body.classList.add('tpage', 'embed');
+if (EMBED) document.body.classList.add('embed');
 const CW = 3200, CH = 2400; // 캔버스 크기
 $('back').addEventListener('click', () => { if (history.length > 1 && document.referrer) history.back(); else location.href = getSession() ? 'class.html' : './'; });
 const S = { user: null, teacher: false, board: null, parts: [], live: [], cmts: [], reacts: [], pos: {}, links: [], liveErr: false, open: new Set(), pic: '', sec: 0, busy: false, edit: null, newFiles: [], keepFiles: [], color: '', at: null, linkFrom: null, drag: null, dirty: false, noClick: 0, fmt: 'columns' };

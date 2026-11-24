@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="css/moa.css">
+<script src="js/scene.js" defer></script>
 <style>
 /* VOICE: 밝은 도트 게임 화면 — 선생님 혼자 쓰는 수업 자료 창고
    IDEA: 게임 대화창처럼 굵은 남색 테두리 상자, 제미나이 꽃밭 하늘 배경
@@ -109,7 +110,7 @@ main.wide{max-width:none;padding-inline:0}
 .mi{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:0 10px;border:2px solid var(--ink);background:#fff;color:var(--ink);font:700 14px 'Noto Sans KR',sans-serif;text-decoration:none;text-align:left;cursor:pointer}
 .mi:hover{background:#FFF1B8}
 .mi.del{background:#FFE4DE}.mi.del:hover{background:#FFC9BE}
-.bframe{display:block;width:100%;height:calc(100vh - 200px);min-height:560px;border:0;border-top:4px solid var(--ink);margin-top:12px;background:#EEF2F7}
+.bframe{display:block;width:100%;height:calc(100vh - 200px);min-height:560px;border:0;border-top:4px solid var(--ink);margin-top:12px;background:transparent}
 .nob{margin:24px max(3vw,16px);max-width:600px;background:var(--paper);padding:24px;display:flex;flex-direction:column;gap:14px}
 .nob h2{margin:0;font-size:24px}.nob p{margin:0;font-size:14px;line-height:1.7;color:#333A55}
 
@@ -124,10 +125,6 @@ main.wide{max-width:none;padding-inline:0}
 .sw button[aria-pressed=true]{outline:4px solid var(--ink);outline-offset:2px}
 .seg{display:flex;gap:8px}
 .row{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
-footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:4px 10px;width:fit-content;max-width:calc(100% - 32px);margin:10px max(3vw,16px) 16px auto;padding:5px 14px;font-size:13px;font-weight:700;color:rgba(255,255,255,.72);text-shadow:0 1px 2px rgba(0,0,0,.35);background:rgba(255,255,255,.16);border:2px solid rgba(255,255,255,.32);border-radius:12px;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
-footer a{color:rgba(255,255,255,.72);text-decoration:none}
-footer a:hover{color:#fff;text-decoration:underline}
-footer .studio{letter-spacing:.08em}
 @media (max-width:600px){header{position:static}.find{margin-left:0;width:100%}.find input{flex:1;width:auto}.htxt{min-width:100%}.sec{width:82vw}}
 @media (prefers-reduced-motion:reduce){.moa{animation:none}.card:hover{transform:none}}
 /* 휴지통 */
@@ -143,7 +140,7 @@ footer .studio{letter-spacing:.08em}
 .mini.del:hover{background:#FF6B4A;color:#fff}
 </style>
 </head>
-<body class="tpage">
+<body>
 <div class="moa-strip" role="note"><span class="sp" aria-hidden="true">✨</span><span class="moa-strip-chip">🍀 모아팡 랜드</span><span class="moa-strip-text">• 우리 반 친구들과 함께 모여 배우고 노는 신나는 놀이터! 💚</span><span class="sp" aria-hidden="true">✨</span></div>
 <header id="hdr"></header>
 <main id="main"><p class="note">불러오는 중…</p></main>
