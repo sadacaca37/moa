@@ -33,3 +33,7 @@ html.embed .moa-strip{display:none}
 .pv-bar b{color:#C8F171;font:400 17px/1.2 'Jua','Noto Sans KR',sans-serif}
 .pv-back{display:inline-flex;align-items:center;min-height:36px;padding:3px 12px;background:#C8F171;color:#1B1F3B;border:3px solid #fff;text-decoration:none;font:400 16px/1 'Jua','Noto Sans KR',sans-serif;white-space:nowrap}
 .pv-back:hover{background:#fff}
+
+/* 깔끔한 모양 (2026-11-25): 위 띠는 줄무늬·굵은 선 없이 얇게 */
+.moa-strip{background:linear-gradient(90deg,#D9F5B0,#C8EE8E);border-bottom:0;box-shadow:0 1px 4px rgba(16,24,40,.12)}
+.moa-strip-chip{border-radius:999px}

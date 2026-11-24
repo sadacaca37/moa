@@ -299,25 +299,25 @@ function injectCSS() {
   const s = document.createElement('style');
   s.textContent = `
 .pk-files{display:flex;flex-direction:column;gap:6px}
-.pk-file{display:flex;align-items:center;gap:6px;padding:4px 4px 4px 8px;background:#F4F0E4;border:3px solid #1B1F3B}
+.pk-file{display:flex;align-items:center;gap:6px;padding:4px 4px 4px 8px;background:#F4F0E4;border:1px solid #D5DAE3;border-radius:12px}
 .pk-fi{font-size:22px;line-height:1;flex:none}
 .pk-fn{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.3}
 .pk-fn b{font:700 13px/1.35 'Noto Sans KR',sans-serif;overflow-wrap:anywhere;color:#1B1F3B}
 .pk-fn small{font:500 11px 'Noto Sans KR',sans-serif;color:#4B4F6B}
-.pk-fb{min-height:36px;padding:0 8px;border:2px solid #1B1F3B;background:#fff;color:#1B1F3B;font:700 12px 'Noto Sans KR',sans-serif;cursor:pointer;flex:none}
+.pk-fb{min-height:36px;padding:0 8px;border:1px solid #D5DAE3;border-radius:8px;background:#fff;color:#1B1F3B;font:700 12px 'Noto Sans KR',sans-serif;cursor:pointer;flex:none}
 .pk-fb:hover{background:#FFF1B8}
 .pk-fb:disabled{opacity:.7;cursor:wait}
 .pk-rx{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
-.pk-r{min-height:34px;padding:0 9px;border:2px solid #1B1F3B;border-radius:999px;background:#fff;color:#1B1F3B;font:400 16px/1 'Noto Sans KR',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.pk-r{min-height:34px;padding:0 9px;border:1px solid #D5DAE3;border-radius:8px;border-radius:999px;background:#fff;color:#1B1F3B;font:400 16px/1 'Noto Sans KR',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
 .pk-r b{font:700 12px 'Noto Sans KR',sans-serif}
 .pk-r.on{background:#FFE9A8;border-color:#C2410C;box-shadow:inset 0 0 0 1px #C2410C}
 .pk-r.add{font-size:15px;color:#4B4F6B;border-style:dashed}
 .pk-r.add span{font:700 13px 'Noto Sans KR',sans-serif}
 .pk-r:disabled{cursor:default}
 .pk-r:not(:disabled):hover{background:#FFF6D6}
-.pk-eb{flex:none;min-width:38px;min-height:38px;border:3px solid #1B1F3B;background:#fff;font-size:18px;cursor:pointer;padding:0}
+.pk-eb{flex:none;min-width:38px;min-height:38px;border:1px solid #D5DAE3;border-radius:12px;background:#fff;font-size:18px;cursor:pointer;padding:0}
 .pk-eb:hover{background:#FFF1B8}
-.pk-pal{display:flex;flex-wrap:wrap;gap:2px;padding:6px;background:#fff;border:3px solid #1B1F3B;box-shadow:3px 3px 0 #1B1F3B}
+.pk-pal{display:flex;flex-wrap:wrap;gap:2px;padding:6px;background:#fff;border:1px solid #D5DAE3;border-radius:12px;box-shadow:0 2px 10px rgba(16,24,40,.12)}
 .pk-pal button{width:38px;height:38px;border:0;border-radius:8px;background:transparent;font-size:21px;line-height:1;cursor:pointer;padding:0}
 .pk-pal button:hover,.pk-pal button[aria-pressed=true]{background:#FFF1B8}
 .pk-pal .pk-more{width:auto;display:inline-flex;align-items:center;gap:3px;padding:0 8px 0 4px;border:2px dashed #1B1F3B;font:700 12px 'Noto Sans KR',sans-serif;color:#1B1F3B}
@@ -327,7 +327,7 @@ function injectCSS() {
 .pk-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .pk-top b{flex:1;min-width:140px;font:700 15px/1.4 'Noto Sans KR',sans-serif;overflow-wrap:anywhere}
 .pk-top small{font-weight:500;color:#4B4F6B}
-.pk-body{flex:1;min-height:120px;overflow:auto;display:flex;justify-content:center;align-items:center;background:#F4F0E4;border:3px solid #1B1F3B}
+.pk-body{flex:1;min-height:120px;overflow:auto;display:flex;justify-content:center;align-items:center;background:#F4F0E4;border:1px solid #D5DAE3;border-radius:12px}
 .pk-body img,.pk-body video{max-width:100%;max-height:80vh;display:block}
 .pk-body iframe{width:100%;height:80vh;border:0;background:#fff}
 .pk-body audio{width:min(100%,520px);margin:30px}

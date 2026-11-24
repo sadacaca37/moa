@@ -16,35 +16,35 @@
 .menu{display:flex;flex-wrap:wrap;gap:8px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
 .ccard{display:flex;flex-direction:column;background:#fff}
-.ccard .band{height:54px;border-bottom:4px solid var(--ink);display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:8px}
-.ccard .band b{font:400 16px/1 'Jua',sans-serif;background:#fff;border:3px solid var(--ink);padding:4px 8px}
+.ccard .band{height:54px;border-bottom:1px solid #E3E6EC;display:flex;align-items:center;justify-content:space-between;padding:0 12px;gap:8px}
+.ccard .band b{font:400 16px/1 'Jua',sans-serif;background:#fff;border:1px solid #D5DAE3;border-radius:12px;padding:4px 8px}
 .ccard .bd{padding:12px;display:flex;flex-direction:column;gap:8px}
 .ccard h3{font-size:22px;overflow-wrap:anywhere}
 .ccard .meta{font-size:14px;color:var(--sub);display:flex;flex-wrap:wrap;gap:4px 12px}
 .ccard .meta b{color:var(--ink)}
 .on{display:inline-flex;align-items:center;gap:6px;font-weight:700}
-.on i{width:10px;height:10px;background:#2fbf5b;border:2px solid var(--ink)}
-.add{min-height:200px;border:4px dashed var(--ink);background:rgba(255,255,255,.8);font:400 20px 'Jua',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.on i{width:10px;height:10px;background:#2fbf5b;border:1px solid #D5DAE3;border-radius:8px}
+.add{min-height:200px;border:2px dashed #B9BFCC;border-radius:12px;background:rgba(255,255,255,.8);font:400 20px 'Jua',sans-serif;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
 .add:disabled{opacity:.6;cursor:not-allowed}
 .live{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:start}
-.roomv{position:relative;box-sizing:border-box;width:min(100%,calc(58vh * 1280 / 715));aspect-ratio:1280/715;margin:10px auto 0;align-self:center;border:4px solid var(--ink);background:#1B1F3B;overflow:hidden}
+.roomv{position:relative;box-sizing:border-box;width:min(100%,calc(58vh * 1280 / 715));aspect-ratio:1280/715;margin:10px auto 0;align-self:center;border:1px solid #D5DAE3;border-radius:12px;background:#1B1F3B;overflow:hidden}
 .roomv iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .card{padding:16px;display:flex;flex-direction:column;gap:12px}
 .card h2{font-size:21px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.badge{font:700 13px/1 'Noto Sans KR',sans-serif;border:3px solid var(--ink);padding:5px 8px;background:#fff}
+.badge{font:700 13px/1 'Noto Sans KR',sans-serif;border:1px solid #D5DAE3;border-radius:12px;padding:5px 8px;background:#fff}
 .badge.go{background:var(--grn)}
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto}
-.list li{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#fff;border:2px solid var(--ink);font-size:15px;flex-wrap:wrap}
+.list li{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#fff;border:1px solid #D5DAE3;border-radius:8px;font-size:15px;flex-wrap:wrap}
 .list li .sp{flex:1}
 .list li canvas{width:40px;height:40px;image-rendering:pixelated;background:var(--paper2)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.chips span{border:2px solid var(--ink);background:#fff;padding:2px 8px;font-size:14px}
+.chips span{border:1px solid #D5DAE3;border-radius:8px;background:#fff;padding:2px 8px;font-size:14px}
 .bars{display:flex;flex-direction:column;gap:6px}
 .bars div{display:grid;grid-template-columns:120px 1fr 40px;gap:8px;align-items:center;font-size:15px}
-.bars i{display:block;height:20px;background:var(--blue);border:2px solid var(--ink);min-width:2px}
+.bars i{display:block;height:20px;background:var(--blue);border:1px solid #D5DAE3;border-radius:8px;min-width:2px}
 .bars .ok i{background:#2fbf5b}
-#chatLog{max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:4px;font-size:14px;background:#fff;border:2px solid var(--ink);padding:8px}
+#chatLog{max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:4px;font-size:14px;background:#fff;border:1px solid #D5DAE3;border-radius:8px;padding:8px}
 #chatLog p{margin:0;overflow-wrap:anywhere}
 .links li{align-items:flex-start}
 .links .tx{flex:1;min-width:160px;display:flex;flex-direction:column}
@@ -67,7 +67,7 @@ header.top .brand-icon{width:34px;height:34px}
 .menu .btn:active{transform:none;box-shadow:none}
 .menu .btn[aria-pressed=true]{background:#1D2030;border-color:#1D2030;color:#fff}
 .qr{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
-.qr svg{width:min(320px,70vw);height:auto;background:#fff;border:4px solid var(--ink)}
+.qr svg{width:min(320px,70vw);height:auto;background:#fff;border:1px solid #D5DAE3;border-radius:12px}
 .qr .code{font:700 44px/1 'Noto Sans KR',monospace;letter-spacing:.3em;background:var(--ink);color:var(--grn);padding:10px 14px 10px calc(14px + .3em)}
 .qr a{overflow-wrap:anywhere;font-weight:700}
 /* 들어오는 방법 크게 (TV·칠판 화면용): ① 주소창 글자 ② 방번호 ③ QR */

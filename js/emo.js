@@ -101,7 +101,7 @@ function ensureCSS() {
   st.textContent = `
 .mpemo{display:inline-block;flex:none;width:var(--s);height:var(--s);background:url("${EMO_SRC}") no-repeat;background-size:calc(var(--s)*10) calc(var(--s)*${EMO_ROWS});background-position:calc(var(--s)*var(--x)*-1) calc(var(--s)*var(--y)*-1);vertical-align:middle}
 .mpemo.in{margin:0 .05em;vertical-align:-.45em}
-.mpep{position:fixed;z-index:9999;width:min(372px,calc(100vw - 16px));background:#fff;border:3px solid #1b1f3b;box-shadow:4px 4px 0 rgba(27,31,59,.35);font-family:'Noto Sans KR',sans-serif}
+.mpep{position:fixed;z-index:9999;width:min(372px,calc(100vw - 16px));background:#fff;border:1px solid #D5DAE3;border-radius:12px;box-shadow:4px 4px 0 rgba(27,31,59,.35);font-family:'Noto Sans KR',sans-serif}
 .mpet{display:flex;overflow-x:auto;border-bottom:3px solid #1b1f3b;background:#f4f1e8}
 .mpet button{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 6px 3px;border:0;border-right:2px solid #e2ddd0;background:none;cursor:pointer;font:700 11px/1.1 'Noto Sans KR',sans-serif;color:#555}
 .mpet button[aria-selected=true]{background:#ffd23f;color:#1b1f3b}

@@ -15,7 +15,7 @@
 .bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between;padding:10px clamp(12px,3vw,24px)}
 .binfo{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .binfo h1{font-size:24px;color:#fff;text-shadow:3px 3px 0 var(--ink);margin-right:4px}
-.who{background:var(--paper);border:4px solid var(--ink);padding:4px 10px 4px 4px}
+.who{background:var(--paper);border:1px solid #D5DAE3;border-radius:12px;padding:4px 10px 4px 4px}
 .tabs{display:inline-flex;gap:4px;padding:4px;margin:0 0 14px;background:rgba(255,255,255,.92);border-radius:14px;box-shadow:0 1px 6px rgba(16,24,40,.14)}
 .tabs .btn{min-width:120px;min-height:40px;border:0;border-radius:10px;background:none;box-shadow:none;font:700 15px 'Noto Sans KR',sans-serif;color:#3B3F52;transform:none}
 .tabs .btn:hover{background:#F1F3F7;filter:none}
@@ -30,32 +30,32 @@
 .boardTab .dk-note{grid-column:1/-1;padding:18px;border-radius:12px;background:#F4F5F8;text-align:center}
 .notice{display:flex;gap:12px;align-items:center;padding:12px 16px;margin-bottom:14px;background:var(--yel);font:400 20px/1.35 'Jua',sans-serif}
 .notice .msc{height:54px}
-.strip{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;margin-bottom:14px;background:var(--ink);color:var(--grn);border:4px solid var(--ink);font:400 18px/1.3 'Jua',sans-serif}
+.strip{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;margin-bottom:14px;background:var(--ink);color:var(--grn);border:1px solid #D5DAE3;border-radius:12px;font:400 18px/1.3 'Jua',sans-serif}
 .room{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
 .mapbox{padding:0;overflow:hidden}
-.maphead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:4px solid var(--ink);background:#fff}
+.maphead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #E3E6EC;background:#fff}
 .maphead b{font:400 19px/1.2 'Jua',sans-serif}
 .screen{position:relative;background:#1B1F3B}
 #cv{display:block;width:100%;height:auto;touch-action:none;cursor:pointer}
 .hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(27,31,59,.85);color:#fff;font:700 14px/1.3 'Noto Sans KR',sans-serif;padding:6px 12px;border:2px solid #fff;pointer-events:none;white-space:nowrap}
-.pad{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border-top:4px solid var(--ink);background:var(--paper)}
+.pad{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 12px;border-top:1px solid #E3E6EC;background:var(--paper)}
 .keys{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,44px);gap:4px}
 .keys .btn{min-height:44px;padding:0;font-size:18px}
 .keys [data-k=up]{grid-column:2}.keys [data-k=left]{grid-column:1;grid-row:2}.keys [data-k=down]{grid-column:2;grid-row:2}.keys [data-k=right]{grid-column:3;grid-row:2}
 .side{display:flex;flex-direction:column;gap:14px}
 .chat{display:flex;flex-direction:column;height:430px}
-.chat h2,.people h2{font-size:19px;padding:10px 12px;border-bottom:4px solid var(--ink);background:#fff}
+.chat h2,.people h2{font-size:19px;padding:10px 12px;border-bottom:1px solid #E3E6EC;background:#fff}
 #log{flex:1;overflow:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:15px}
 #log p{margin:0;overflow-wrap:anywhere}#log b{margin-right:6px}#log .sys{color:var(--sub);font-size:13px}#log .mine b{color:var(--blue)}
-.chatf{display:flex;gap:6px;padding:8px;border-top:4px solid var(--ink);background:#fff}
+.chatf{display:flex;gap:6px;padding:8px;border-top:1px solid #E3E6EC;background:#fff}
 .chatf .field{padding:8px 10px;font-size:15px;border-width:3px}
 .chatf .btn{flex:none;white-space:nowrap}
 .chatf .emob{padding:0 4px;min-width:44px;display:flex;align-items:center;justify-content:center}
 #log .stk{display:block;margin-top:2px}
 .people ul{list-style:none;margin:0;padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow:auto}
-.people li{border:2px solid var(--ink);background:#fff;padding:2px 8px;font-size:14px}
+.people li{border:1px solid #D5DAE3;border-radius:8px;background:#fff;padding:2px 8px;font-size:14px}
 .people li.me{background:var(--yel)}
-.meter{height:12px;margin:0 12px 12px;border:3px solid var(--ink);background:#fff}
+.meter{height:12px;margin:0 12px 12px;border:1px solid #D5DAE3;border-radius:12px;background:#fff}
 .meter i{display:block;height:100%;background:var(--grn)}
 .boardTab h2{font-size:22px}
 .quiz{position:fixed;inset:0;z-index:60;background:rgba(27,31,59,.6);display:flex;align-items:center;justify-content:center;padding:16px}
@@ -69,7 +69,7 @@
 .opts .btn.wrong{background:#ffb4a8}
 .rankbox .rtitle{margin:0;font:400 34px/1.2 'Jua',sans-serif;text-align:center}
 .podium{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
-.podium li{display:flex;align-items:center;gap:12px;padding:8px 12px;background:#fff;border:3px solid var(--ink);font:400 22px/1.2 'Jua',sans-serif}
+.podium li{display:flex;align-items:center;gap:12px;padding:8px 12px;background:#fff;border:1px solid #D5DAE3;border-radius:12px;font:400 22px/1.2 'Jua',sans-serif}
 .podium li b{width:52px;text-align:center;font-size:26px;flex:none}
 .podium li span{flex:1;overflow-wrap:anywhere}
 .podium li small{font:700 15px 'Noto Sans KR',sans-serif;color:var(--sub);white-space:nowrap}
@@ -77,8 +77,8 @@
 .podium li.me{outline:4px solid var(--blue);outline-offset:2px}
 @media (prefers-reduced-motion:no-preference){.podium li{animation:rankIn .5s steps(4) both}}
 @keyframes rankIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.quiz .why{margin:0;padding:10px 12px;background:#FFF1C2;border:3px solid var(--ink);font:500 16px/1.6 'Noto Sans KR',sans-serif;overflow-wrap:anywhere}
-.res{font:400 22px/1.4 'Jua',sans-serif;text-align:center;padding:10px;border:4px solid var(--ink);background:#fff}
+.quiz .why{margin:0;padding:10px 12px;background:#FFF1C2;border:1px solid #D5DAE3;border-radius:12px;font:500 16px/1.6 'Noto Sans KR',sans-serif;overflow-wrap:anywhere}
+.res{font:400 22px/1.4 'Jua',sans-serif;text-align:center;padding:10px;border:1px solid #D5DAE3;border-radius:12px;background:#fff}
 @media (max-width:900px){.room{grid-template-columns:minmax(0,1fr)}.chat{height:340px}}
 /* 선생님 진행판에 넣은 교실 화면 (?teach=반&embed=1): 지도만 */
 html.embed body{background:#1B1F3B;min-height:0}
