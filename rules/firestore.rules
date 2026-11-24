@@ -109,9 +109,10 @@ service cloud.firestore {
       let b = get(/databases/$(database)/documents/boards/$(bid)).data;
       return b.get('public', false) == true && b.get('lock', false) != true;
     }
-    // 학생 글: 제목·내용·링크·사진(작게 줄인 그림, 750KB 아래) 중 하나는 있어야 함
-    function okPost(d) {
-      return d.keys().hasOnly(['sec', 'title', 'body', 'link', 'img', 'author', 'uid', 'at'])
+    // 학생 글: 제목·내용·링크·사진(작게 줄인 그림, 750KB 아래)·파일 중 하나는 있어야 함
+    //  files = 올린 파일 정보 목록(5개까지, 파일 내용은 files/ 아래), color = 카드 색
+    function okPostBody(d) {
+      return d.keys().hasOnly(['sec', 'title', 'body', 'link', 'img', 'author', 'uid', 'at', 'files', 'color'])
         && d.keys().hasAll(['sec', 'title', 'body', 'link', 'img', 'author', 'uid', 'at'])
         && d.sec is int && d.sec >= 0 && d.sec < 100
         && d.title is string && d.title.size() <= 80
@@ -119,16 +120,52 @@ service cloud.firestore {
         && d.link is string && d.link.size() <= 500
         && d.img is string && d.img.size() <= 750000
         && (d.img == '' || d.img.split(',')[0] in ['data:image/jpeg;base64', 'data:image/png;base64', 'data:image/webp;base64'])
-        && (d.title.size() + d.body.size() + d.link.size() + d.img.size()) > 0
+        && (!('files' in d) || (d.files is list && d.files.size() <= 5))
+        && (!('color' in d) || (d.color is string && d.color.size() <= 2))
+        && ((d.title.size() + d.body.size() + d.link.size() + d.img.size()) > 0 || ('files' in d && d.files.size() > 0))
         && d.author is string && d.author.size() > 0 && d.author.size() <= 20
-        && d.uid == request.auth.uid && d.at == request.time;
+        && d.uid == request.auth.uid;
     }
+    function okPost(d) { return okPostBody(d) && d.at == request.time; }
     function okComment(d) {
       return d.keys().hasOnly(['pid', 'body', 'author', 'uid', 'at'])
         && d.keys().hasAll(['pid', 'body', 'author', 'uid', 'at'])
         && d.pid is string && d.pid.size() > 0 && d.pid.size() <= 60
         && d.body is string && d.body.size() > 0 && d.body.size() <= 300
         && d.author is string && d.author.size() > 0 && d.author.size() <= 20
+        && d.uid == request.auth.uid && d.at == request.time;
+    }
+    // 올린 파일 정보 (한 파일 10MB 아래, 900KB 조각 12개까지)
+    function okFile(d) {
+      return d.keys().hasOnly(['name', 'type', 'size', 'n', 'uid', 'at'])
+        && d.keys().hasAll(['name', 'type', 'size', 'n', 'uid', 'at'])
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 120
+        && d.type is string && d.type.size() <= 120
+        && d.size is int && d.size > 0 && d.size <= 10485760
+        && d.n is int && d.n >= 1 && d.n <= 12
+        && d.uid == request.auth.uid && d.at == request.time;
+    }
+    function fileOf(bid, f) { return get(/databases/$(database)/documents/boards/$(bid)/files/$(f)).data; }
+    // 이모티콘 반응: 문서 이름 = 글_uid_번호 (한 사람이 같은 이모티콘을 두 번 못 담)
+    function okReact(r, d) {
+      return d.keys().hasOnly(['pid', 'e', 'uid']) && d.keys().hasAll(['pid', 'e', 'uid'])
+        && d.pid is string && d.pid.size() > 0 && d.pid.size() <= 60
+        && d.e is int && d.e >= 0 && d.e < 8
+        && d.uid == request.auth.uid
+        && r == d.pid + '_' + d.uid + '_' + string(d.e);
+    }
+    // 캔버스 메모 자리 (자기 글만)
+    function okPos(bid, p, d) {
+      return d.keys().hasOnly(['x', 'y', 'uid']) && d.keys().hasAll(['x', 'y', 'uid'])
+        && d.x is number && d.y is number && d.x >= 0 && d.x <= 6000 && d.y >= 0 && d.y <= 6000
+        && d.uid == request.auth.uid
+        && get(/databases/$(database)/documents/boards/$(bid)/posts/$(p)).data.uid == request.auth.uid;
+    }
+    // 캔버스 메모 잇는 선
+    function okLink(d) {
+      return d.keys().hasOnly(['a', 'b', 'uid', 'at']) && d.keys().hasAll(['a', 'b', 'uid', 'at'])
+        && d.a is string && d.a.size() > 0 && d.a.size() <= 60
+        && d.b is string && d.b.size() > 0 && d.b.size() <= 60 && d.a != d.b
         && d.uid == request.auth.uid && d.at == request.time;
     }
     match /boards/{bid} {
@@ -138,10 +175,14 @@ service cloud.firestore {
       allow create: if tch() && request.resource.data.owner == request.auth.uid;
       allow update: if tch() && resource.data.owner == request.auth.uid && request.resource.data.owner == request.auth.uid;
       allow delete: if tch() && (resource == null || resource.data.owner == request.auth.uid);
-      // 학생이 올린 글·사진 (고치기는 없고, 자기 글만 지우기 · 선생님은 모두 지우기)
+      // 학생이 올린 글·사진·파일 (자기 글만 고치기·지우기 · 선생님은 모두)
       match /posts/{p} {
         allow read: if signedIn() && boardPub(bid);
         allow create: if signedIn() && boardOpen(bid) && okPost(request.resource.data);
+        // 자기 글 고치기 (쓴 사람·쓴 때는 그대로)
+        allow update: if signedIn() && boardOpen(bid) && resource.data.uid == request.auth.uid
+          && okPostBody(request.resource.data) && request.resource.data.at == resource.data.at
+          && request.resource.data.author == resource.data.author;
         allow delete: if signedIn() && resource.data.uid == request.auth.uid;
         allow read, write: if myBoard(bid);
       }
@@ -149,6 +190,42 @@ service cloud.firestore {
       match /comments/{c} {
         allow read: if signedIn() && boardPub(bid);
         allow create: if signedIn() && boardOpen(bid) && okComment(request.resource.data);
+        allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+        allow read, write: if myBoard(bid);
+      }
+      // 올린 파일: 정보 문서 + 조각(c/0..n-1). 올린 사람만 지우기 · 선생님은 모두
+      match /files/{f} {
+        allow read: if signedIn() && boardPub(bid);
+        allow create: if signedIn() && boardOpen(bid) && okFile(request.resource.data);
+        allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+        allow read, write: if myBoard(bid);
+        match /c/{i} {
+          allow read: if signedIn() && boardPub(bid);
+          allow create: if signedIn() && boardOpen(bid) && fileOf(bid, f).uid == request.auth.uid
+            && request.resource.data.keys().hasOnly(['d']) && request.resource.data.d is bytes
+            && request.resource.data.d.size() <= 900000
+            && int(i) >= 0 && int(i) < fileOf(bid, f).n;
+          allow delete: if signedIn() && fileOf(bid, f).uid == request.auth.uid;
+          allow read, write: if myBoard(bid);
+        }
+      }
+      // 이모티콘 반응
+      match /reacts/{r} {
+        allow read: if signedIn() && boardPub(bid);
+        allow create: if signedIn() && boardOpen(bid) && okReact(r, request.resource.data);
+        allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+        allow read, write: if myBoard(bid);
+      }
+      // 캔버스: 메모 자리(글 번호 = 문서 이름)와 메모 잇는 선
+      match /pos/{p} {
+        allow read: if signedIn() && boardPub(bid);
+        allow create, update: if signedIn() && boardOpen(bid) && okPos(bid, p, request.resource.data);
+        allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+        allow read, write: if myBoard(bid);
+      }
+      match /links/{l} {
+        allow read: if signedIn() && boardPub(bid);
+        allow create: if signedIn() && boardOpen(bid) && okLink(request.resource.data);
         allow delete: if signedIn() && resource.data.uid == request.auth.uid;
         allow read, write: if myBoard(bid);
       }

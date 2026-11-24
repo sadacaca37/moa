@@ -1,7 +1,7 @@
 // 모아팡 Firebase 연결 (모든 화면이 함께 씀)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
 import { getAuth, onAuthStateChanged, signInAnonymously, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, createUserWithEmailAndPassword, sendEmailVerification } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment, limit } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment, limit, Bytes } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { getDatabase, ref, set, update, remove, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, query as rquery, limitToLast, serverTimestamp as rnow, get as rget } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
 const app = initializeApp({
@@ -153,6 +153,6 @@ export function toast(msg, bad) {
 }
 
 export {
-  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment, limit,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment, limit, Bytes,
   ref, set, update, remove, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, rquery, limitToLast, rnow, rget
 };

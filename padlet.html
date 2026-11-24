@@ -97,6 +97,7 @@ main.wide{max-width:none;padding-inline:0}
 .tiny{min-height:44px;padding:0 6px;border:0;background:transparent;font:700 12px 'Noto Sans KR',sans-serif;color:var(--sub);cursor:pointer;text-decoration:underline}
 .addpost{min-height:44px;border:3px dashed var(--ink);background:rgba(255,255,255,.86);font-size:15px;cursor:pointer}
 .addsec{width:220px;flex:none;min-height:120px;border:4px dashed var(--ink);background:rgba(255,255,255,.8);font-size:18px;cursor:pointer}
+.bframe{display:block;width:100%;height:calc(100vh - 200px);min-height:560px;border:0;border-top:4px solid var(--ink);margin-top:12px;background:#EEF2F7}
 .nob{margin:24px max(3vw,16px);max-width:600px;background:var(--paper);padding:24px;display:flex;flex-direction:column;gap:14px}
 .nob h2{margin:0;font-size:24px}.nob p{margin:0;font-size:14px;line-height:1.7;color:#333A55}
 
@@ -141,10 +142,10 @@ footer .studio{letter-spacing:.08em}
 import { fs, rt, ref, set, auth, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, getDocs, serverTimestamp, esc, safeUrl } from './js/fb.js';
 import { readXlsx, readCSV } from './js/xlsx.js';
 import { TRASH_DAYS, inTrash, daysLeft, trashTime, trashBoard, restoreBoard, purgeBoard, purgeExpired } from './js/trash.js';
+import { cleanFiles, okColor, copyFiles, purgeBoardSubs, layoutOf, FORMATS } from './js/padkit.js';
 {
 const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
 const SEC_COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
-const AV = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF'];
 const MAX_CLASSES = 20, PART_BYTES = 200000;
 const S = { db: null, mode: 'wait', classes: [], boards: [], parts: [], live: [], cmts: [], view: 'home', cid: null, bid: null, filter: '전체', q: '', msg: '', bad: false, saving: 0, saveErr: '', loaded: { classes: false, boards: false }, slow: false };
 const $ = (id) => document.getElementById(id);
@@ -260,7 +261,6 @@ function newRoom() {
   return r;
 }
 const pubOf = (bid) => !!(S.boards.find((b) => b.id === bid) || {}).public;
-function savePart(partId, posts) { const p = S.parts.find((x) => x.id === partId); return put('parts/' + partId, { bid: p.bid, n: p.n, posts, pub: pubOf(p.bid) }); }
 function saveBoard(b, patch) { const d = Object.assign({}, b, patch); delete d.id; return put('boards/' + b.id, d); }
 function chunk(posts) {
   const parts = []; let cur = [], size = 2;
@@ -268,7 +268,7 @@ function chunk(posts) {
   parts.push(cur); return parts;
 }
 function cleanPost(p) {
-  return { id: p.id || uid('p'), sec: p.sec || 0, title: String(p.title || '').slice(0, 200), body: String(p.body || '').slice(0, 20000), link: String(p.link || '').slice(0, 2000), author: String(p.author || '').slice(0, 60), likes: Math.max(0, +p.likes || 0), comments: Math.max(0, +p.comments || 0), liked: !!p.liked, at: p.at || todayISO() };
+  return { id: p.id || uid('p'), sec: p.sec || 0, title: String(p.title || '').slice(0, 200), body: String(p.body || '').slice(0, 20000), link: String(p.link || '').slice(0, 2000), author: String(p.author || '').slice(0, 60), likes: Math.max(0, +p.likes || 0), comments: Math.max(0, +p.comments || 0), liked: !!p.liked, at: p.at || todayISO(), ...(cleanFiles(p.files).length ? { files: cleanFiles(p.files) } : {}), ...(okColor(p.color) ? { color: okColor(p.color) } : {}) };
 }
 async function writeBoard(meta, posts) {
   const parts = chunk(posts.map(cleanPost));
@@ -278,12 +278,7 @@ async function writeBoard(meta, posts) {
 }
 async function deleteBoard(b) {
   for (let i = 0; i < (b.parts || 1); i++) await del('parts/' + b.id + '-' + i);
-  if (S.db) {
-    for (const sub of ['posts', 'comments']) {
-      const ds = (await getDocs(collection(fs, 'boards', b.id, sub))).docs;
-      for (const d of ds) await del('boards/' + b.id + '/' + sub + '/' + d.id);
-    }
-  }
+  if (S.db) await purgeBoardSubs(b.id);
   await del('boards/' + b.id);
 }
 
@@ -414,8 +409,6 @@ function gridHTML(cs, full) {
   if (!list.length) h = '<p class="note" style="grid-column:1/-1">찾는 클래스가 없어요. 이름을 다시 확인해 주세요.</p>' + h;
   return h;
 }
-const svgLink = '<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1B1F3B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>';
-const svgVid = '<svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" fill="#FF6B4A" stroke="#1B1F3B" stroke-width="2"/><path d="M10 9l5 3-5 3z" fill="#fff"/></svg>';
 function drawBoard() {
   const c = curClass(); if (!c) return;
   const bs = boardsOf(c.id);
@@ -424,58 +417,32 @@ function drawBoard() {
   if (S.wantBid && bs.find((b) => b.id === S.wantBid)) S.wantBid = null;
   watchParts();
   const b = curBoard();
-  $('hdr').innerHTML = logo + '<button class="btn" data-act="home">◀ 내 패들렛</button><div class="htxt"><small style="font-weight:700;display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:14px;height:14px;flex:none;background:' + esc(c.color) + ';border:3px solid #1B1F3B"></span>' + esc(c.name) + (c.lib ? ' · 반을 골라 보내는 과제방' : ' · ' + esc(c.kind) + ' · 방번호 ' + esc(c.room)) + '</small><h1>' + esc(b ? b.title : c.name) + '</h1></div><span class="save"></span><div class="hbtns">' + fileBtn('패들렛에서 가져오기', 'yel') + '<button class="btn blue" data-act="write" data-s="0"' + (b ? '' : ' disabled') + '>+ 글 쓰기</button></div>';
+  $('hdr').innerHTML = logo + '<button class="btn" data-act="home">◀ 내 패들렛</button><div class="htxt"><small style="font-weight:700;display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:14px;height:14px;flex:none;background:' + esc(c.color) + ';border:3px solid #1B1F3B"></span>' + esc(c.name) + (c.lib ? ' · 반을 골라 보내는 과제방' : ' · ' + esc(c.kind) + ' · 방번호 ' + esc(c.room)) + '</small><h1>' + esc(b ? b.title : c.name) + '</h1></div><span class="save"></span><div class="hbtns">' + fileBtn('패들렛에서 가져오기', 'yel') + '</div>';
   let h = '<div class="tabs" style="--c:' + esc(c.color) + '"><span class="lbl">이 클래스의 패들렛 ' + bs.length + '개</span>' + bs.map((x) => '<button class="tab" data-act="tab" data-id="' + esc(x.id) + '" aria-pressed="' + (b && x.id === b.id) + '" style="--c:' + esc(c.color) + '">' + esc(x.title) + '</button>').join('') + '<button class="mini" data-act="newboard">+ 빈 패들렛</button><button class="mini" data-act="trash">🗑 휴지통' + (trashed().length ? ' ' + trashed().length : '') + '</button></div>';
   h += '<div style="padding:12px max(3vw,16px) 0;display:flex;flex-direction:column;gap:8px">' + msgHTML() + '</div>';
   if (!b) {
-    h += '<section class="nob pf"><h2>아직 가져온 패들렛이 없어요</h2><p>패들렛 보드에서 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 뒤 아래 버튼으로 넣으면 이 클래스에 저장돼요. 여러 개를 넣으면 위에 탭으로 쌓여요.</p><div class="row">' + fileBtn('패들렛 파일 넣기', 'yel') + '<button class="btn" data-act="newboard">+ 빈 패들렛 만들기</button></div></section>';
-    $('main').className = 'wide'; $('main').innerHTML = h; return;
+    h += '<section class="nob pf"><h2>아직 가져온 패들렛이 없어요</h2><p>패들렛 보드에서 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 뒤 아래 버튼으로 넣으면 이 클래스에 저장돼요. 여러 개를 넣으면 위에 탭으로 쌓여요. 빈 패들렛을 만들어 바로 써도 돼요.</p><div class="row">' + fileBtn('패들렛 파일 넣기', 'yel') + '<button class="btn" data-act="newboard">+ 빈 패들렛 만들기</button></div></section>';
+  } else {
+    const F = FORMATS.find((f) => f[0] === layoutOf(b));
+    h += '<div class="meta"><p>' + esc(b.from || '') + ' · ' + md(b.date) + ' · ' + F[2] + ' ' + F[1] + ' 형식 · 글 ' + ((b.postCount || 0) + S.live.length) + '개 · 댓글 ' + S.cmts.length + '개</p>' +
+      '<a class="mini" href="board.html?b=' + encodeURIComponent(b.id) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none;background:#FFD23F">↗ 새 창으로 크게 보기</a>' +
+      '<a class="mini" href="board.html?b=' + encodeURIComponent(b.id) + '&preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '') + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none;background:#C8F171" title="학생에게 이 패들렛이 어떻게 보이는지 새 탭에서 봐요">👀 학생 화면으로 보기</a>' +
+      '<button class="mini" data-act="deploy" style="background:#C8F171">🚀 여러 반에 보내기</button>' +
+      (c.lib ? '' : '<button class="mini" data-act="pubboard" aria-pressed="' + !!b.public + '" style="' + (b.public ? 'background:#7CFF8A' : '') + '">' + (b.public ? '✓ 학생에게 보여요' : '학생에게 보이기') + '</button>') +
+      '<button class="mini" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김' : '✎ 학생 글쓰기 열림') + '</button>' +
+      '<button class="mini" data-act="copyboard" style="background:#C7B2FF">다른 패들렛으로 복사</button>' +
+      (c.lib ? '' : '<button class="mini" data-act="pinhome">첫 화면 링크에 올리기</button>') + '<button class="mini" data-act="renameboard">이름 바꾸기</button><button class="mini del" data-act="delboard">🗑 이 패들렛 삭제</button></div>';
   }
-  const loading = S.mode === 'db' && !S.parts.length && (b.postCount || 0) > 0;
-  const posts = postsOfBoard();
-  h += '<div class="meta"><p>' + esc(b.from || '') + ' · ' + md(b.date) + ' · 칸 ' + (b.sections || []).length + '개 · 글 ' + ((b.postCount || 0) + S.live.length) + '개' + (S.live.length ? ' (함께 쓴 글 ' + S.live.length + '개)' : '') + ' · 댓글 ' + S.cmts.length + '개</p>' +
-    '<a class="mini" href="board.html?b=' + encodeURIComponent(b.id) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none;background:#FFD23F">▶ 함께 쓰는 화면 열기</a>' +
-    '<a class="mini" href="board.html?b=' + encodeURIComponent(b.id) + '&preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '') + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;text-decoration:none;background:#C8F171" title="학생에게 이 패들렛이 어떻게 보이는지 새 탭에서 봐요">👀 학생 화면으로 보기</a>' +
-    '<button class="mini" data-act="deploy" style="background:#C8F171">🚀 여러 반에 보내기</button>' +
-    (c.lib ? '' : '<button class="mini" data-act="pubboard" aria-pressed="' + !!b.public + '" style="' + (b.public ? 'background:#7CFF8A' : '') + '">' + (b.public ? '✓ 학생에게 보여요' : '학생에게 보이기') + '</button>') +
-    '<button class="mini" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김' : '✎ 학생 글쓰기 열림') + '</button>' +
-    '<button class="mini" data-act="copyboard" style="background:#C7B2FF">다른 패들렛으로 복사</button>' +
-    (c.lib ? '' : '<button class="mini" data-act="pinhome">첫 화면 링크에 올리기</button>') + '<button class="mini" data-act="renameboard">이름 바꾸기</button><button class="mini del" data-act="delboard">🗑 이 패들렛 삭제</button></div>';
-  if (loading) { h += '<p class="note" style="margin:16px max(3vw,16px)">글을 불러오는 중…</p>'; $('main').className = 'wide'; $('main').innerHTML = h; return; }
-  h += '<div class="cols"><div>' + (b.sections || []).map((name, i) => {
-    const ps = posts.filter((p) => (p.sec || 0) === i);
-    const ls = S.live.filter((p) => (p.sec || 0) === i).sort((x, y) => liveMs(x.at) - liveMs(y.at));
-    return '<section class="sec"><h2 class="sech pf" style="background:' + SEC_COLORS[i % SEC_COLORS.length] + '"><span>' + esc(name) + '</span><span style="display:flex;gap:6px;align-items:center"><em>' + (ps.length + ls.length) + '</em><button class="mini" data-act="renamesec" data-s="' + i + '" aria-label="' + esc(name) + ' 칸 이름 바꾸기">이름</button></span></h2>' + ps.map(postHTML).join('') + ls.map(liveHTML).join('') + '<button class="addpost hd" data-act="write" data-s="' + i + '">+ 이 칸에 글 쓰기</button>' + (ps.length || ls.length ? '' : '<button class="tiny" data-act="delsec" data-s="' + i + '">빈 칸 지우기</button>') + '</section>';
-  }).join('') + '<button class="addsec hd" data-act="addsec">+ 칸 만들기</button></div></div>';
-  $('main').className = 'wide'; $('main').innerHTML = h;
-}
-function postHTML(p) {
-  const link = safeUrl(p.link);
-  const video = /youtube\.com|youtu\.be/i.test(link), pic = /\.(png|jpe?g|gif|webp)(\?|$)/i.test(link);
-  let host = link; try { host = new URL(link).hostname.replace(/^www\./, ''); } catch (e) {}
-  const author = p.author || '선생님';
-  return '<article class="post"><div class="pin">' + (p.title ? '<h3>' + esc(p.title) + '</h3>' : '') + (p.body ? '<p>' + esc(p.body) + '</p>' : '') +
-    (link ? '<a class="lnk" href="' + esc(link) + '" target="_blank" rel="noopener">' + (video ? svgVid : svgLink) + esc((video ? '영상 · ' : pic ? '그림 · ' : '') + host) + '</a>' : '') + '</div>' +
-    '<div class="pfoot"><span class="who"><i aria-hidden="true" style="background:' + AV[author.length % AV.length] + '">' + esc(author.charAt(0)) + '</i>' + esc(author) + '</span><span class="acts">' +
-    '<button class="like" data-act="like" data-id="' + esc(p.id) + '" aria-pressed="' + !!p.liked + '" aria-label="좋아요 ' + (p.likes || 0) + '개"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="' + (p.liked ? '#FF6B4A' : 'none') + '" stroke="#1B1F3B" stroke-width="2.4" stroke-linejoin="round"><path d="M12 20.5S3.5 15.4 3.5 9.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 8.5 2.2c0 6.2-8.5 11.3-8.5 11.3z"/></svg>' + (p.likes || 0) + '</button>' +
-    ((p.comments || 0) + cmtCount(p.id) ? '<span style="font-size:13px;font-weight:700;color:#1B1F3B;padding:0 4px">댓글 ' + ((p.comments || 0) + cmtCount(p.id)) + '</span>' : '') +
-    '<button class="tiny" data-act="editpost" data-id="' + esc(p.id) + '">고치기</button><button class="tiny" data-act="delpost" data-id="' + esc(p.id) + '">지우기</button></span></div></article>';
-}
-
-const liveMs = (t) => (t && typeof t.toMillis === 'function' ? t.toMillis() : typeof t === 'number' ? t : Date.now());
-const cmtCount = (pid) => S.cmts.filter((c) => c.pid === pid).length;
-// 함께 쓰는 화면에서 올라온 글 (사진 포함) — 여기서는 보기·지우기만
-function liveHTML(p) {
-  const link = safeUrl(p.link), video = /youtube\.com|youtu\.be/i.test(link);
-  let host = link; try { host = new URL(link).hostname.replace(/^www\./, ''); } catch (e) {}
-  const img = /^data:image\/(jpeg|png|webp);base64,/.test(p.img || '') ? p.img : '';
-  const author = p.author || '학생', nc = cmtCount(p.id), d = new Date(liveMs(p.at));
-  return '<article class="post" style="box-shadow:3px 3px 0 #3A6FF2">' + (img ? '<img src="' + img + '" alt="' + esc(p.title || author + '의 사진') + '" loading="lazy" style="display:block;width:100%;max-height:220px;object-fit:cover;border-bottom:4px solid #1B1F3B">' : '') +
-    '<div class="pin">' + (p.title ? '<h3>' + esc(p.title) + '</h3>' : '') + (p.body ? '<p>' + esc(p.body) + '</p>' : '') +
-    (link ? '<a class="lnk" href="' + esc(link) + '" target="_blank" rel="noopener">' + (video ? svgVid : svgLink) + esc((video ? '영상 · ' : '') + host) + '</a>' : '') + '</div>' +
-    '<div class="pfoot"><span class="who"><i aria-hidden="true" style="background:' + AV[author.length % AV.length] + '">' + esc(author.charAt(0)) + '</i>' + esc(author) + ' · ' + (d.getMonth() + 1) + '/' + d.getDate() + '</span><span class="acts">' +
-    (nc ? '<span style="font-size:13px;font-weight:700;color:#1B1F3B;padding:0 4px">댓글 ' + nc + '</span>' : '') +
-    '<button class="tiny" data-act="dellive" data-id="' + esc(p.id) + '">지우기</button></span></div></article>';
+  // 패들렛 판은 board.html을 그대로 넣어 보인다 (학생 화면과 똑같은 모양 · 형식 바꾸기·글·파일·댓글·이모티콘은 그 안에서)
+  let top = $('btop'), slot = $('bslot');
+  if (!top || !slot) { $('main').innerHTML = '<div id="btop"></div><div id="bslot"></div>'; top = $('btop'); slot = $('bslot'); }
+  $('main').className = 'wide';
+  top.innerHTML = h;
+  const want = b ? b.id : '';
+  if (slot.dataset.bid !== want) {
+    slot.dataset.bid = want;
+    slot.innerHTML = b ? '<iframe class="bframe" title="' + esc(b.title) + ' 패들렛" src="board.html?b=' + encodeURIComponent(b.id) + '&embed=1"></iframe>' : '';
+  }
 }
 
 /* ---------- 창(대화 상자) ---------- */
@@ -507,18 +474,6 @@ function textDlg(title, label, value, max, fn) {
   pending = fn;
   openDlg(dlgTop(title) + '<label for="tv">' + label + '</label><input id="tv" class="field" maxlength="' + max + '" autocomplete="off" value="' + esc(value) + '"><div class="row"><button type="submit" class="btn blue" data-form="text">저장하기 ▶</button></div>', '#tv');
 }
-function postDlg(si, post) {
-  const b = curBoard(); if (!b) return;
-  pending = { id: post ? post.id : null };
-  openDlg(dlgTop(post ? '글 고치기' : '글 쓰기') +
-    '<label for="ds">올릴 칸</label><select id="ds" class="field">' + (b.sections || []).map((n, i) => '<option value="' + i + '"' + (i === si ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' +
-    '<label for="dt">제목</label><input id="dt" class="field" maxlength="80" autocomplete="off" value="' + esc(post ? post.title : '') + '">' +
-    '<label for="db">내용</label><textarea id="db" class="field" rows="5">' + esc(post ? post.body : '') + '</textarea>' +
-    '<label for="dl">링크 (있으면)</label><input id="dl" class="field" type="url" autocomplete="off" placeholder="https://" value="' + esc(post ? post.link : '') + '">' +
-    '<label for="da">쓴 사람</label><input id="da" class="field" maxlength="30" autocomplete="off" value="' + esc(post ? post.author : '선생님') + '">' +
-    '<div class="row"><button type="submit" class="btn blue" data-form="post">' + (post ? '저장하기 ▶' : '올리기 ▶') + '</button></div>', '#dt');
-}
-
 function copyDlg() {
   const b = curBoard(), c = curClass(); if (!b || !c) return;
   const secs = b.sections || ['글 모음'], all = postsOfBoard();
@@ -529,7 +484,7 @@ function copyDlg() {
     '<label for="cw">복사할 것</label><select id="cw" class="field"><option value="-1">패들렛 전체 (글 ' + n(-1) + '개)</option>' + secs.map((nm, i) => '<option value="' + i + '">칸 \'' + esc(nm) + '\'만 (글 ' + n(i) + '개)</option>').join('') + '</select>' +
     '<label for="cc">보낼 클래스</label><select id="cc" class="field">' + classes().map((x) => '<option value="' + esc(x.id) + '"' + (x.id === c.id ? ' selected' : '') + '>' + esc(x.name) + ' · ' + esc(x.kind) + '</option>').join('') + '</select>' +
     '<label for="cb">보낼 패들렛</label><select id="cb" class="field"></select>' +
-    '<p style="font-size:13px;color:#4B4F6B">칸 이름이 같으면 그 칸에 들어가고, 없으면 새 칸이 생겨요. 사진과 함께 쓴 글도 복사돼요. 댓글·좋아요는 복사하지 않아요.</p>' +
+    '<p style="font-size:13px;color:#4B4F6B">칸 이름이 같으면 그 칸에 들어가고, 없으면 새 칸이 생겨요. 사진·파일과 함께 쓴 글도 복사돼요. 캔버스 메모 자리와 선도 따라가요. 댓글·이모티콘은 복사하지 않아요.</p>' +
     '<div class="row"><button type="submit" class="btn blue" data-form="copy">복사해서 보내기 ▶</button></div>', '#cw');
   fillTargets();
 }
@@ -553,15 +508,42 @@ function deployDlg() {
     '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="dpLock" style="width:20px;height:20px"> 학생 글쓰기 잠그기 (읽기만)</label>' +
     '<div class="row"><button type="submit" class="btn blue" data-form="deploy">보내기 ▶</button></div>', '#dpL input');
 }
+// 함께 쓴 글 하나를 새 패들렛에 옮길 모양으로 (파일은 새 패들렛에 다시 올림)
+async function liveCopy(p, srcId, dstId, sec) {
+  const d = { sec, title: p.title || '', body: p.body || '', link: p.link || '', img: p.img || '', author: p.author || '', uid: S.uid, at: p.at || serverTimestamp() };
+  const fl = cleanFiles(p.files); if (fl.length) d.files = await copyFiles(srcId, dstId, fl, S.uid);
+  const col = okColor(p.color); if (col) d.color = col;
+  return d;
+}
+// 묶음 글(가져온 글·예전 글) 하나를 새 글로 (새 번호, 파일은 새 패들렛에 다시 올림)
+async function oldCopy(p, srcId, dstId, sec) {
+  const q = Object.assign({}, p, { id: uid('p'), sec, likes: 0, liked: false, comments: 0 }); delete q.part;
+  if (cleanFiles(q.files).length) q.files = await copyFiles(srcId, dstId, q.files, S.uid);
+  return cleanPost(q);
+}
+// 캔버스 메모 자리와 선도 새 글 번호로 따라가게
+async function cloneExtras(srcId, dstId, idMap) {
+  if (!idMap.size) return;
+  const [ps, ls] = await Promise.all([getDocs(collection(fs, 'boards', srcId, 'pos')), getDocs(collection(fs, 'boards', srcId, 'links'))]);
+  for (const d of ps.docs) { const n = idMap.get(d.id), v = d.data(); if (n) await setDoc(doc(fs, 'boards', dstId, 'pos', n), { x: v.x, y: v.y, uid: S.uid }); }
+  for (const d of ls.docs) { const l = d.data(), a = idMap.get(l.a), b2 = idMap.get(l.b); if (a && b2) await setDoc(doc(collection(fs, 'boards', dstId, 'links')), { a, b: b2, uid: S.uid, at: serverTimestamp() }); }
+}
 async function deployBoard(cids, opts) {
   const src = curBoard(), from = curClass(); if (!src || !cids.length) return;
-  const posts = postsOfBoard().map((p) => { const q = Object.assign({}, p, { id: uid('p'), likes: 0, liked: false, comments: 0 }); delete q.part; return q; });
+  const olds = postsOfBoard();
+  const lives = S.live.filter((p) => p.uid === S.uid); // 선생님이 쓴 글만 (학생 글은 그 반에만)
   toast(cids.length + '개 반에 보내는 중…');
   let n = 0;
   try {
     for (const cid of cids) {
-      const meta = { id: uid('b'), cid, title: src.title, from: from.lib ? '과제 보관함에서 보냄' : from.name + '에서 보냄', date: todayISO(), created: new Date().toISOString(), sections: (src.sections || ['글 모음']).slice(), src: src.src || src.id, public: !!opts.pub, lock: !!opts.lock };
-      await writeBoard(meta, posts); n++;
+      const meta = { id: uid('b'), cid, title: src.title, from: from.lib ? '과제 보관함에서 보냄' : from.name + '에서 보냄', date: todayISO(), created: new Date().toISOString(), sections: (src.sections || ['글 모음']).slice(), src: src.src || src.id, public: !!opts.pub, lock: !!opts.lock, layout: layoutOf(src), groups: src.groups !== false };
+      await writeBoard(meta, []); // 패들렛 문서 먼저 (파일을 올릴 자리)
+      const idMap = new Map(), posts = [];
+      for (const p of olds) { const q = await oldCopy(p, src.id, meta.id, p.sec || 0); idMap.set(p.id, q.id); posts.push(q); }
+      if (posts.length) await writeBoard(meta, posts);
+      for (const p of lives) { const nid = uid('q'); idMap.set(p.id, nid); await setDoc(doc(fs, 'boards', meta.id, 'posts', nid), await liveCopy(p, src.id, meta.id, p.sec || 0)); }
+      await cloneExtras(src.id, meta.id, idMap);
+      n++;
     }
     toast('\'' + src.title + '\'을(를) ' + n + '개 반에 보냈어요.' + (opts.pub ? ' 학생 화면 → 게시판에 보여요.' : ' (학생에게는 아직 안 보여요)'));
   } catch (e) { toast((S.saveErr || errText(e)) + (n ? ' (' + n + '개 반은 보냈어요)' : ''), true); }
@@ -578,7 +560,7 @@ async function copyBoard(sec, tcid, tbid) {
   const map = new Map();
   if (tbid === 'new') {
     tsecs = sec < 0 ? secs.slice() : [secs[sec]];
-    target = { id: uid('b'), cid: tcid, title: (src.title + (sec < 0 ? '' : ' · ' + secs[sec]) + ' (복사)').slice(0, 60), from: '복사해 옴', date: todayISO(), created: new Date().toISOString(), sections: tsecs };
+    target = { id: uid('b'), cid: tcid, title: (src.title + (sec < 0 ? '' : ' · ' + secs[sec]) + ' (복사)').slice(0, 60), from: '복사해 옴', date: todayISO(), created: new Date().toISOString(), sections: tsecs, layout: layoutOf(src), groups: src.groups !== false };
     (sec < 0 ? secs : [secs[sec]]).forEach((_, i) => map.set(sec < 0 ? i : sec, i));
   } else {
     target = S.boards.find((x) => x.id === tbid);
@@ -591,13 +573,16 @@ async function copyBoard(sec, tcid, tbid) {
     if (j < 0) { tsecs.push(name); j = tsecs.length - 1; }
     map.set(i, j); return j;
   };
-  const copied = olds.map((p) => { const q = Object.assign({}, p, { id: uid('p'), sec: mapSec(p.sec || 0), likes: 0, liked: false, comments: 0 }); delete q.part; return cleanPost(q); });
-  const liveCopies = lives.map((p) => ({ sec: mapSec(p.sec || 0), title: p.title || '', body: p.body || '', link: p.link || '', img: p.img || '', author: p.author || '', uid: (auth.currentUser || {}).uid || '', at: p.at || serverTimestamp() }));
+  // 칸 번호를 먼저 모두 정함 (새 칸이 생기면 저장 전에 tsecs에 들어감)
+  const oldSecs = olds.map((p) => mapSec(p.sec || 0)), liveSecs = lives.map((p) => mapSec(p.sec || 0));
   toast('복사하는 중…');
   try {
+    const idMap = new Map();
+    if (tbid === 'new') { S.wantBid = target.id; await writeBoard(target, []); }
+    const copied = [];
+    for (let i = 0; i < olds.length; i++) { const q = await oldCopy(olds[i], src.id, target.id, oldSecs[i]); idMap.set(olds[i].id, q.id); copied.push(q); }
     if (tbid === 'new') {
-      S.wantBid = target.id;
-      await writeBoard(target, copied);
+      if (copied.length) await writeBoard(target, copied);
     } else if (copied.length) {
       const tp = (await getDocs(query(collection(fs, 'parts'), where('bid', '==', tbid), ...ownQ()))).docs.map((d) => Object.assign({ id: d.id }, d.data())).sort((x, y) => x.n - y.n);
       const last = tp[tp.length - 1], pub = !!target.public;
@@ -613,8 +598,9 @@ async function copyBoard(sec, tcid, tbid) {
     } else {
       await saveBoard(target, { sections: tsecs });
     }
-    for (const p of liveCopies) await setDoc(doc(fs, 'boards', target.id, 'posts', uid('q')), p);
-    const total = copied.length + liveCopies.length;
+    for (let i = 0; i < lives.length; i++) { const nid = uid('q'); idMap.set(lives[i].id, nid); await setDoc(doc(fs, 'boards', target.id, 'posts', nid), await liveCopy(lives[i], src.id, target.id, liveSecs[i])); }
+    await cloneExtras(src.id, target.id, idMap);
+    const total = copied.length + lives.length;
     if (S.cid !== tcid) { openClass(tcid); }
     S.bid = target.id; draw();
     toast('\'' + tc.name + '\'의 \'' + target.title + '\'(으)로 글 ' + total + '개를 복사했어요.');
@@ -637,34 +623,6 @@ async function saveClass() {
     if (old && old.room && old.room !== p.room) await deleteDoc(doc(fs, 'rooms', old.room));
     toast(old ? '\'' + name + '\'을 고쳤어요.' : '\'' + name + '\'을 만들었어요. 눌러서 패들렛을 가져와 보세요.');
   } catch (e) { toast(S.saveErr || errText(e), true); }
-}
-async function savePost() {
-  const b = curBoard(); if (!b) return;
-  const si = +$('ds').value, title = $('dt').value.trim(), body = $('db').value.trim(), link = $('dl').value.trim(), author = $('da').value.trim() || '선생님';
-  if (!title && !body && !link) { $('dt').focus(); return; }
-  const id = pending.id; closeDlg();
-  try {
-    if (id) {
-      const part = S.parts.find((x) => (x.posts || []).some((p) => p.id === id)); if (!part) return;
-      await savePart(part.id, part.posts.map((p) => (p.id === id ? cleanPost(Object.assign({}, p, { sec: si, title, body, link, author })) : p)));
-      toast('글을 고쳤어요.');
-    } else {
-      const post = cleanPost({ sec: si, title, body, link, author });
-      const parts = S.parts.slice().sort((a, b2) => a.n - b2.n), last = parts[parts.length - 1];
-      if (last && bytes(last.posts) + bytes(post) < PART_BYTES) await savePart(last.id, (last.posts || []).concat([post]));
-      else { const n = last ? last.n + 1 : 0; await put('parts/' + b.id + '-' + n, { bid: b.id, n, posts: [post], pub: !!b.public }); await saveBoard(b, { parts: n + 1, postCount: (b.postCount || 0) + 1 }); toast('글을 올렸어요.'); return; }
-      await saveBoard(b, { postCount: (b.postCount || 0) + 1 });
-      toast('글을 올렸어요.');
-    }
-  } catch (e) { toast(S.saveErr || '저장하지 못했어요.', true); }
-}
-async function likePost(id) {
-  const part = S.parts.find((x) => (x.posts || []).some((p) => p.id === id)); if (!part) return;
-  try { await savePart(part.id, part.posts.map((p) => (p.id === id ? Object.assign({}, p, { liked: !p.liked, likes: Math.max(0, (p.likes || 0) + (p.liked ? -1 : 1)) }) : p))); } catch (e) { toast(S.saveErr, true); }
-}
-async function deletePost(id) {
-  const b = curBoard(), part = S.parts.find((x) => (x.posts || []).some((p) => p.id === id)); if (!part || !b) return;
-  try { await savePart(part.id, part.posts.filter((p) => p.id !== id)); await saveBoard(b, { postCount: Math.max(0, (b.postCount || 1) - 1) }); toast('글을 지웠어요.'); } catch (e) { toast(S.saveErr, true); }
 }
 async function newBoard() {
   const c = curClass(); if (!c) return;
@@ -733,12 +691,6 @@ document.addEventListener('click', (e) => {
   else if (a === 'copyboard') copyDlg();
   else if (a === 'deploy') deployDlg();
   else if (a === 'dpall' || a === 'dpnone') document.querySelectorAll('#dpL input').forEach((x) => { x.checked = a === 'dpall'; });
-  else if (a === 'dellive') {
-    const p = S.live.find((x) => x.id === id); if (!p) return; const b = curBoard();
-    confirmDlg('글 지우기', '\'' + (p.author || '') + '\'이(가) 올린 \'' + (p.title || (p.body || '').slice(0, 20) || '사진') + '\'을 지워요. 지운 것은 되돌릴 수 없어요.', '지우기', async () => {
-      try { await del('boards/' + b.id + '/posts/' + id); for (const c of S.cmts.filter((x) => x.pid === id)) await del('boards/' + b.id + '/comments/' + c.id); toast('글을 지웠어요.'); } catch (err) { toast(S.saveErr, true); }
-    });
-  }
   else if (a === 'renameboard') { const b = curBoard(); textDlg('패들렛 이름 바꾸기', '패들렛 이름', b.title, 60, (v) => saveBoard(b, { title: v })); }
   else if (a === 'delboard') { const b = curBoard(); if (!b) return; confirmDlg('패들렛 삭제', '\'' + b.title + '\'을 휴지통으로 옮겨요. 학생 화면에서는 바로 사라지고, ' + TRASH_DAYS + '일 안에는 휴지통에서 되살릴 수 있어요. ' + TRASH_DAYS + '일이 지나면 영구 삭제돼요.', '휴지통으로 옮기기', async () => { try { await trashBoard(b, { own: ownQ(), homeRef: homeRefP() }); S.bid = null; toast('\'' + b.title + '\'을 휴지통으로 옮겼어요. (' + TRASH_DAYS + '일 안에 되살릴 수 있어요)'); } catch (err) { toast(errText(err), true); } }); }
   else if (a === 'trash') openTrash();
@@ -750,25 +702,12 @@ document.addEventListener('click', (e) => {
   }
   else if (a === 'purge') { const b = S.boards.find((x) => x.id === id); if (!b) return; confirmDlg('영구 삭제', '\'' + b.title + '\'과 그 안의 글·사진·댓글을 완전히 지워요. 되돌릴 수 없어요.', '영구 삭제', async () => { try { await purgeBoard(b, { own: ownQ() }); toast('영구 삭제했어요.'); } catch (err) { toast(errText(err), true); } }); }
   else if (a === 'emptytrash') { const list = trashed(); if (!list.length) return; confirmDlg('휴지통 비우기', '휴지통의 패들렛 ' + list.length + '개를 모두 완전히 지워요. 되돌릴 수 없어요.', '모두 영구 삭제', async () => { let n = 0; for (const b of list) { try { await purgeBoard(b, { own: ownQ() }); n++; } catch (err) { /* 다음 것 */ } } toast('패들렛 ' + n + '개를 영구 삭제했어요.', n < list.length); }); }
-  else if (a === 'renamesec') { const b = curBoard(); textDlg('칸 이름 바꾸기', '칸 이름', b.sections[si], 40, (v) => saveBoard(b, { sections: b.sections.map((n, i) => (i === si ? v : n)) })); }
-  else if (a === 'addsec') { const b = curBoard(); textDlg('칸 만들기', '새 칸 이름', '', 40, (v) => saveBoard(b, { sections: (b.sections || []).concat([v]) })); }
-  else if (a === 'delsec') {
-    const b = curBoard(); if (postsOfBoard().some((p) => (p.sec || 0) === si)) return;
-    if ((b.sections || []).length <= 1) { toast('칸이 하나뿐이라 지울 수 없어요.', true); return; }
-    const moves = S.parts.filter((p) => (p.posts || []).some((x) => x.sec > si));
-    (async () => { try { for (const p of moves) await savePart(p.id, p.posts.map((x) => (x.sec > si ? Object.assign({}, x, { sec: x.sec - 1 }) : x))); await saveBoard(b, { sections: b.sections.filter((_, i) => i !== si) }); toast('빈 칸을 지웠어요.'); } catch (err) { toast(S.saveErr, true); } })();
-  }
-  else if (a === 'write') { if (curBoard()) postDlg(si, null); }
-  else if (a === 'editpost') { const p = postsOfBoard().find((x) => x.id === id); if (p) postDlg(p.sec || 0, p); }
-  else if (a === 'delpost') { const p = postsOfBoard().find((x) => x.id === id); confirmDlg('글 지우기', '\'' + (p.title || (p.body || '').slice(0, 20) || '이 글') + '\'을 지워요. 지운 것은 되돌릴 수 없어요.', '지우기', () => deletePost(id)); }
-  else if (a === 'like') likePost(id);
 });
 document.addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = (e.submitter && e.submitter.dataset.form) ? e.submitter : e.target.querySelector('[data-form]');
   const f = btn && btn.dataset.form;
   if (f === 'class') saveClass();
-  else if (f === 'post') savePost();
   else if (f === 'text') { const v = $('tv').value.trim(); if (!v) { $('tv').focus(); return; } const fn = pending; closeDlg(); try { await fn(v); toast('저장했어요.'); } catch (err) { toast(S.saveErr || '저장하지 못했어요.', true); } }
   else if (f === 'confirm') { const fn = pending; closeDlg(); fn(); }
   else if (f === 'restore') { const b = S.boards.find((x) => x.id === pending), cid = $('rc').value; closeDlg(); if (b && cid) doRestore(b, cid); }

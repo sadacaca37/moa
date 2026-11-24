@@ -2,9 +2,10 @@
 //  - 휴지통으로: boards/{id}에 trash(지운 때) · trashPub(전에 학생에게 보였는지) · trashPin(첫 화면 링크에 있었는지)를 적고,
 //    학생 화면에서 바로 사라지도록 public=false, 글 묶음(parts)의 pub=false
 //  - 되살리기: 그대로 돌려놓음 (반이 지워졌으면 고른 반으로)
-//  - 영구 삭제: 글 묶음·함께 쓴 글·댓글·패들렛 문서를 모두 지움
+//  - 영구 삭제: 글 묶음·함께 쓴 글·댓글·이모티콘·캔버스 자리·선·파일·패들렛 문서를 모두 지움
 //  서버가 따로 없어서, 30일이 지난 것은 선생님이 '내 패들렛'이나 첫 화면을 열 때 지운다
 import { fs, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where } from './fb.js';
+import { purgeBoardSubs } from './padkit.js';
 
 export const TRASH_DAYS = 30;
 const DAY = 24 * 60 * 60 * 1000;
@@ -44,9 +45,7 @@ export async function restoreBoard(b, { own = [], homeRef = null, cid = null, cl
 
 export async function purgeBoard(b, { own = [] } = {}) {
   for (const p of await partsOf(b.id, own)) await deleteDoc(p.ref);
-  for (const sub of ['posts', 'comments']) {
-    try { for (const x of (await getDocs(collection(fs, 'boards', b.id, sub))).docs) await deleteDoc(x.ref); } catch (e) { /* 없으면 넘어감 */ }
-  }
+  await purgeBoardSubs(b.id); // 함께 쓴 글·댓글·이모티콘·캔버스 자리·선·파일
   await deleteDoc(doc(fs, 'boards', b.id));
 }
 
