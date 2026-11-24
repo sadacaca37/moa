@@ -150,7 +150,7 @@ service cloud.firestore {
     function okReact(r, d) {
       return d.keys().hasOnly(['pid', 'e', 'uid']) && d.keys().hasAll(['pid', 'e', 'uid'])
         && d.pid is string && d.pid.size() > 0 && d.pid.size() <= 60
-        && d.e is int && ((d.e >= 0 && d.e < 8) || (d.e >= 100 && d.e < 200))
+        && d.e is int && ((d.e >= 0 && d.e < 8) || (d.e >= 100 && d.e < 300))
         && d.uid == request.auth.uid
         && r == d.pid + '_' + d.uid + '_' + string(d.e);
     }

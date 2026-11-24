@@ -7,7 +7,7 @@
 //  - 이모티콘 반응: boards/{패들렛}/reacts/{글}_{uid}_{번호} = { pid, e, uid }
 //  - 댓글·글 쓰기 칸에 이모티콘 넣기
 //  - 패들렛 형식(담벼락·칸·격자·스트림·타임라인·캔버스)
-import { emoHTML, emoName, emoTok, openEmoPicker } from './emo.js';
+import { emoHTML, emoName, emoTok, openEmoPicker, EMO_N } from './emo.js';
 import { fs, doc, setDoc, deleteDoc, collection, getDocs, serverTimestamp, esc, Bytes } from './fb.js';
 
 export const MAX_FILE = 10 * 1024 * 1024;
@@ -203,7 +203,7 @@ export function filesHTML(list, opts) {
 const PAL = new Set(); // 열린 이모티콘 고르기 칸
 // 반응 줄: rs = 이 글의 반응들, can = 누를 수 있는지
 export function reactsHTML(pid, rs, myUid, can) {
-  // e: 0~7 기본 이모지, 100~199 모아팡 이모티콘(100+번호)
+  // e: 0~7 기본 이모지, 100~ 모아팡 이모티콘(100+번호, 규칙은 299까지)
   const cnt = new Map(), mine = new Set();
   (rs || []).forEach((r) => { if (okRx(r.e)) { cnt.set(r.e, (cnt.get(r.e) || 0) + 1); if (r.uid === myUid) mine.add(r.e); } });
   if (!cnt.size && !can) return '';
@@ -218,7 +218,7 @@ export function reactsHTML(pid, rs, myUid, can) {
     '<button type="button" class="pk-more" data-pk="rsticker" data-emopen data-pid="' + esc(pid) + '" aria-label="모아팡 이모티콘 고르기" title="모아팡 이모티콘">' + emoHTML(11, '30px') + '<span>더보기</span></button></div>';
   return h;
 }
-const okRx = (e) => Number.isInteger(e) && ((e >= 0 && e < REACTS.length) || (e >= 100 && e < 200));
+const okRx = (e) => Number.isInteger(e) && ((e >= 0 && e < REACTS.length) || (e >= 100 && e < 100 + EMO_N));
 // 글자 칸에 이모티콘 넣는 단추와 고르기 칸 (sel = 넣을 칸을 찾는 CSS 선택자)
 export function emojiBtn(key, label) { return '<button type="button" class="pk-eb" data-pk="pal" data-key="' + esc(key) + '" aria-expanded="' + PAL.has(key) + '" aria-label="' + esc(label || '이모티콘 넣기') + '" title="이모티콘 넣기">😀</button>'; }
 export function emojiPal(key, sel) {
