@@ -2,7 +2,7 @@
    번호는 한 번 정하면 바꾸지 않는다(저장된 반응·채팅이 번호를 씀). 새 그림은 뒤에 붙인다.
    글 안에서는 ':e12:' 같은 표시로 저장하고, 보여 줄 때 그림으로 바꾼다.
    - 패들렛: 반응·댓글·글 내용 / 가상 교실 채팅 / 미니 게임 말풍선 */
-export const EMO_SRC = new URL('../assets/emo/emo.webp', import.meta.url).href;
+export const EMO_SRC = new URL('../assets/emo/emo.webp?v=155', import.meta.url).href; // 그림을 바꾸면 v도 바꿔 옛 그림이 남지 않게
 export const EMO_PX = 96;
 // [키, 이름, [[첫 번호, 개수], ...]]
 export const EMO_CHARS = [['moa', '모아', [[0, 16], [100, 19]]], ['pop', '팡팡이', [[16, 14], [119, 19]]], ['star', '반짝이', [[30, 15], [138, 17]]], ['dog', '몽이', [[45, 15]]], ['frog', '폴짝이', [[60, 15]]], ['peng', '뒤뚱이', [[75, 14]]], ['mouse', '딸깍이', [[89, 11]]]];
