@@ -36,8 +36,16 @@ export async function ensureUser() {
   const c = await signInAnonymously(auth);
   return c.user;
 }
-export async function teacherLogin(email, pw) { return (await signInWithEmailAndPassword(auth, email, pw)).user; }
-export async function logout() { await signOut(auth); }
+// 로그인하면 이 기기가 '지금 쓰는 자리'가 된다 (다른 컴퓨터에 남아 있던 같은 계정은 스스로 로그아웃 — 아래 '한 곳에서만 로그인')
+export async function teacherLogin(email, pw) {
+  claiming = true;
+  try {
+    const u = (await signInWithEmailAndPassword(auth, email, pw)).user;
+    if (isTeacher(u)) await claimSeat(u);
+    return u;
+  } finally { claiming = false; }
+}
+export async function logout() { forgetSeat(); await signOut(auth); }
 // 비밀번호를 잊었을 때: 선생님 메일로 새 비밀번호 만드는 링크를 보낸다
 export async function resetPassword(email) { await sendPasswordResetEmail(auth, email); }
 
@@ -151,6 +159,42 @@ export function toast(msg, bad) {
   while (box.children.length > 3) box.firstChild.remove();
   setTimeout(() => s.remove(), bad ? 5000 : 2600);
 }
+
+/* ---------- 선생님 계정: 한 곳에서만 로그인 ----------
+ * 선생님이 로그인하면 이 기기에 자리표(sid)를 만들어 config/sess_{uid} 에 적는다.
+ * 다른 컴퓨터에서 같은 계정으로 로그인하면 자리표가 새것으로 바뀌고,
+ * 예전 컴퓨터는 바뀐 자리표를 보고 스스로 로그아웃한 뒤 선생님 로그인 화면으로 간다.
+ * 같은 컴퓨터의 여러 탭은 자리표를 함께 쓰므로 서로 밀어내지 않는다.
+ * 자리표를 적지 못하는 계정(보안 규칙이 막는 경우)은 이 기능 없이 예전처럼 쓴다. */
+const SEAT_KEY = 'moaTeacherSeat';
+let claiming = false, seatMem = '', seatOff = null, leaving = false;
+const seatRef = (uid) => doc(fs, 'config', 'sess_' + uid);
+const mySeat = () => { try { return localStorage.getItem(SEAT_KEY) || seatMem; } catch (e) { return seatMem; } };
+function forgetSeat() { seatMem = ''; try { localStorage.removeItem(SEAT_KEY); } catch (e) { /* 무시 */ } }
+async function claimSeat(u) {
+  const sid = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  seatMem = sid;
+  try { localStorage.setItem(SEAT_KEY, sid); } catch (e) { /* 이 탭에서만 기억 */ }
+  try { await setDoc(seatRef(u.uid), { sid, at: serverTimestamp() }); } catch (e) { /* 자리표를 못 적으면 이 기능만 꺼짐 */ }
+}
+async function leaveSeat() {
+  if (leaving) return;
+  leaving = true;
+  forgetSeat();
+  try { await signOut(auth); } catch (e) { /* 무시 */ }
+  alert('다른 컴퓨터에서 이 선생님 계정으로 로그인해서, 이 컴퓨터는 로그아웃했어요.\n여기서 다시 쓰려면 다시 로그인해 주세요.');
+  location.href = SITE + 'teacher.html';
+}
+onAuthStateChanged(auth, (u) => {
+  if (seatOff) { seatOff(); seatOff = null; }
+  if (!isTeacher(u)) return;
+  seatOff = onSnapshot(seatRef(u.uid), (s) => {
+    if (claiming || leaving) return;
+    const d = s.exists() ? s.data() : null, mine = mySeat();
+    if (!d || !d.sid) { if (!s.metadata.fromCache) { claiming = true; claimSeat(u).finally(() => { claiming = false; }); } return; }
+    if (d.sid !== mine && !s.metadata.fromCache) leaveSeat();
+  }, () => { /* 읽지 못하면 이 기능만 꺼짐 */ });
+});
 
 export {
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, writeBatch, increment, limit, Bytes,
