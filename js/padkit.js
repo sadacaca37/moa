@@ -7,6 +7,7 @@
 //  - 이모티콘 반응: boards/{패들렛}/reacts/{글}_{uid}_{번호} = { pid, e, uid }
 //  - 댓글·글 쓰기 칸에 이모티콘 넣기
 //  - 패들렛 형식(담벼락·칸·격자·스트림·타임라인·캔버스)
+import { emoHTML, emoName, emoTok, openEmoPicker } from './emo.js';
 import { fs, doc, setDoc, deleteDoc, collection, getDocs, serverTimestamp, esc, Bytes } from './fb.js';
 
 export const MAX_FILE = 10 * 1024 * 1024;
@@ -202,28 +203,33 @@ export function filesHTML(list, opts) {
 const PAL = new Set(); // 열린 이모티콘 고르기 칸
 // 반응 줄: rs = 이 글의 반응들, can = 누를 수 있는지
 export function reactsHTML(pid, rs, myUid, can) {
-  const cnt = REACTS.map(() => 0), mine = REACTS.map(() => false);
-  (rs || []).forEach((r) => { if (Number.isInteger(r.e) && r.e >= 0 && r.e < REACTS.length) { cnt[r.e]++; if (r.uid === myUid) mine[r.e] = true; } });
-  const any = cnt.some((n) => n > 0);
-  if (!any && !can) return '';
+  // e: 0~7 기본 이모지, 100~199 모아팡 이모티콘(100+번호)
+  const cnt = new Map(), mine = new Set();
+  (rs || []).forEach((r) => { if (okRx(r.e)) { cnt.set(r.e, (cnt.get(r.e) || 0) + 1); if (r.uid === myUid) mine.add(r.e); } });
+  if (!cnt.size && !can) return '';
   const key = 'r:' + pid;
-  let h = '<div class="pk-rx">' + REACTS.map((em, e) => cnt[e] ? '<button type="button" class="pk-r' + (mine[e] ? ' on' : '') + '" data-pk="react" data-pid="' + esc(pid) + '" data-e="' + e + '" aria-pressed="' + mine[e] + '" aria-label="' + REACT_NAMES[e] + ' ' + cnt[e] + '개"' + (can ? '' : ' disabled') + '>' + em + '<b>' + cnt[e] + '</b></button>' : '').join('');
+  const order = REACTS.map((_, e) => e).filter((e) => cnt.has(e)).concat([...cnt.keys()].filter((e) => e >= 100));
+  const face = (e) => e >= 100 ? emoHTML(e - 100, '26px') : REACTS[e];
+  const label = (e) => e >= 100 ? emoName(e - 100) : REACT_NAMES[e];
+  let h = '<div class="pk-rx">' + order.map((e) => '<button type="button" class="pk-r' + (e >= 100 ? ' st' : '') + (mine.has(e) ? ' on' : '') + '" data-pk="react" data-pid="' + esc(pid) + '" data-e="' + e + '" aria-pressed="' + mine.has(e) + '" aria-label="' + esc(label(e)) + ' ' + cnt.get(e) + '개" title="' + esc(label(e)) + '"' + (can ? '' : ' disabled') + '>' + face(e) + '<b>' + cnt.get(e) + '</b></button>').join('');
   if (can) h += '<button type="button" class="pk-r add" data-pk="pal" data-key="' + esc(key) + '" aria-expanded="' + PAL.has(key) + '" aria-label="이모티콘 달기" title="이모티콘 달기">😀<span aria-hidden="true">+</span></button>';
   h += '</div>';
-  if (can) h += '<div class="pk-pal" data-palk="' + esc(key) + '" role="group" aria-label="달 이모티콘 고르기"' + (PAL.has(key) ? '' : ' hidden') + '>' + REACTS.map((em, e) => '<button type="button" data-pk="react" data-pid="' + esc(pid) + '" data-e="' + e + '" aria-pressed="' + mine[e] + '" aria-label="' + REACT_NAMES[e] + '" title="' + REACT_NAMES[e] + '">' + em + '</button>').join('') + '</div>';
+  if (can) h += '<div class="pk-pal" data-palk="' + esc(key) + '" role="group" aria-label="달 이모티콘 고르기"' + (PAL.has(key) ? '' : ' hidden') + '>' + REACTS.map((em, e) => '<button type="button" data-pk="react" data-pid="' + esc(pid) + '" data-e="' + e + '" aria-pressed="' + mine.has(e) + '" aria-label="' + REACT_NAMES[e] + '" title="' + REACT_NAMES[e] + '">' + em + '</button>').join('') +
+    '<button type="button" class="pk-more" data-pk="rsticker" data-emopen data-pid="' + esc(pid) + '" aria-label="모아팡 이모티콘 고르기" title="모아팡 이모티콘">' + emoHTML(11, '30px') + '<span>더보기</span></button></div>';
   return h;
 }
+const okRx = (e) => Number.isInteger(e) && ((e >= 0 && e < REACTS.length) || (e >= 100 && e < 200));
 // 글자 칸에 이모티콘 넣는 단추와 고르기 칸 (sel = 넣을 칸을 찾는 CSS 선택자)
 export function emojiBtn(key, label) { return '<button type="button" class="pk-eb" data-pk="pal" data-key="' + esc(key) + '" aria-expanded="' + PAL.has(key) + '" aria-label="' + esc(label || '이모티콘 넣기') + '" title="이모티콘 넣기">😀</button>'; }
 export function emojiPal(key, sel) {
-  return '<div class="pk-pal" data-palk="' + esc(key) + '" role="group" aria-label="넣을 이모티콘 고르기"' + (PAL.has(key) ? '' : ' hidden') + '>' + EMOJIS.map((em) => '<button type="button" data-pk="emo" data-sel="' + esc(sel) + '" data-em="' + em + '">' + em + '</button>').join('') + '</div>';
+  return '<div class="pk-pal" data-palk="' + esc(key) + '" role="group" aria-label="넣을 이모티콘 고르기"' + (PAL.has(key) ? '' : ' hidden') + '><button type="button" class="pk-more" data-pk="emopick" data-emopen data-key="' + esc(key) + '" data-sel="' + esc(sel) + '" aria-label="모아팡 이모티콘 고르기" title="모아팡 이모티콘">' + emoHTML(11, '30px') + '<span>모아팡</span></button>' + EMOJIS.map((em) => '<button type="button" data-pk="emo" data-sel="' + esc(sel) + '" data-em="' + em + '">' + em + '</button>').join('') + '</div>';
 }
 export function closePals() { PAL.clear(); document.querySelectorAll('.pk-pal').forEach((p) => { p.hidden = true; }); }
 
 /* ---------- 누르기 ---------- */
 let H = {};
 let installed = false;
-// h: { bid(): 지금 패들렛, react(pid, e), toast(글자, 나쁨), unfile(fid) }
+// h: { bid(): 지금 패들렛, react(pid, e), toast(글자, 나쁨), unfile(fid), sticker(key, i): 이모티콘을 바로 보냈으면 true }
 export function installPadkit(h) {
   H = h || {};
   if (installed) return; installed = true;
@@ -250,6 +256,18 @@ export function installPadkit(h) {
       const key = 'r:' + t.dataset.pid;
       if (t.closest('.pk-pal')) { PAL.delete(key); t.closest('.pk-pal').hidden = true; }
       if (H.react) H.react(t.dataset.pid, +t.dataset.e);
+    } else if (a === 'rsticker') {
+      e.preventDefault();
+      const pid = t.dataset.pid;
+      openEmoPicker(t, (i) => { PAL.delete('r:' + pid); closePals(); if (H.react) H.react(pid, 100 + i); });
+    } else if (a === 'emopick') {
+      e.preventDefault();
+      const key = t.dataset.key, sel = t.dataset.sel;
+      openEmoPicker(t, (i) => {
+        if (H.sticker && H.sticker(key, i)) { PAL.delete(key); closePals(); return; }
+        const inp = document.querySelector(sel); if (!inp || inp.disabled) return;
+        insertAt(inp, emoTok(i));
+      });
     } else if (a === 'pal') {
       e.preventDefault();
       const key = t.dataset.key, open = !PAL.has(key);
@@ -260,12 +278,7 @@ export function installPadkit(h) {
     } else if (a === 'emo') {
       e.preventDefault();
       const inp = document.querySelector(t.dataset.sel); if (!inp || inp.disabled) return;
-      const s = inp.selectionStart ?? inp.value.length, en = inp.selectionEnd ?? inp.value.length;
-      const max = +inp.getAttribute('maxlength') || 0, em = t.dataset.em;
-      if (max && inp.value.length - (en - s) + em.length > max) return;
-      inp.setRangeText(em, s, en, 'end');
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-      inp.focus();
+      insertAt(inp, t.dataset.em);
     } else if (a === 'unfile') {
       e.preventDefault();
       if (H.unfile) H.unfile(t.dataset.fid);
@@ -273,6 +286,14 @@ export function installPadkit(h) {
   });
   // 보기 창이 열려 있으면 Esc는 보기 창만 닫는다
   document.addEventListener('keydown', (e) => { if (viewer && e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); closeViewer(); } }, true);
+}
+function insertAt(inp, em) {
+  const s = inp.selectionStart ?? inp.value.length, en = inp.selectionEnd ?? inp.value.length;
+  const max = +inp.getAttribute('maxlength') || 0;
+  if (max && inp.value.length - (en - s) + em.length > max) { if (H.toast) H.toast('글자 수가 꽉 찼어요.', true); return; }
+  inp.setRangeText(em, s, en, 'end');
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+  inp.focus();
 }
 function injectCSS() {
   const s = document.createElement('style');
@@ -299,6 +320,8 @@ function injectCSS() {
 .pk-pal{display:flex;flex-wrap:wrap;gap:2px;padding:6px;background:#fff;border:3px solid #1B1F3B;box-shadow:3px 3px 0 #1B1F3B}
 .pk-pal button{width:38px;height:38px;border:0;border-radius:8px;background:transparent;font-size:21px;line-height:1;cursor:pointer;padding:0}
 .pk-pal button:hover,.pk-pal button[aria-pressed=true]{background:#FFF1B8}
+.pk-pal .pk-more{width:auto;display:inline-flex;align-items:center;gap:3px;padding:0 8px 0 4px;border:2px dashed #1B1F3B;font:700 12px 'Noto Sans KR',sans-serif;color:#1B1F3B}
+.pk-r.st{padding:0 8px 0 3px}
 .pk-ov{position:fixed;inset:0;z-index:90;background:rgba(27,31,59,.72);display:flex;align-items:center;justify-content:center;padding:12px}
 .pk-box{background:#fff;width:min(96vw,1040px);max-height:94vh;display:flex;flex-direction:column;padding:10px;gap:8px}
 .pk-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}

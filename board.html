@@ -74,6 +74,8 @@
 .pin{padding:10px 12px 8px;display:flex;flex-direction:column;gap:6px}
 .pin h3{margin:0;font:700 16px/1.4 'Noto Sans KR',sans-serif;overflow-wrap:anywhere}
 .pin p{margin:0;font-size:14px;line-height:1.6;color:#333A55;white-space:pre-line;overflow-wrap:anywhere}
+.pin p.big{line-height:1}
+.cm li .stk{margin:2px 0}
 .lnk{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 10px;background:#EAF3FF;border:3px solid var(--ink);text-decoration:none;font-size:13px;font-weight:700;overflow-wrap:anywhere}
 .by{display:flex;align-items:center;justify-content:space-between;gap:4px 6px;padding:0 4px 4px 12px;font-size:12px;color:var(--sub);flex-wrap:wrap}
 .by b{color:var(--ink)}
@@ -179,6 +181,7 @@
 <div class="ground" aria-hidden="true"></div>
 <script type="module">
 import { fs, ensureUser, isTeacher, teacherRole, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, esc, safeUrl, hostOf, errText, getSession, toast, PREVIEW, previewToast } from './js/fb.js';
+import { emoHTML, emoRich, emoOnly, emoTok } from './js/emo.js';
 import { installPadkit, filesHTML, reactsHTML, emojiBtn, emojiPal, closePals, checkFile, uploadFile, removeFile, cleanFiles, fmtSize, fileKind, MAX_FILES, PCOLORS, pcolor, okColor, FORMATS, layoutOf, formatName, usesSecs } from './js/padkit.js';
 const $ = (id) => document.getElementById(id);
 const SEC = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
@@ -334,7 +337,7 @@ function postHTML(p, ctx, memo) {
   const bg = pcolor(okColor(p.color) || (memo ? 'y' : ''));
   let h = '<article class="post' + (mine ? ' mine' : '') + '" data-pid="' + esc(p.id) + '" style="background:' + bg + '">';
   if (img) h += '<button type="button" class="pic" data-act="big" data-id="' + esc(p.id) + '" aria-label="사진 크게 보기"><img src="' + img + '" alt="' + esc(p.title || (p.author || '') + '의 사진') + '" loading="lazy" draggable="false"></button>';
-  h += '<div class="pin">' + (p.title ? '<h3>' + esc(p.title) + '</h3>' : '') + (p.body ? '<p>' + esc(p.body) + '</p>' : '') +
+  h += '<div class="pin">' + (p.title ? '<h3>' + emoRich(esc(p.title), '1.3em') + '</h3>' : '') + (p.body ? (emoOnly(p.body) >= 0 ? '<p class="big">' + emoHTML(emoOnly(p.body), '96px') + '</p>' : '<p>' + emoRich(esc(p.body)) + '</p>') : '') +
     (link ? '<a class="lnk" href="' + esc(link) + '" target="_blank" rel="noopener">' + (video ? '▶ 영상 · ' : '🔗 ') + esc(hostOf(link) || link) + '</a>' : '') + filesHTML(p.files) + '</div>';
   const acts = (canEdit(p) ? '<button class="tiny" type="button" data-act="editpost" data-id="' + esc(p.id) + '">고치기</button>' : '') +
     (canDel(p) ? '<button class="tiny" type="button" data-act="delpost" data-id="' + esc(p.id) + '">지우기</button>' : '') +
@@ -351,7 +354,7 @@ function postHTML(p, ctx, memo) {
     } else {
       const opened = S.open.has(p.id), shown = opened ? cs : cs.slice(-2);
       if (cs.length > shown.length) h += '<button class="tiny" type="button" data-act="more" data-id="' + esc(p.id) + '" style="align-self:flex-start">댓글 ' + cs.length + '개 모두 보기</button>';
-      if (shown.length) h += '<ul>' + shown.map((c) => '<li><b>' + esc(c.author) + '</b><span>' + esc(c.body) + '</span>' + ((S.user && c.uid === S.user.uid) || S.teacher ? '<button class="tiny" type="button" data-act="delcm" data-id="' + esc(c.id) + '" aria-label="댓글 지우기">✕</button>' : '') + '</li>').join('') + '</ul>';
+      if (shown.length) h += '<ul>' + shown.map((c) => '<li><b>' + esc(c.author) + '</b><span>' + (emoOnly(c.body) >= 0 ? emoHTML(emoOnly(c.body), '64px', 'stk') : emoRich(esc(c.body), '1.6em')) + '</span>' + ((S.user && c.uid === S.user.uid) || S.teacher ? '<button class="tiny" type="button" data-act="delcm" data-id="' + esc(c.id) + '" aria-label="댓글 지우기">✕</button>' : '') + '</li>').join('') + '</ul>';
       if (w) {
         const sel = '[data-cin="' + CSS.escape(p.id) + '"]';
         h += '<form data-cform="' + esc(p.id) + '"><input data-cin="' + esc(p.id) + '" maxlength="300" autocomplete="off" placeholder="댓글 달기…" aria-label="댓글 쓰기">' + emojiBtn('c:' + p.id, '댓글에 이모티콘 넣기') + '<button class="go" type="submit">올리기</button></form>' + emojiPal('c:' + p.id, sel);
@@ -582,19 +585,19 @@ async function sendPost() {
     } else toast(errText(err), true);
   } finally { S.busy = false; }
 }
-async function sendComment(pid, input) {
+async function sendComment(pid, input, sticker) {
   if (PREVIEW) { previewToast(); return; }
-  const body = cleanTxt(input.value, 300); if (!body) return;
+  const typed = input.value, body = sticker != null ? emoTok(sticker) : cleanTxt(typed, 300); if (!body) return;
   let author = myName();
   if (!author) {
     author = cleanTxt(prompt('댓글에 쓸 내 이름을 써 주세요') || '', 10);
     if (!author) return; keepName(author);
   }
   // 화면이 다시 그려져도 글자가 남지 않게 먼저 비움 (안 되면 되돌림)
-  input.value = ''; input.disabled = true;
+  input.value = sticker != null ? typed : ''; input.disabled = true;
   const cur = () => document.querySelector('[data-cin="' + CSS.escape(pid) + '"]');
   try { await setDoc(doc(collection(fs, 'boards', bid, 'comments')), { pid, body, author, uid: me(), at: serverTimestamp() }); S.open.add(pid); }
-  catch (err) { const i = cur(); if (i) i.value = body; toast(/permission/i.test(err.code || '') ? '지금은 댓글을 달 수 없어요.' : errText(err), true); }
+  catch (err) { const i = cur(); if (i) i.value = typed; toast(/permission/i.test(err.code || '') ? '지금은 댓글을 달 수 없어요.' : errText(err), true); }
   finally { input.disabled = false; const i = cur(); if (i) { i.disabled = false; i.focus(); } }
 }
 async function react(pid, e) {
@@ -729,6 +732,13 @@ installPadkit({
   bid: () => bid,
   react,
   toast,
+  // 댓글 칸에서 고른 모아팡 이모티콘은 바로 댓글로 보냄 (글쓰기 창에서는 글 안에 넣음)
+  sticker: (key, i) => {
+    if (!key.startsWith('c:')) return false;
+    const pid = key.slice(2), inp = document.querySelector('[data-cin="' + CSS.escape(pid) + '"]');
+    if (!inp || inp.disabled || !canWrite()) return false;
+    sendComment(pid, inp, i); return true;
+  },
   unfile: (fid) => { S.keepFiles = S.keepFiles.filter((f) => f.id !== fid); drawAtt(); }
 });
 

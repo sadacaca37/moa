@@ -95,6 +95,7 @@ import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, increment, writeBatch,
   ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast, TEACHER_EM_KEY, endPreview, previewUrl, onLiveState
 } from './js/fb.js';
+import { emoHTML, emoRich, emoOnly } from './js/emo.js';
 import { DEF_OX, DEF_MC } from './js/questions.js';
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
 import { aiQuiz, AGES, CATS } from './js/ai.js';
@@ -424,7 +425,7 @@ function paintLive() {
 }
 function paintChat() {
   if (!L || !$('chatLog')) return;
-  $('chatLog').innerHTML = L.chat.map((m) => '<p><b>' + esc(m.n || '?') + '</b> ' + esc(m.m || '') + '</p>').join('') || '<p class="note">채팅이 없어요.</p>';
+  $('chatLog').innerHTML = L.chat.map((m) => '<p><b>' + esc(m.n || '?') + '</b> ' + (emoOnly(m.m) >= 0 ? emoHTML(emoOnly(m.m), '40px') : emoRich(esc(m.m || ''), '1.4em')) + '</p>').join('') || '<p class="note">채팅이 없어요.</p>';
   $('chatLog').scrollTop = $('chatLog').scrollHeight;
 }
 function paintStudents() {

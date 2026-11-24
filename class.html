@@ -40,6 +40,8 @@
 .chatf{display:flex;gap:6px;padding:8px;border-top:4px solid var(--ink);background:#fff}
 .chatf .field{padding:8px 10px;font-size:15px;border-width:3px}
 .chatf .btn{flex:none;white-space:nowrap}
+.chatf .emob{padding:0 4px;min-width:44px;display:flex;align-items:center;justify-content:center}
+#log .stk{display:block;margin-top:2px}
 .people ul{list-style:none;margin:0;padding:10px 12px;display:flex;flex-wrap:wrap;gap:6px;max-height:200px;overflow:auto}
 .people li{border:2px solid var(--ink);background:#fff;padding:2px 8px;font-size:14px}
 .people li.me{background:var(--yel)}
@@ -119,7 +121,7 @@ html.embed .mapbox{border:0;box-shadow:none}
         <div class="pf chat">
           <h2>채팅</h2>
           <div id="log" aria-live="polite"></div>
-          <form class="chatf" id="chatF" autocomplete="off"><input class="field" id="chatI" maxlength="40" placeholder="한 번에 40자까지" aria-label="채팅 글"><button class="btn sm blue" type="submit">보내기</button></form>
+          <form class="chatf" id="chatF" autocomplete="off"><button class="btn sm emob" type="button" id="chatE" data-emopen aria-label="이모티콘 보내기" title="이모티콘"></button><input class="field" id="chatI" maxlength="40" placeholder="한 번에 40자까지" aria-label="채팅 글"><button class="btn sm blue" type="submit">보내기</button></form>
         </div>
         <div class="pf people">
           <h2 id="pplH">들어온 친구 0명</h2>
@@ -170,6 +172,7 @@ import {
   ref, set, update, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, rquery, limitToLast, rnow, rget,
   getSession, setSession, clearSession, mapName, WAIT_MAP, esc, safeUrl, hostOf, errText, toast, PREVIEW, onLiveState
 } from './js/fb.js';
+import { emoHTML, emoRich, emoOnly, emoTok, emoImg, drawEmoBubble, openEmoPicker } from './js/emo.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
 // 선생님 모드: class.html?teach=반ID (&embed=1 은 진행판 안의 작은 화면) — 선생님도 캐릭터로 교실에 들어감
@@ -272,13 +275,21 @@ function people() {
 
 /* ---------- 채팅 ---------- */
 function logLine(html, cls2) { const p = document.createElement('p'); if (cls2) p.className = cls2; p.innerHTML = html; const log = $('log'); log.append(p); while (log.children.length > 60) log.firstChild.remove(); log.scrollTop = log.scrollHeight; }
-$('chatF').addEventListener('submit', async (e) => {
+$('chatF').addEventListener('submit', (e) => {
   e.preventDefault(); const m = $('chatI').value.replace(/\s+/g, ' ').trim().slice(0, 40); if (!m || !user) return;
-  if (PV) { $('chatI').value = ''; logLine('<b>' + esc(me.name) + '</b>' + esc(m) + ' (미리보기 · 친구들에게는 안 보내요)', 'mine'); say(me, m); return; }
-  if (st.chatOff) { toast('지금은 선생님이 채팅을 껐어요', true); return; }
-  $('chatI').value = '';
-  try { await push(ref(rt, 'live/' + ses.cid + '/chat'), { u: user.uid, n: me.name, m, t: rnow() }); } catch (err) { toast(errText(err), true); }
+  sendChat(m, true);
 });
+async function sendChat(m, typed) {
+  if (PV) { if (typed) $('chatI').value = ''; logLine(chatHTML(me.name, m) + ' (미리보기 · 친구들에게는 안 보내요)', 'mine'); say(me, m); return; }
+  if (st.chatOff) { toast('지금은 선생님이 채팅을 껐어요', true); return; }
+  if (typed) $('chatI').value = '';
+  try { await push(ref(rt, 'live/' + ses.cid + '/chat'), { u: user.uid, n: me.name, m, t: rnow() }); } catch (err) { toast(errText(err), true); }
+}
+// 채팅 한 줄: 이모티콘만 보내면 크게, 글 사이 이모티콘은 작게
+function chatHTML(n, m) { const ei = emoOnly(m); return '<b>' + esc(n || '?') + '</b>' + (ei >= 0 ? emoHTML(ei, '56px', 'stk') : emoRich(esc(m || ''), '1.5em')); }
+$('chatE').innerHTML = emoHTML(0, '30px');
+emoImg();
+$('chatE').addEventListener('click', () => { if (!user) return; openEmoPicker($('chatE'), (i) => sendChat(emoTok(i), false)); });
 function say(a, text) { a.bubble = String(text).length > 22 ? String(text).slice(0, 21) + '…' : String(text); a.bubbleT = 5; }
 
 /* ---------- 선생님 진행 ---------- */
@@ -568,7 +579,8 @@ function drawTag(a) {
   g.fillStyle = tch ? '#FF6B4A' : a.isMe ? '#ffd23f' : 'rgba(23,24,28,.78)'; rr(x, y, w, h, h / 2); g.fill();
   if (a.isMe || tch) { g.lineWidth = 2 * ui; g.strokeStyle = '#111'; g.stroke(); }
   g.fillStyle = tch ? '#fff' : a.isMe ? '#17181c' : '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, a.x, y + h / 2 + 1);
-  if (a.bubbleT > 0 && a.bubble) {
+  if (a.bubbleT > 0 && a.bubble && emoOnly(a.bubble) >= 0) drawEmoBubble(g, emoOnly(a.bubble), a.x, y - 1 * ui, 46 * ui, ui, Math.min(1, a.bubbleT * 2), 4, cv.width - 4);
+  else if (a.bubbleT > 0 && a.bubble) {
     const bf = 15 * ui; g.font = `700 ${bf}px "Noto Sans KR", sans-serif`;
     const bw = g.measureText(a.bubble).width + bf * 1.2, bh = bf * 1.7, bx = clamp(a.x - bw / 2, 4, cv.width - bw - 4), by = y - bh - 8 * ui;
     g.globalAlpha = Math.min(1, a.bubbleT * 2);
@@ -686,7 +698,7 @@ function frame(now) {
   onChildRemoved(ref(rt, base + '/players'), (s) => { actors.delete(s.key); people(); });
   onChildAdded(rquery(ref(rt, base + '/chat'), limitToLast(30)), (s) => {
     const v = s.val() || {}; const mine = v.u === user.uid;
-    logLine('<b>' + esc(v.n || '?') + '</b>' + esc(v.m || ''), mine ? 'mine' : '');
+    logLine(chatHTML(v.n, v.m), mine ? 'mine' : '');
     if (joined || Date.now() - (v.t || 0) < 8000) { const a = mine ? me : actors.get(v.u); if (a) say(a, v.m || ''); }
   });
   people();

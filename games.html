@@ -136,6 +136,7 @@ ol.rank li span:last-child{white-space:nowrap;font-variant-numeric:tabular-nums}
 .emo{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .emo .btn{font-size:16px;min-height:40px;padding:6px 12px;background:#fff6c8}
 .emo .btn kbd{font:500 12px var(--f-b);color:#7a6a2a;margin-left:2px}
+.emo .btn.stb{display:inline-flex;align-items:center;gap:4px;padding:4px 10px 4px 4px;background:#fff}
 #hudT.hurry{background:var(--red);color:#fff}
 .result{position:relative}
 .qbset{display:flex;flex-direction:column;gap:3px}.qbset small{font-size:12px;color:var(--muted);text-align:center}
@@ -317,6 +318,7 @@ import { fs, rt, whenAuth, ensureUser, isTeacher, teacherRole, bankId, doc, getD
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
 import { QUIZ, OXT as DEF_OX } from './js/questions.js'; // 기본 문제 (선생님 화면과 같은 것)
 import { aiJSON } from './js/ai.js';
+import { emoHTML, emoOnly, emoTok, emoImg, drawEmoBubble, openEmoPicker, EMO_N } from './js/emo.js';
 {
 'use strict';
 const $ = s => document.querySelector(s);
@@ -430,9 +432,11 @@ function itemSprites() {
 function umbSheet(a) { return a._u || (a._u = sheetFor(Object.assign({}, a.o, { hand: 'hand_umbrella', handColor: 'yellow' }))); }
 const CHEER = ['화이팅!', '가즈아!', '할 수 있다!', '으쌰으쌰!', 'ㅋㅋㅋ', '야호!', '재밌다!'];
 const EMO = ['화이팅!', 'ㅋㅋㅋ', '도와줘!', '고마워!', '야호!'];
+const emoText = i => EMO[i] || (i >= 100 && i < 100 + EMO_N ? emoTok(i - 100) : ''); // 100~199: 모아팡 이모티콘
 function emote(i) {
-  if (!me || me.spec || !EMO[i]) return;
-  if (MODE === 'host') { SIM = true; try { say(me, EMO[i], '#fff6c8', 2.2); } finally { SIM = false; } } else say(me, EMO[i], '#fff6c8', 2.2); // 선생님 말풍선은 학생들에게도
+  const t = emoText(i);
+  if (!me || me.spec || !t) return;
+  if (MODE === 'host') { SIM = true; try { say(me, t, '#fff6c8', 2.4); } finally { SIM = false; } } else say(me, t, '#fff6c8', 2.4); // 선생님 말풍선은 학생들에게도
   sfx('chat_pop', 0.8); if (MODE === 'client') { EMN = (++emN) + ':' + i; CN.force = true; }
 }
 
@@ -606,7 +610,8 @@ function drawTag(a) {
   if (a.isMe || st.bg) { g.lineWidth = 2 * ui; g.strokeStyle = '#111'; g.stroke(); }
   g.fillStyle = st.fg || (a.isMe ? '#17181c' : '#fff'); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, a.x, y + h / 2 + 1);
   g.globalAlpha = 1;
-  if (a.bubbleT > 0 && a.bubble) {
+  if (a.bubbleT > 0 && a.bubble && emoOnly(a.bubble) >= 0) drawEmoBubble(g, emoOnly(a.bubble), a.x, y - 1 * ui, 46 * ui, ui, Math.min(1, a.bubbleT * 2), V[0] + 4, V[2] - 4);
+  else if (a.bubbleT > 0 && a.bubble) {
     const bf = 15 * ui; g.font = `700 ${bf}px "Noto Sans KR", sans-serif`;
     const bw = g.measureText(a.bubble).width + bf * 1.2, bh = bf * 1.7, bx = clamp(a.x - bw / 2, V[0] + 4, V[2] - bw - 4), by = y - bh - 8 * ui;
     g.fillStyle = a.bubbleC || '#fff'; g.strokeStyle = '#111'; g.lineWidth = 2.5 * ui; rr(bx, by, bw, bh, 10 * ui); g.fill(); g.stroke();
@@ -2104,7 +2109,9 @@ $('#reroll').addEventListener('click', () => { if (MY_O) { toast('내 옷은 반
 $('#sndBtn').addEventListener('click', e => { soundOn = !soundOn; savePref('sound', soundOn); e.currentTarget.setAttribute('aria-pressed', String(soundOn)); sfx('ui_click'); });
 $('#bgmBtn').addEventListener('click', e => { musicOn = !musicOn; savePref('music', musicOn); e.currentTarget.setAttribute('aria-pressed', String(musicOn)); if (musicOn && state === 'play') bgmStart(); else bgmStop(); });
 $('#sndBtn').setAttribute('aria-pressed', String(soundOn)); $('#bgmBtn').setAttribute('aria-pressed', String(musicOn));
-$('#emo').innerHTML = EMO.map((t, i) => `<button class="btn" type="button" data-e="${i}">${t}<kbd>${i + 1}</kbd></button>`).join('');
+$('#emo').innerHTML = EMO.map((t, i) => `<button class="btn" type="button" data-e="${i}">${t}<kbd>${i + 1}</kbd></button>`).join('') + `<button class="btn stb" type="button" id="emoMore" data-emopen aria-label="이모티콘 고르기" title="이모티콘">${emoHTML(16, '28px')}<span>이모티콘</span></button>`;
+emoImg();
+$('#emoMore').addEventListener('click', () => openEmoPicker($('#emoMore'), i => emote(100 + i), { keep: true }));
 $('#emo').addEventListener('click', e => { const b = e.target.closest('[data-e]'); if (b) emote(+b.dataset.e); });
 $('#myName').addEventListener('input', () => { me.name = ($('#myName').value.trim() || '나').slice(0, 6); updateSide(); });
 $('#count').addEventListener('change', () => { if (MODE === 'host') { if (state === 'ready' || state === 'over') resetGame(); else markDirty(); return; } setCount(+$('#count').value); if (G) { readSettings(); resetGame(); } });
@@ -2165,7 +2172,7 @@ function tick(dt, now, draw) {
         if (a === self || a.remote) continue; // 진짜 친구는 자기 화면에서 움직여요
         if (state === 'play') {
           if (G.bot) G.bot(a, dt); else a.moving = false;
-          if ((a.emoT -= dt) <= 0) { a.emoT = rand(12, 30); if (cur.id !== 'chat' && !a.out && a.bubbleT <= 0 && Math.random() < 0.45) say(a, pick(CHEER), null, 1.8); }
+          if ((a.emoT -= dt) <= 0) { a.emoT = rand(12, 30); if (cur.id !== 'chat' && !a.out && a.bubbleT <= 0 && Math.random() < 0.45) say(a, Math.random() < 0.4 ? emoTok(Math.floor(Math.random() * EMO_N)) : pick(CHEER), null, 1.8); }
         }
         else if (state === 'ready' && !(G.lock && G.lock(a)) && cur.id !== 'bingo' && cur.id !== 'chat') wander(a, dt, (x, y) => stand(a, x, y), 0.35);
         else a.moving = false;
@@ -2328,7 +2335,7 @@ function hostApply(dt) {
     }
     a.moving = r.m && !(a.out && a.sit) && !(a.stun > 0); if (a.moving) a.step += dt * 8.5;
     if (r.acQ) { r.acQ = 0; if (state === 'play' && G.remoteAct) sim(() => G.remoteAct(a)); }
-    if (r.emQ) { const i = +String(r.emQ).split(':')[1]; r.emQ = 0; if (EMO[i]) sim(() => say(a, EMO[i], '#fff6c8', 2.2)); }
+    if (r.emQ) { const i = +String(r.emQ).split(':')[1]; r.emQ = 0; const t = emoText(i); if (t) sim(() => say(a, t, '#fff6c8', 2.4)); }
   }
 }
 function hostFeel() { // 선생님 캐릭터의 내 안내·소리 (학생 화면과 같은 방법)
