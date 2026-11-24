@@ -822,7 +822,9 @@ function start(u) {
 }
 (async () => {
   const u = await whenAuth();
-  if (isTeacher(u)) afterLogin(u); else drawLogin(u && !u.isAnonymous ? '선생님 계정이 아니에요.' : '');
+  const kicked = new URLSearchParams(location.search).get('out') === 'other';
+  if (kicked) history.replaceState(null, '', location.pathname);
+  if (isTeacher(u)) afterLogin(u); else drawLogin(kicked ? '다른 컴퓨터에서 이 계정으로 로그인해서, 이 컴퓨터는 로그아웃했어요. 여기서 쓰려면 다시 로그인해 주세요.' : u && !u.isAnonymous ? '선생님 계정이 아니에요.' : '');
 })();
 </script>
 </body>

@@ -182,8 +182,7 @@ async function leaveSeat() {
   leaving = true;
   forgetSeat();
   try { await signOut(auth); } catch (e) { /* 무시 */ }
-  alert('다른 컴퓨터에서 이 선생님 계정으로 로그인해서, 이 컴퓨터는 로그아웃했어요.\n여기서 다시 쓰려면 다시 로그인해 주세요.');
-  location.href = SITE + 'teacher.html';
+  location.href = SITE + 'teacher.html?out=other';
 }
 onAuthStateChanged(auth, (u) => {
   if (seatOff) { seatOff(); seatOff = null; }
