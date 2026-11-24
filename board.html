@@ -222,6 +222,20 @@
 .post .pk-r.add{border-style:solid;color:#6B7085}
 .post .pk-eb{border:1px solid #C9CED8;border-radius:10px;background:#fff}
 @media (max-width:600px){.sec{width:min(86vw,340px)}.bav .msc{height:40px}.bav{width:48px;height:48px}.head h1{font-size:24px}}
+
+/* 칸 형식: 칸마다 따로 스크롤 (2026-11-25) — 칸 머리는 그대로, 아래 글만 위아래로 */
+body.colsfit::after{display:none}
+.cols.L-columns{padding-bottom:0;overflow-y:hidden}
+.L-columns .crow{height:100%;align-items:stretch}
+.L-columns .sec{height:100%;min-height:0}
+.secb{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:12px;padding:2px 8px 16px 3px;margin-right:-8px;scrollbar-width:thin;scrollbar-color:rgba(29,32,48,.35) transparent;overscroll-behavior:contain}
+.secb::-webkit-scrollbar{width:7px}
+.secb::-webkit-scrollbar-track{background:transparent}
+.secb::-webkit-scrollbar-thumb{background:rgba(29,32,48,.32);border-radius:8px}
+.secb::-webkit-scrollbar-thumb:hover{background:rgba(29,32,48,.5)}
+.secb:focus{outline:0}
+.L-columns .addsec{flex:none}
+@media (max-width:600px){.cols.L-columns{overflow-y:hidden}}
 </style>
 </head>
 <body>
@@ -326,7 +340,10 @@ function draw() {
   const keepSel = keepFocus ? [ae.selectionStart, ae.selectionEnd] : null;
   const keepVals = {}; document.querySelectorAll('[data-cin]').forEach((i) => { if (i.value) keepVals[i.dataset.cin] = i.value; });
   const box = $('cols'), same = box.classList.contains('L-' + L), sx = box.scrollLeft, sy = box.scrollTop;
+  const secY = [...box.querySelectorAll('.secb')].map((e) => e.scrollTop);
   box.className = 'cols L-' + L;
+  document.body.classList.toggle('colsfit', L === 'columns');
+  if (L !== 'columns') box.style.height = '';
   let h;
   if (L === 'canvas') h = canvasHTML(all, ctx);
   else if (L === 'columns') h = columnsHTML(all, ctx);
@@ -334,7 +351,8 @@ function draw() {
   else h = groupedHTML(L, all, ctx);
   box.innerHTML = h;
   if (L === 'wall' && all.length) balanceWall(all, ctx);
-  if (same) { box.scrollLeft = sx; box.scrollTop = sy; }
+  if (same) { box.scrollLeft = sx; box.scrollTop = sy; box.querySelectorAll('.secb').forEach((e, i) => { if (secY[i]) e.scrollTop = secY[i]; }); }
+  if (L === 'columns') fitCols();
   if (L === 'canvas') afterCanvas();
   Object.keys(keepVals).forEach((k) => { const i = document.querySelector('[data-cin="' + CSS.escape(k) + '"]'); if (i) i.value = keepVals[k]; });
   if (keepFocus) { const i = document.querySelector('[data-cin="' + CSS.escape(keepFocus) + '"]'); if (i) { i.focus(); try { i.setSelectionRange(keepSel[0], keepSel[1]); } catch (e) { /* 무시 */ } } }
@@ -349,6 +367,13 @@ function balanceWall(all, ctx) {
   all.forEach((p) => { const k = H.indexOf(Math.min(...H)); g[k].push(p); H[k] += (hs[p.id] || 200) + 16; });
   box.innerHTML = wallHTML(g, ctx);
 }
+// 칸 형식: 판 높이를 화면 아래까지 맞추고(땅 띠 위까지), 칸 안에서만 스크롤
+function fitCols() {
+  const box = $('cols'); if (!box || !box.classList.contains('L-columns')) return;
+  const top = box.getBoundingClientRect().top + scrollY, bottom = EMBED ? 6 : 44;
+  box.style.height = Math.max(320, innerHeight - top - bottom) + 'px';
+}
+addEventListener('resize', fitCols);
 let wallT = 0;
 window.addEventListener('resize', () => { clearTimeout(wallT); wallT = setTimeout(() => { if (S.board && layoutOf(S.board) === 'wall' && !$('dlg').innerHTML) draw(); }, 200); });
 const emptyHTML = (w) => '<p class="empty pf" style="padding:18px">아직 글이 없어요.' + (w ? ' <b>+</b>를 눌러 써 보세요.' : '') + '</p>';
@@ -364,7 +389,8 @@ function columnsHTML(all, ctx) {
   const secs = secsOf();
   return '<div class="crow">' + secs.map((name, i) => {
     const list = all.filter((p) => secOf(p, secs) === i);
-    return '<section class="sec">' + secHead(name, i, list.length, 'sech') + (ctx.w ? addTop(i, name) : '') + list.map((p) => postHTML(p, ctx)).join('') + '</section>';
+    // 칸마다 따로 스크롤 (패들렛처럼 칸 사이에 가는 스크롤 막대)
+    return '<section class="sec">' + secHead(name, i, list.length, 'sech') + '<div class="secb" tabindex="-1">' + (ctx.w ? addTop(i, name) : '') + list.map((p) => postHTML(p, ctx)).join('') + '</div></section>';
   }).join('') + (S.teacher ? '<button class="addsec hd" type="button" data-act="addsec">칸 추가</button>' : '') + '</div>';
 }
 function groupedHTML(L, all, ctx) {
