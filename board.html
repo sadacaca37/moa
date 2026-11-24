@@ -150,7 +150,7 @@
 .msg:empty{display:none}
 .empty{margin:0;max-width:520px}
 /* 내 패들렛(선생님 화면) 안에 넣어 보일 때 */
-.embed .moa-strip,.embed .head .brands,.embed #back,.embed .head h1,.embed .ground{display:none}
+.embed .moa-strip,.embed .head .brands,.embed #back,.embed .head h1,.embed .ground,.embed .bav{display:none}
 .embed .head{padding:8px 12px}
 .embed .head small{color:var(--sub);text-shadow:none;font-size:14px}
 .embed .cols{padding-bottom:90px}
@@ -158,6 +158,67 @@
 .embed .fab{bottom:20px}
 @media (max-width:600px){.sec{width:82vw}.head h1{font-size:23px}.tli{width:76vw}.memo{width:220px}}
 @media (prefers-reduced-motion:reduce){.memo.drag .post{transform:none}}
+
+/* ===== 패들렛처럼: 자리와 모양을 패들렛과 같게 (2026-11-25) =====
+   칸: 흰 머리 띠(굵은 제목 + ⋮) → 바로 아래 '+' 줄 → 글 카드. 맨 오른쪽 '칸 추가'.
+   카드: 둥근 흰 카드, 옅은 그림자 · 제목(+⋮) → 사진·링크·파일 → 내용 → 쓴 사람 → 반응 → 댓글 */
+.head{gap:12px 14px}
+.bav{width:64px;height:64px;flex:none;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);display:grid;place-items:center;overflow:hidden}
+.bav .msc{height:52px;margin-top:6px}
+.head h1{font:800 30px/1.25 'Noto Sans KR',sans-serif;color:#fff;text-shadow:0 2px 0 var(--ink),0 3px 10px rgba(0,0,0,.35)}
+.head small{font:500 14px/1.4 'Noto Sans KR',sans-serif;text-shadow:0 1px 2px rgba(0,0,0,.45)}
+.crow{gap:22px}
+.sec{width:340px;gap:12px}
+.shd{margin:0;padding:10px 6px 10px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(255,255,255,.9);border:0;border-radius:14px;box-shadow:0 1px 3px rgba(16,24,40,.12);font:800 21px/1.3 'Noto Sans KR',sans-serif;color:#1D2030}
+.shd>span:first-child{overflow-wrap:anywhere}
+.gh.shd,.tlh.shd{align-self:stretch}
+.tlh.shd{align-self:flex-start;min-width:240px}
+.addpost.top{display:flex;align-items:center;justify-content:center;min-height:52px;border:0;border-radius:14px;background:rgba(255,255,255,.62);color:#3B3F52;font:300 34px/1 'Noto Sans KR',sans-serif;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.08)}
+.addpost.top:hover,.addpost.top:focus-visible{background:rgba(255,255,255,.95)}
+.addsec{width:auto;min-width:120px;min-height:50px;align-self:flex-start;padding:0 18px;border:0;border-radius:14px;background:rgba(255,255,255,.9);color:#1D2030;font:700 16px 'Noto Sans KR',sans-serif;box-shadow:0 1px 3px rgba(16,24,40,.12)}
+.addsec:hover{background:#fff}
+.addsec.wide{width:100%;min-height:50px}
+.addpost{border:0;border-radius:14px;background:rgba(255,255,255,.75)}
+.post{position:relative;border:0;border-radius:16px;box-shadow:0 1px 3px rgba(16,24,40,.14),0 8px 20px rgba(16,24,40,.10)}
+.post.mine{box-shadow:0 0 0 3px rgba(58,111,242,.55),0 8px 20px rgba(16,24,40,.10)}
+.post.mopen,.memo:has(.mopen),.shd.mopen{z-index:8}
+.ptop{display:flex;align-items:flex-start;gap:4px;padding:14px 8px 0 16px}
+.ptop h3{flex:1;margin:0;font:800 18px/1.4 'Noto Sans KR',sans-serif;color:#1D2030;overflow-wrap:anywhere}
+.ptop .sp{flex:1}
+.pin{padding:10px 16px 10px;gap:10px}
+.pin:empty{display:none}
+.pin p{font-size:15px;color:#3B3F52}
+.pic{border:0;border-radius:12px;overflow:hidden;background:#EEF1F6}
+.pic img{max-height:380px}
+.lnk{position:relative;display:block;height:132px;min-height:0;padding:0;border:0;border-radius:12px;overflow:hidden;background:#E9EDF3 center/cover no-repeat;text-decoration:none;color:#1D2030}
+.lnk i{position:absolute;inset:0 0 30px;display:grid;place-items:center;font-style:normal;font-size:40px;opacity:.55}
+.lnk.yt i{inset:0;opacity:1;font-size:30px;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.lnk b{position:absolute;left:0;bottom:0;max-width:85%;padding:6px 14px 6px 12px;background:#fff;border-radius:0 14px 0 0;font:500 14px/1.3 'Noto Sans KR',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lnk:hover b{text-decoration:underline}
+.by{display:block;padding:0 16px 10px;font-size:13px;color:#6B7085}
+.by b{color:#3B3F52}
+.rx{padding:10px 14px;border-top:1px solid rgba(16,24,40,.1)}
+.cm{border-top:1px solid rgba(16,24,40,.1);background:transparent;padding:10px 14px 12px;border-radius:0 0 16px 16px}
+.cm input{border:1px solid #C9CED8;border-radius:10px;min-height:40px;background:#fff}
+.cm input:focus{border-color:var(--blue);outline:2px solid rgba(58,111,242,.25)}
+.cm button.go{border:0;border-radius:10px;font:700 14px 'Noto Sans KR',sans-serif}
+.cm .pk-eb{border-radius:10px}
+.pmw{position:relative;flex:none;display:inline-flex}
+.dots{width:34px;height:34px;border:0;border-radius:10px;background:transparent;color:#4B4F62;font:900 20px/1 'Noto Sans KR',sans-serif;cursor:pointer;padding:0}
+.dots:hover,.dots[aria-expanded=true]{background:rgba(16,24,40,.08)}
+.pmn{position:absolute;right:0;top:38px;z-index:9;display:flex;flex-direction:column;min-width:150px;padding:6px;background:#fff;border-radius:12px;box-shadow:0 10px 28px rgba(16,24,40,.22)}
+.pmn[hidden]{display:none}
+.pmn button{min-height:40px;padding:0 12px;border:0;border-radius:8px;background:none;text-align:left;font:500 15px 'Noto Sans KR',sans-serif;color:#1D2030;cursor:pointer;white-space:nowrap}
+.pmn button:hover,.pmn button:focus-visible{background:#F1F3F7}
+.pmn button[data-act=delpost],.pmn button[data-act=delsec]{color:#C0362C}
+.memo{width:260px}
+.fab{border:0;background:var(--yel);box-shadow:0 6px 18px rgba(0,0,0,.28)}
+.fab:active{box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.post .pk-r{border:1px solid #CDD2DC;font-size:15px}
+.post .pk-r.on{background:#FFF1BF;border-color:#E3A008;box-shadow:none}
+.post .pk-r.add{border-style:solid;color:#6B7085}
+.post .pk-eb{border:1px solid #C9CED8;border-radius:10px;background:#fff}
+@media (max-width:600px){.sec{width:min(86vw,340px)}.bav .msc{height:40px}.bav{width:48px;height:48px}.head h1{font-size:24px}}
 </style>
 </head>
 <body>
@@ -165,6 +226,7 @@
 <div class="head">
   <div class="brands sm"><a class="brand" href="taja/" title="타자팡으로 가기"><img src="assets/brand/tajapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/tajapang_word.webp" alt="타자팡" class="brand-word" draggable="false"></a><span class="brand-sep" aria-hidden="true">✦</span><a class="brand" href="./" title="모아팡 첫 화면"><img src="assets/brand/moapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/moapang_word.webp" alt="모아팡" class="brand-word" draggable="false"></a></div>
   <button class="btn sm" type="button" id="back">◀ 돌아가기</button>
+  <span class="bav" aria-hidden="true"><span class="msc moa"></span></span>
   <div class="ttl"><small id="sub">패들렛</small><h1 id="title">불러오는 중…</h1></div>
   <div class="acts">
     <button class="btn sm" type="button" id="fmtBtn" hidden></button>
@@ -185,7 +247,6 @@ import { fs, ensureUser, isTeacher, teacherRole, doc, getDoc, setDoc, updateDoc,
 import { emoHTML, emoRich, emoOnly, emoTok } from './js/emo.js';
 import { installPadkit, filesHTML, reactsHTML, emojiBtn, emojiPal, closePals, checkFile, uploadFile, removeFile, cleanFiles, fmtSize, fileKind, MAX_FILES, PCOLORS, pcolor, okColor, FORMATS, layoutOf, formatName, usesSecs } from './js/padkit.js';
 const $ = (id) => document.getElementById(id);
-const SEC = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
 const NAME_KEY = 'moa_board_name';
 const Q = new URLSearchParams(location.search);
 const bid = Q.get('b');
@@ -290,17 +351,18 @@ window.addEventListener('resize', () => { clearTimeout(wallT); wallT = setTimeou
 const emptyHTML = (w) => '<p class="empty pf" style="padding:18px">아직 글이 없어요.' + (w ? ' <b>+</b>를 눌러 써 보세요.' : '') + '</p>';
 function secHead(name, i, n, cls) {
   const secs = secsOf();
-  return '<h2 class="' + cls + ' pf" style="background:' + SEC[i % SEC.length] + '"><span>' + esc(name) + '</span><span class="sct">' +
-    (S.teacher ? '<button type="button" class="sbtn" data-act="rensec" data-s="' + i + '" aria-label="' + esc(name) + ' 칸 이름 바꾸기" title="칸 이름 바꾸기">✎</button>' + (!n && secs.length > 1 ? '<button type="button" class="sbtn" data-act="delsec" data-s="' + i + '" aria-label="빈 칸 ' + esc(name) + ' 지우기" title="빈 칸 지우기">✕</button>' : '') : '') +
-    '<em>' + n + '</em></span></h2>';
+  const menu = S.teacher ? '<span class="pmw"><button type="button" class="dots" data-act="menu" aria-expanded="false" aria-label="' + esc(name) + ' 칸 메뉴" title="칸 메뉴">⋮</button><span class="pmn" hidden>' +
+    '<button type="button" data-act="rensec" data-s="' + i + '">칸 이름 바꾸기</button>' + (!n && secs.length > 1 ? '<button type="button" data-act="delsec" data-s="' + i + '">빈 칸 지우기</button>' : '') + '</span></span>' : '';
+  return '<h2 class="' + cls + ' shd"><span>' + esc(name) + '</span>' + menu + '</h2>';
 }
+// 칸 머리 바로 아래 '+' 줄 (패들렛처럼 글 쓰기는 칸 위쪽에)
+const addTop = (i, name) => '<button class="addpost top hd" type="button" data-act="write" data-s="' + i + '" aria-label="' + esc(name || '이 칸') + '에 글 쓰기" title="글 쓰기">+</button>';
 function columnsHTML(all, ctx) {
   const secs = secsOf();
   return '<div class="crow">' + secs.map((name, i) => {
     const list = all.filter((p) => secOf(p, secs) === i);
-    return '<section class="sec">' + secHead(name, i, list.length, 'sech') + list.map((p) => postHTML(p, ctx)).join('') +
-      (ctx.w ? '<button class="addpost hd" type="button" data-act="write" data-s="' + i + '">+ 이 칸에 글 쓰기</button>' : '') + '</section>';
-  }).join('') + (S.teacher ? '<button class="addsec hd" type="button" data-act="addsec">+ 칸 만들기</button>' : '') + '</div>';
+    return '<section class="sec">' + secHead(name, i, list.length, 'sech') + (ctx.w ? addTop(i, name) : '') + list.map((p) => postHTML(p, ctx)).join('') + '</section>';
+  }).join('') + (S.teacher ? '<button class="addsec hd" type="button" data-act="addsec">칸 추가</button>' : '') + '</div>';
 }
 function groupedHTML(L, all, ctx) {
   const b = S.board, secs = secsOf(), on = usesSecs(b);
@@ -311,12 +373,12 @@ function groupedHTML(L, all, ctx) {
       return '<div class="tlg">' + (on ? secHead(g.name, g.i, list.length, 'tlh') : '') + '<div class="tlrow">' +
         list.map((p) => '<div class="tli"><span class="tld">' + esc(dayOf(p)) + '</span><i class="dot" aria-hidden="true"></i>' + postHTML(p, ctx) + '</div>').join('') +
         (ctx.w ? '<div class="tli add"><i class="dot" aria-hidden="true"></i><button class="addpost hd" type="button" data-act="write" data-s="' + g.i + '">+ 글 쓰기</button></div>' : list.length ? '' : '<div class="tli add"><i class="dot" aria-hidden="true"></i><p class="note">아직 글이 없어요.</p></div>') + '</div></div>';
-    }).join('') + (S.teacher && on ? '<button class="addsec hd" type="button" data-act="addsec" style="margin-top:62px">+ 칸 만들기</button>' : '') + '</div>';
+    }).join('') + (S.teacher && on ? '<button class="addsec hd" type="button" data-act="addsec" style="margin-top:62px">칸 추가</button>' : '') + '</div>';
   }
   const cls = L === 'grid' ? 'gridl' : 'stream';
-  return '<div class="' + cls + 'w">' + groups.map((g) => (on ? secHead(g.name, g.i, g.list.length, 'gh') : '') +
-    '<div class="' + cls + '">' + g.list.map((p) => postHTML(p, ctx)).join('') + (ctx.w && on ? '<button class="addpost hd" type="button" data-act="write" data-s="' + g.i + '">+ 이 칸에 글 쓰기</button>' : '') + '</div>').join('') +
-    (S.teacher && on ? '<button class="addsec wide hd" type="button" data-act="addsec">+ 칸 만들기</button>' : '') + (all.length || (ctx.w && on) ? '' : emptyHTML(ctx.w)) + '</div>';
+  return '<div class="' + cls + 'w">' + groups.map((g) => (on ? secHead(g.name, g.i, g.list.length, 'gh') + (ctx.w ? addTop(g.i, g.name) : '') : '') +
+    '<div class="' + cls + '">' + g.list.map((p) => postHTML(p, ctx)).join('') + '</div>').join('') +
+    (S.teacher && on ? '<button class="addsec wide hd" type="button" data-act="addsec">칸 추가</button>' : '') + (all.length || (ctx.w && on) ? '' : emptyHTML(ctx.w)) + '</div>';
 }
 function canvasHTML(all, ctx) {
   let auto = 0;
@@ -336,14 +398,20 @@ function postHTML(p, ctx, memo) {
   const mine = isMine(p);
   const img = p.kind === 'live' && /^data:image\/(jpeg|png|webp);base64,/.test(p.img || '') ? p.img : '';
   const bg = pcolor(okColor(p.color) || (memo ? 'y' : ''));
+  const yt = video && (/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/)([\w-]{11})/.exec(link) || [])[1];
+  const acts = (canEdit(p) ? '<button type="button" data-act="editpost" data-id="' + esc(p.id) + '">고치기</button>' : '') +
+    (canDel(p) ? '<button type="button" data-act="delpost" data-id="' + esc(p.id) + '">지우기</button>' : '') +
+    (memo && w ? '<button type="button" data-act="linkfrom" data-id="' + esc(p.id) + '" aria-label="이 메모에서 다른 메모로 선 잇기">🔗 선 잇기</button>' : '');
+  const menu = acts ? '<span class="pmw"><button type="button" class="dots" data-act="menu" aria-expanded="false" aria-label="글 메뉴" title="글 메뉴">⋮</button><span class="pmn" hidden>' + acts + '</span></span>' : '';
   let h = '<article class="post' + (mine ? ' mine' : '') + '" data-pid="' + esc(p.id) + '" style="background:' + bg + '">';
+  if (p.title || menu) h += '<div class="ptop">' + (p.title ? '<h3>' + emoRich(esc(p.title), '1.3em') + '</h3>' : '<span class="sp"></span>') + menu + '</div>';
+  h += '<div class="pin">';
   if (img) h += '<button type="button" class="pic" data-act="big" data-id="' + esc(p.id) + '" aria-label="사진 크게 보기"><img src="' + img + '" alt="' + esc(p.title || (p.author || '') + '의 사진') + '" loading="lazy" draggable="false"></button>';
-  h += '<div class="pin">' + (p.title ? '<h3>' + emoRich(esc(p.title), '1.3em') + '</h3>' : '') + (p.body ? (emoOnly(p.body) >= 0 ? '<p class="big">' + emoHTML(emoOnly(p.body), '96px') + '</p>' : '<p>' + emoRich(esc(p.body)) + '</p>') : '') +
-    (link ? '<a class="lnk" href="' + esc(link) + '" target="_blank" rel="noopener">' + (video ? '▶ 영상 · ' : '🔗 ') + esc(hostOf(link) || link) + '</a>' : '') + filesHTML(p.files) + '</div>';
-  const acts = (canEdit(p) ? '<button class="tiny" type="button" data-act="editpost" data-id="' + esc(p.id) + '">고치기</button>' : '') +
-    (canDel(p) ? '<button class="tiny" type="button" data-act="delpost" data-id="' + esc(p.id) + '">지우기</button>' : '') +
-    (memo && w ? '<button class="tiny" type="button" data-act="linkfrom" data-id="' + esc(p.id) + '" aria-label="이 메모에서 다른 메모로 선 잇기">🔗 잇기</button>' : '');
-  h += '<div class="by"><span><b>' + esc(p.author || '선생님') + '</b>' + (p.kind === 'live' ? ' · ' + when(p.at) : '') + '</span><span class="pa">' + acts + '</span></div>';
+  if (link) h += '<a class="lnk' + (yt ? ' yt' : '') + '" href="' + esc(link) + '" target="_blank" rel="noopener"' + (yt ? ' style="background-image:url(https://i.ytimg.com/vi/' + yt + '/hqdefault.jpg)"' : '') + '><i aria-hidden="true">' + (video ? '▶' : '🔗') + '</i><b>' + esc(hostOf(link) || link) + '</b></a>';
+  h += filesHTML(p.files);
+  if (p.body) h += emoOnly(p.body) >= 0 ? '<p class="big">' + emoHTML(emoOnly(p.body), '96px') + '</p>' : '<p>' + emoRich(esc(p.body)) + '</p>';
+  h += '</div>';
+  h += '<div class="by"><b>' + esc(p.author || '선생님') + '</b>' + (p.kind === 'live' ? ' · ' + when(p.at) : '') + '</div>';
   const rx = reactsHTML(p.id, rs, me(), w);
   if (rx) h += '<div class="rx">' + rx + '</div>';
   const oldC = p.kind === 'old' && p.comments;
@@ -650,14 +718,27 @@ async function delSec(i) {
 }
 
 /* ---------- 누르기 ---------- */
+function closeMenus() {
+  document.querySelectorAll('.pmn:not([hidden])').forEach((m) => { m.hidden = true; const b = m.previousElementSibling; if (b) b.setAttribute('aria-expanded', 'false'); });
+  document.querySelectorAll('.mopen').forEach((x) => x.classList.remove('mopen'));
+}
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.querySelector('.pmn:not([hidden])')) closeMenus(); });
 document.addEventListener('click', async (e) => {
   // 선 잇기: 이을 메모를 누름
   if (S.linkFrom && S.board && layoutOf(S.board) === 'canvas') {
     const m = e.target.closest('.memo');
     if (m && !e.target.closest('button,a,input,textarea,select,form,.pk-pal')) { if (Date.now() - S.noClick > 300) linkTo(m.dataset.pid); return; }
   }
-  const t = e.target.closest('[data-act]'); if (!t) return;
+  const t = e.target.closest('[data-act]');
+  if (!t || t.dataset.act !== 'menu') closeMenus();
+  if (!t) return;
   const a = t.dataset.act, id = t.dataset.id;
+  if (a === 'menu') {
+    const m = t.nextElementSibling, open = m.hidden;
+    closeMenus();
+    if (open) { m.hidden = false; t.setAttribute('aria-expanded', 'true'); t.closest('.post,.shd,.memo')?.classList.add('mopen'); }
+    return;
+  }
   if (a === 'ovclose') { if (e.target === t) closeDlg(); return; }
   if (a === 'close') closeDlg();
   else if (a === 'write') { if (canWrite()) writeDlg(+t.dataset.s || 0, null, newAt()); }
