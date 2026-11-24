@@ -118,6 +118,9 @@ header.compact .brand-word,header.compact .brands>span:not(.brand){display:none}
 header.compact .brand-icon{width:34px;height:34px}
 header.compact .bar{display:none}
 header.compact .htxt{min-width:160px;gap:0}
+header.compact .htxt .hh1{font:800 21px/1.25 'Noto Sans KR',sans-serif;color:#1D2030}
+header.compact .hb:disabled{opacity:.55;cursor:not-allowed}
+main:not(.wide){max-width:1320px}
 header.compact .htxt small{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#6B7085}
 header.compact .htxt .dot{width:10px;height:10px;border-radius:3px;flex:none}
 .hb{min-height:38px;padding:0 12px;border:1px solid #CDD2DC;border-radius:10px;background:#fff;color:#1D2030;font:700 14px 'Noto Sans KR',sans-serif;cursor:pointer;white-space:nowrap}
@@ -398,7 +401,7 @@ function draw() {
   const ae = document.activeElement, keep = ae && ae.id === 'q' ? [ae.selectionStart, ae.selectionEnd] : null;
   const ready = (S.loaded.classes && S.loaded.boards) || S.slow;
   if (S.view === 'board' && !curClass() && ready) { S.view = 'home'; S.cid = null; S.bid = null; }
-  $('hdr').classList.toggle('compact', S.view === 'board');
+  $('hdr').classList.add('compact');
   if (S.view === 'board') drawBoard(); else if (S.view === 'trash') drawTrash(ready); else drawHome(ready);
   drawStatus();
   if (keep && $('q')) { $('q').focus(); try { $('q').setSelectionRange(keep[0], keep[1]); } catch (e) {} }
@@ -406,7 +409,7 @@ function draw() {
 function drawHome(ready) {
   const cs = classes(), full = cs.length >= MAX_CLASSES;
   const total = S.boards.filter((b) => !inTrash(b)).length, nTrash = trashed().length;
-  $('hdr').innerHTML = logo + '<div class="htxt"><h1>내 패들렛</h1><small>클래스 ' + cs.length + ' / ' + MAX_CLASSES + ' · 저장된 패들렛 ' + total + '개</small></div><span class="save"></span><div class="hbtns"><a class="btn" href="teacher.html">선생님 화면</a><button class="btn" data-act="trash">🗑 휴지통' + (nTrash ? ' ' + nTrash : '') + '</button><button class="btn blue" data-act="newclass"' + (full ? ' disabled' : '') + '>+ 클래스 만들기</button></div>';
+  $('hdr').innerHTML = logo + '<div class="htxt"><small>클래스 ' + cs.length + ' / ' + MAX_CLASSES + ' · 저장된 패들렛 ' + total + '개</small><h1 class="hh1">내 패들렛</h1></div><div class="hright"><span class="save"></span><a class="hb" href="teacher.html">선생님 화면</a><button class="hb" data-act="trash">🗑 휴지통' + (nTrash ? ' ' + nTrash : '') + '</button><button class="hb go" data-act="newclass"' + (full ? ' disabled' : '') + '>＋ 클래스 만들기</button></div>';
   let h = msgHTML();
   if (!ready) { $('main').className = ''; $('main').innerHTML = h + '<p class="note">저장된 클래스를 불러오는 중…</p>'; return; }
   if (!cs.length) {
@@ -414,9 +417,10 @@ function drawHome(ready) {
     $('main').className = ''; $('main').innerHTML = h; return;
   }
   const counts = { '전체': cs.length, '정규반': cs.filter((c) => c.kind === '정규반').length, '특강반': cs.filter((c) => c.kind === '특강반').length };
-  h += '<div class="tools pf"><div class="chips" role="group" aria-label="반 종류로 거르기">' + ['전체', '정규반', '특강반'].map((f) => '<button class="chip" data-act="filter" data-v="' + f + '" aria-pressed="' + (S.filter === f) + '">' + f + ' · ' + counts[f] + '</button>').join('') + '</div><label class="find" for="q"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B1F3B" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg>찾기<input id="q" class="field" type="search" autocomplete="off" placeholder="클래스 이름" value="' + esc(S.q) + '"></label></div>';
-  h += '<div class="grid" id="grid">' + gridHTML(cs, full) + '</div>';
-  h += '<p class="note">클래스를 누르면 그 반에 저장된 패들렛이 열려요. 패들렛 → 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 파일을 클래스 안의 \'패들렛에서 가져오기\'로 넣어요.</p>';
+  h += '<section class="dk-wrap"><div class="dk-h"><h1>내가 만든 클래스<small>' + cs.length + ' / ' + MAX_CLASSES + '</small></h1><div class="dk-tools"><div class="dk-chips" role="group" aria-label="반 종류로 거르기">' + ['전체', '정규반', '특강반'].map((f) => '<button class="dk-chip" data-act="filter" data-v="' + f + '" aria-pressed="' + (S.filter === f) + '">' + f + ' ' + counts[f] + '</button>').join('') + '</div>' +
+    '<label class="dk-find" for="q"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7085" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg><input id="q" type="search" autocomplete="off" placeholder="클래스 찾기" aria-label="클래스 이름으로 찾기" value="' + esc(S.q) + '"></label></div></div>';
+  h += '<div class="dk-grid" id="grid">' + gridHTML(cs, full) + '</div>';
+  h += '<p class="dk-note">클래스를 누르면 그 반에 저장된 패들렛이 열려요. 패들렛 → 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 파일을 클래스 안의 ⚙ 설정 → \'패들렛에서 가져오기\'로 넣어요.</p></section>';
   $('main').className = ''; $('main').innerHTML = h;
 }
 const stamp = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
@@ -445,17 +449,19 @@ function gridHTML(cs, full) {
   const q = S.q.trim();
   const list = cs.filter((c) => (S.filter === '전체' || c.kind === S.filter) && (!q || (c.name || '').includes(q)));
   const lb = boardsOf('lib');
-  let h = S.filter === '전체' && !q ? '<article class="card pf" style="--c:#C8F171"><button class="open" data-act="open" data-id="lib" aria-label="과제 보관함 열기"><span class="band" style="background-color:#C8F171"><span class="kind sp">보관함</span></span><span class="cbody"><span class="cname">📦 과제 보관함</span><span class="cmeta">미리 만들어 둔 과제방 ' + lb.length + '개 · 반을 골라 한꺼번에 보내요</span>' +
-    (lb.length ? '<span class="recent">' + lb.slice(-3).reverse().map((b) => '<span style="--c:#C8F171">' + esc(b.title) + '</span>').join('') + '</span>' : '<span class="empty">과제방(패들렛)을 여기에 만들어 두고 \'🚀 여러 반에 보내기\'로 반마다 나눠 줘요.</span>') + '<span class="cfoot"><span>반마다 따로 복사돼요</span><span class="go">보관함 열기 ▶</span></span></span></button></article>' : '';
+  const pads = (bs) => bs.length ? '<span class="dk-pads">' + bs.slice(-3).reverse().map((b) => '<span>' + esc(b.title) + '</span>').join('') + '</span>' : '';
+  const menu = (items) => '<span class="dk-mw"><button type="button" class="dk-dots" aria-expanded="false" aria-label="메뉴" title="메뉴">⋮</button><span class="dk-menu" hidden>' + items + '</span></span>';
+  // 첫 카드: 패들렛처럼 점선 '＋ 클래스 만들기'
+  let h = '<article class="dk-card dk-add"><button class="dk-th" type="button" data-act="newclass"' + (full ? ' disabled' : '') + ' aria-label="클래스 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>클래스 만들기</b><small>' + (full ? '20개가 다 찼어요' : cs.length + ' / ' + MAX_CLASSES + '개') + '</small></div></div></article>';
+  if (S.filter === '전체' && !q) h += '<article class="dk-card" style="--c:#B7E06A"><button class="dk-th" type="button" data-act="open" data-id="lib" aria-label="과제 보관함 열기"><span class="dk-tag">보관함</span><span class="dk-big em" aria-hidden="true">📦</span>' + pads(lb) + '</button>' +
+    '<div class="dk-row"><div class="dk-tx"><b>과제 보관함</b><small>미리 만든 과제방 ' + lb.length + '개 · 반을 골라 보내요</small></div>' + menu('<button type="button" data-act="open" data-id="lib">📂 보관함 열기</button>') + '</div></article>';
   h += list.map((c) => {
     const bs = boardsOf(c.id), posts = bs.reduce((n, b) => n + (b.postCount || 0), 0), last = bs[bs.length - 1];
-    const recent = bs.slice(-3).reverse();
-    return '<article class="card pf" style="--c:' + esc(c.color) + '"><button class="open" data-act="open" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 패들렛 열기"><span class="band" style="background-color:' + esc(c.color) + '"><span aria-hidden="true" style="width:54px;height:46px;background:#1B1F3B;display:flex;align-items:flex-start;gap:3px;padding:3px"><span style="flex:1;height:30px;background:#fff"></span><span style="flex:1;height:20px;background:#fff"></span><span style="flex:1;height:25px;background:#fff"></span></span><span class="kind' + (c.kind === '특강반' ? ' sp' : '') + '">' + esc(c.kind) + '</span></span><span class="cbody"><span class="cname">' + esc(c.name) + '</span><span class="cmeta">방번호 ' + esc(c.room) + ' · 패들렛 ' + bs.length + '개 · 글 ' + posts + '개</span>' +
-      (bs.length ? '<span class="recent">' + recent.map((b) => '<span>' + esc(b.title) + '</span>').join('') + (bs.length > 3 ? '<small style="font-size:12px;font-weight:700;color:#4B4F6B">+ ' + (bs.length - 3) + '개 더</small>' : '') + '</span>' : '<span class="empty">아직 가져온 패들렛이 없어요. 눌러서 패들렛 CSV를 넣어 보세요.</span>') +
-      '<span class="cfoot"><span>' + (last ? '최근 ' + md(last.date) : '새로 만든 클래스') + '</span><span class="go">패들렛 열기 ▶</span></span></span></button><button class="mini edit" data-act="editclass" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 고치기">고치기</button></article>';
+    return '<article class="dk-card" style="--c:' + esc(c.color) + '"><button class="dk-th" type="button" data-act="open" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 패들렛 열기"><span class="dk-tag">' + esc(c.kind) + '</span>' + (bs.length ? pads(bs) : '<span class="dk-big em" aria-hidden="true">🗒️</span>') + '</button>' +
+      '<div class="dk-row"><div class="dk-tx"><b>' + esc(c.name) + '</b><small>패들렛 ' + bs.length + '개 · 글 ' + posts + '개 · ' + (last ? '최근 ' + md(last.date) : '새로 만든 클래스') + '</small></div>' +
+      menu('<button type="button" data-act="open" data-id="' + esc(c.id) + '">📂 패들렛 열기</button><button type="button" data-act="editclass" data-id="' + esc(c.id) + '">✏️ 이름·색 고치기</button>') + '</div></article>';
   }).join('');
-  h += '<button class="addcard hd" data-act="newclass"' + (full ? ' disabled' : '') + '><svg aria-hidden="true" width="32" height="32" viewBox="0 0 7 7" shape-rendering="crispEdges"><path fill="#1B1F3B" d="M3 0h1v3h3v1H4v3H3V4H0V3h3z"/></svg>새 클래스 만들기<small>' + (full ? '20개가 다 찼어요' : cs.length + ' / ' + MAX_CLASSES + '개') + '</small></button>';
-  if (!list.length) h = '<p class="note" style="grid-column:1/-1">찾는 클래스가 없어요. 이름을 다시 확인해 주세요.</p>' + h;
+  if (!list.length) h += '<p class="dk-note" style="grid-column:1/-1">찾는 클래스가 없어요. 이름을 다시 확인해 주세요.</p>';
   return h;
 }
 function drawBoard() {

@@ -42,3 +42,14 @@
     requestAnimationFrame(step);
   })(last);
 })();
+
+/* 카드 ⋮ 메뉴 (내 패들렛·우리 반 목록): 누르면 펼치고, 바깥을 누르거나 Esc를 누르면 접음 */
+(() => {
+  const closeAll = (keep) => document.querySelectorAll('.dk-menu:not([hidden])').forEach((m) => { if (m === keep) return; m.hidden = true; const b = m.previousElementSibling; if (b) b.setAttribute('aria-expanded', 'false'); });
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.dk-dots');
+    if (b) { e.preventDefault(); const m = b.nextElementSibling; closeAll(m); m.hidden = !m.hidden; b.setAttribute('aria-expanded', String(!m.hidden)); if (!m.hidden) { const f = m.querySelector('button,a'); if (f) f.focus(); } return; }
+    closeAll();
+  }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.querySelector('.dk-menu:not([hidden])')) { closeAll(); } });
+})();
