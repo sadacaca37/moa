@@ -23,12 +23,12 @@ export const okColor = (c) => PCOLORS.some((x) => x[0] === c) ? c : '';
 
 // 패들렛 형식: [값, 이름, 그림 글자, 설명]
 export const FORMATS = [
-  ['wall', '담벼락', '🧱', '벽돌처럼 빈틈없이 차곡차곡 쌓여요'],
-  ['columns', '칸', '📚', '칸(섹션)마다 세로로 쌓여요'],
-  ['grid', '격자', '🔲', '가지런한 줄로 나란히 놓여요'],
-  ['stream', '스트림', '📜', '위에서 아래로 한 줄로 읽어요'],
-  ['timeline', '타임라인', '⏳', '가로 선을 따라 차례대로 놓여요'],
-  ['canvas', '캔버스', '🧠', '메모를 마음대로 옮기고 선으로 이어요 · 브레인스토밍']
+  ['wall', '담벼락', '🧱', '벽돌처럼 쌓기'],
+  ['columns', '칸', '📚', '칸마다 세로로'],
+  ['grid', '격자', '🔲', '줄 맞춰 나란히'],
+  ['stream', '스트림', '📜', '위에서 아래로'],
+  ['timeline', '타임라인', '⏳', '가로 선 따라'],
+  ['canvas', '캔버스', '🧠', '자유롭게 · 선 잇기']
 ];
 export const layoutOf = (b) => (b && FORMATS.some((f) => f[0] === b.layout) ? b.layout : 'columns');
 export const formatName = (b) => FORMATS.find((f) => f[0] === layoutOf(b))[1];
@@ -63,9 +63,9 @@ export function fmtSize(n) {
 // 올리기 전에 살펴보기: 문제가 있으면 알림 글자를 돌려준다
 export function checkFile(f) {
   if (!f) return '파일을 읽지 못했어요.';
-  if (BLOCK.test(f.name || '')) return '\'' + f.name + '\'은(는) 컴퓨터에서 바로 실행되는 파일이라 안전을 위해 올릴 수 없어요.';
-  if (!f.size) return '\'' + f.name + '\'은(는) 빈 파일이에요.';
-  if (f.size > MAX_FILE) return '\'' + f.name + '\'은(는) ' + fmtSize(f.size) + '라서 너무 커요. 한 파일 10MB까지 올릴 수 있어요. 큰 영상은 유튜브·드라이브 링크로 올려 주세요.';
+  if (BLOCK.test(f.name || '')) return '\'' + f.name + '\' — 실행 파일은 못 올려요.';
+  if (!f.size) return '\'' + f.name + '\' — 빈 파일이에요.';
+  if (f.size > MAX_FILE) return '\'' + f.name + '\' — 10MB까지 올릴 수 있어요.';
   return '';
 }
 const safeName = (s) => String(s || '').normalize('NFC').replace(/[\u0000-\u001f\\/:*?"<>|]/g, '_').trim().slice(0, 120) || '파일';
@@ -196,7 +196,7 @@ export function filesHTML(list, opts) {
     return '<div class="pk-file"><span class="pk-fi" aria-hidden="true">' + k.i + '</span><span class="pk-fn"><b>' + esc(f.name) + '</b><small>' + esc(k.l) + ' · ' + fmtSize(f.size) + '</small></span>' +
       (VIEW[k.k] ? '<button type="button" class="pk-fb" data-pk="view" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 보기">보기</button>' : '') +
       '<button type="button" class="pk-fb" data-pk="down" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 내려받기">받기</button>' +
-      (opts && opts.remove ? '<button type="button" class="pk-fb" data-pk="unfile" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 빼기">빼기</button>' : '') + '</div>';
+      (opts && opts.remove ? '<button type="button" class="pk-fb" data-pk="unfile" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 빼기">✕</button>' : '') + '</div>';
   }).join('') + '</div>';
 }
 const PAL = new Set(); // 열린 이모티콘 고르기 칸

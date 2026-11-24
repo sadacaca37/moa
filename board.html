@@ -94,6 +94,33 @@
 .fab{position:fixed;right:clamp(14px,3vw,30px);bottom:54px;z-index:20;width:64px;height:64px;border:4px solid var(--ink);border-radius:50%;background:var(--yel);font:400 38px/1 'Jua',sans-serif;cursor:pointer;box-shadow:0 5px 0 var(--ink);padding:0}
 .fab:hover{filter:brightness(1.05)}
 .fab:active{transform:translateY(4px);box-shadow:0 1px 0 var(--ink)}
+/* 글 쓰기 창 (패들렛처럼 깔끔하게: 제목·내용 칸 + 아이콘 줄) */
+.modal>.pf.cmpbox{max-width:560px;padding:0;overflow:hidden}
+.cmp{display:flex;flex-direction:column;gap:6px;padding:12px 14px 12px;transition:background .15s}
+.cmp-top{display:flex;align-items:center;gap:8px;min-height:40px}
+.cin{min-height:36px;border:2px solid rgba(27,31,59,.3);background:rgba(255,255,255,.75);color:var(--ink);padding:0 10px;font:500 14px 'Noto Sans KR',sans-serif}
+.cin:focus{border-color:var(--ink);background:#fff}
+.cmp-top .sel{max-width:60%}
+.cmp-top .nm{width:110px}
+.cmp-x{margin-left:auto;width:40px;height:40px;border:0;background:transparent;font-size:20px;line-height:1;cursor:pointer;color:var(--ink)}
+.cmp-x:hover{background:rgba(27,31,59,.08)}
+.cmp-t{width:100%;border:0;border-bottom:2px solid rgba(27,31,59,.15);background:transparent;color:var(--ink);font:700 22px/1.3 'Noto Sans KR',sans-serif;padding:8px 2px}
+.cmp-b{width:100%;border:0;background:transparent;color:var(--ink);font:400 16px/1.6 'Noto Sans KR',sans-serif;padding:6px 2px;min-height:120px;resize:vertical}
+.cmp-t::placeholder,.cmp-b::placeholder{color:rgba(27,31,59,.45)}
+.cmp-att{display:flex;flex-direction:column;gap:6px}
+.cmp-att:empty{display:none}
+.cmp-pic{position:relative;align-self:flex-start}
+.cmp-pic img{display:block;max-height:170px;max-width:100%;border:3px solid var(--ink)}
+.cmp-pic button{position:absolute;top:6px;right:6px;width:32px;height:32px;border:2px solid var(--ink);border-radius:50%;background:#fff;font-size:14px;cursor:pointer}
+.cmp-wait{font-size:13px;font-weight:700;color:var(--sub)}
+.cmp-sw{display:flex;gap:8px;flex-wrap:wrap;padding:2px 0}
+.cmp-sw button{width:32px;height:32px;border:2px solid var(--ink);border-radius:50%;cursor:pointer;padding:0}
+.cmp-sw button[aria-pressed=true]{outline:3px solid var(--ink);outline-offset:2px}
+.cmp-bar{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:2px solid rgba(27,31,59,.15);padding-top:8px;margin-top:2px}
+.cmp-tools{display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+.tool,.cmp-tools .pk-eb{width:44px;height:44px;min-width:44px;border:0;border-radius:10px;background:transparent;font-size:22px;line-height:1;cursor:pointer;padding:0}
+.tool:hover,.cmp-tools .pk-eb:hover,.tool[aria-pressed=true],.cmp-tools .pk-eb[aria-expanded=true]{background:rgba(27,31,59,.1)}
+.cmp .msg{font-size:13px}
 /* 창 */
 .dlg{display:flex;flex-direction:column;gap:10px;padding:20px}
 .dlg .tp{display:flex;align-items:center;gap:10px}
@@ -217,9 +244,10 @@ function draw() {
   $('fmtBtn').hidden = !S.teacher;
   const F = FORMATS.find((f) => f[0] === L); $('fmtBtn').textContent = F[2] + ' 형식: ' + F[1];
   $('lockBtn').hidden = !S.teacher;
-  $('lockBtn').textContent = b.lock ? '🔒 글쓰기 잠김 (누르면 열기)' : '글쓰기 잠그기';
+  $('lockBtn').textContent = b.lock ? '🔒 잠김' : '🔓 잠그기';
+  $('lockBtn').setAttribute('aria-label', b.lock ? '학생 글쓰기 잠김, 누르면 열기' : '학생 글쓰기 잠그기');
   $('lockbar').hidden = w && !S.liveErr;
-  $('lockbar').textContent = b.trash ? '🗑 휴지통에 있는 패들렛이에요. 내 패들렛 → 휴지통에서 되살릴 수 있어요.' : S.liveErr ? '친구들 글은 아직 불러올 수 없어요. 선생님이 준비하면 보여요.' : !b.public ? '학생에게 아직 안 보이는 패들렛이에요. (선생님만 보여요)' : '선생님이 글쓰기를 잠갔어요. 읽기만 할 수 있어요.';
+  $('lockbar').textContent = b.trash ? '🗑 휴지통에 있는 패들렛이에요' : S.liveErr ? '친구들 글을 아직 불러올 수 없어요' : !b.public ? '👀 학생에게 아직 안 보여요' : '🔒 글쓰기가 잠겨 있어요 (읽기만)';
   if (S.teacher && !b.public) $('lockbar').hidden = false;
   drawLinkBar();
   const byPid = new Map(); S.cmts.slice().sort((a, c) => ms(a.at) - ms(c.at)).forEach((c) => { if (!byPid.has(c.pid)) byPid.set(c.pid, []); byPid.get(c.pid).push(c); });
@@ -255,7 +283,7 @@ function balanceWall(all, ctx) {
 }
 let wallT = 0;
 window.addEventListener('resize', () => { clearTimeout(wallT); wallT = setTimeout(() => { if (S.board && layoutOf(S.board) === 'wall' && !$('dlg').innerHTML) draw(); }, 200); });
-const emptyHTML = (w) => '<p class="empty pf" style="padding:18px">아직 글이 없어요.' + (w ? ' 오른쪽 아래 <b>+</b>를 눌러 첫 글을 써 보세요.' : '') + '</p>';
+const emptyHTML = (w) => '<p class="empty pf" style="padding:18px">아직 글이 없어요.' + (w ? ' <b>+</b>를 눌러 써 보세요.' : '') + '</p>';
 function secHead(name, i, n, cls) {
   const secs = secsOf();
   return '<h2 class="' + cls + ' pf" style="background:' + SEC[i % SEC.length] + '"><span>' + esc(name) + '</span><span class="sct">' +
@@ -296,7 +324,7 @@ function canvasHTML(all, ctx) {
     return '<div class="memo' + (canMove(p) ? ' mv' : '') + (S.linkFrom === p.id ? ' from' : '') + '" data-pid="' + esc(p.id) + '" style="left:' + x + 'px;top:' + y + 'px">' + postHTML(p, ctx, true) + '</div>';
   }).join('');
   return '<div class="cv" id="cv" style="width:' + CW + 'px;height:' + CH + 'px"><svg class="cvl" id="cvl" width="' + CW + '" height="' + CH + '" aria-hidden="true"></svg>' + memos + '<div id="cvx"></div>' +
-    (all.length ? '' : '<p class="cvhint pf">' + (ctx.w ? '빈 곳을 두 번 누르거나 \'+ 메모\'를 눌러 첫 메모를 붙여 보세요. 메모는 끌어서 옮기고, 🔗 잇기로 선을 이어요.' : '아직 메모가 없어요.') + '</p>') + '</div>';
+    (all.length ? '' : '<p class="cvhint pf">' + (ctx.w ? '빈 곳을 두 번 누르면 메모가 생겨요.' : '아직 메모가 없어요.') + '</p>') + '</div>';
 }
 function postHTML(p, ctx, memo) {
   const cs = ctx.byPid.get(p.id) || [], rs = ctx.rByPid.get(p.id) || [], w = ctx.w;
@@ -428,7 +456,6 @@ function openDlg(html, cls, focusSel) {
   const f = $('dlg').querySelector(focusSel || 'input,select,textarea,button'); if (f) f.focus();
 }
 function closeDlg() { $('dlg').innerHTML = ''; S.pic = ''; S.edit = null; S.newFiles = []; S.keepFiles = []; S.at = null; if (lastFocus && document.contains(lastFocus)) lastFocus.focus(); }
-const picHTML = () => S.pic ? '<img src="' + S.pic + '" alt="고른 사진 미리보기"> <button type="button" class="tiny" data-act="nopic">사진 빼기</button>' : '<button type="button" class="btn sm" data-act="pickpic">📷 사진 고르기</button><span class="note">사진은 작게 줄여서 카드에 크게 보여요.</span>';
 function writeDlg(si, post, at) {
   const b = S.board, L = layoutOf(b), secs = secsOf();
   S.edit = post || null; S.at = at || null; S.newFiles = []; S.keepFiles = post ? cleanFiles(post.files) : [];
@@ -437,33 +464,41 @@ function writeDlg(si, post, at) {
   S.sec = post ? secOf(post, secs) : clamp(si || 0, 0, secs.length - 1);
   const isOld = !!post && post.kind === 'old';
   const showSec = (usesSecs(b) && secs.length > 1) || (post && secs.length > 1);
-  const tMax = isOld ? 200 : 80, bMax = isOld ? 20000 : 2000;
-  openDlg('<form class="dlg" id="wf" novalidate><div class="tp"><h2 id="dlgt">' + (post ? '글 고치기' : L === 'canvas' ? '메모 붙이기' : '글 쓰기') + '</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div>' +
-    (showSec ? '<label class="lb">올릴 칸<select id="ws" class="field">' + secs.map((n, i) => '<option value="' + i + '"' + (i === S.sec ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select></label>' : '') +
-    '<label class="lb">제목<input id="wt" class="field" maxlength="' + tMax + '" autocomplete="off" value="' + esc(post ? post.title || '' : '') + '"></label>' +
-    '<div class="lb"><span class="lbt"><label for="wb">내용</label>' + emojiBtn('w:body', '내용에 이모티콘 넣기') + '</span>' + emojiPal('w:body', '#wb') + '<textarea id="wb" class="field" rows="4" maxlength="' + bMax + '">' + esc(post ? post.body || '' : '') + '</textarea></div>' +
-    (isOld ? '' : '<div class="lb">사진 (있으면)<div class="prev" id="pv">' + picHTML() + '</div></div>') +
-    '<div class="lb">파일 (있으면)<div id="fl"></div><div class="row"><button type="button" class="btn sm" data-act="pickfile">📎 파일 고르기</button><span class="note" id="fln"></span></div><span class="note">한글·PPT·엑셀·PDF·영상·소리·엔트리·스크래치·압축 파일 등 웬만한 파일은 모두 돼요. 한 파일 10MB, 한 글에 ' + MAX_FILES + '개까지.</span></div>' +
-    '<label class="lb">링크 (있으면)<input id="wl" class="field" type="url" maxlength="500" autocomplete="off" placeholder="https://" value="' + esc(post ? post.link || '' : '') + '"></label>' +
-    '<div class="lb">카드 색<div class="sw" role="group" aria-label="카드 색">' + PCOLORS.map(([v, nm, bg]) => '<button type="button" data-act="pcolor" data-v="' + v + '" style="background:' + bg + '" aria-label="' + nm + '" title="' + nm + '" aria-pressed="' + (S.color === v) + '"></button>').join('') + '</div></div>' +
-    (S.teacher ? (isOld ? '<label class="lb">쓴 사람<input id="wa" class="field" maxlength="30" autocomplete="off" value="' + esc(post.author || '') + '"></label>' : '') : (post ? '' : '<label class="lb">내 이름<input id="wn" class="field" maxlength="10" autocomplete="off" value="' + esc(myName()) + '" placeholder="이름을 써 주세요"></label>')) +
-    '<p class="msg" id="wm" role="alert"></p><div class="row"><button type="submit" class="btn blue" id="wgo">' + (post ? '저장하기 ▶' : '올리기 ▶') + '</button></div></form>', 'dlgbox', '#wt');
-  drawFiles();
+  const link = post ? post.link || '' : '';
+  const who = !S.teacher && !post ? '<input id="wn" class="cin nm" maxlength="10" autocomplete="off" value="' + esc(myName()) + '" placeholder="내 이름" aria-label="내 이름">'
+    : isOld && S.teacher ? '<input id="wa" class="cin nm" maxlength="30" autocomplete="off" value="' + esc(post.author || '') + '" placeholder="쓴 사람" aria-label="쓴 사람">' : '';
+  openDlg('<form class="cmp" id="wf" novalidate style="background:' + pcolor(S.color) + '"><h2 id="dlgt" class="sr">' + (post ? '글 고치기' : '글 쓰기') + '</h2>' +
+    '<div class="cmp-top">' + (showSec ? '<select id="ws" class="cin sel" aria-label="칸">' + secs.map((n, i) => '<option value="' + i + '"' + (i === S.sec ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>' : '') + who +
+    '<button type="button" class="cmp-x" data-act="close" aria-label="닫기">✕</button></div>' +
+    '<input id="wt" class="cmp-t" maxlength="' + (isOld ? 200 : 80) + '" autocomplete="off" placeholder="제목" aria-label="제목" value="' + esc(post ? post.title || '' : '') + '">' +
+    '<textarea id="wb" class="cmp-b" rows="4" maxlength="' + (isOld ? 20000 : 2000) + '" placeholder="내용을 쓰세요" aria-label="내용">' + esc(post ? post.body || '' : '') + '</textarea>' +
+    emojiPal('w:body', '#wb') +
+    '<div id="att" class="cmp-att"></div>' +
+    '<input id="wl" class="cin" type="url" maxlength="500" autocomplete="off" placeholder="https://" aria-label="링크" value="' + esc(link) + '"' + (link ? '' : ' hidden') + '>' +
+    '<div class="cmp-sw" id="swrow" role="group" aria-label="카드 색" hidden>' + PCOLORS.map(([v, nm, bg]) => '<button type="button" data-act="pcolor" data-v="' + v + '" style="background:' + bg + '" aria-label="' + nm + '" title="' + nm + '" aria-pressed="' + (S.color === v) + '"></button>').join('') + '</div>' +
+    '<p class="msg" id="wm" role="alert"></p>' +
+    '<div class="cmp-bar"><div class="cmp-tools">' +
+    (isOld ? '' : '<button type="button" class="tool" data-act="pickpic" aria-label="사진" title="사진">📷</button>') +
+    '<button type="button" class="tool" data-act="pickfile" aria-label="파일" title="파일">📎</button>' +
+    '<button type="button" class="tool" data-act="showlink" aria-label="링크" title="링크" aria-pressed="' + !!link + '">🔗</button>' +
+    emojiBtn('w:body', '이모티콘') +
+    '<button type="button" class="tool" data-act="showsw" aria-label="카드 색" title="카드 색" aria-pressed="false">🎨</button>' +
+    '</div><button type="submit" class="btn blue" id="wgo">' + (post ? '저장' : '올리기') + '</button></div></form>', 'cmpbox', '#wt');
+  drawAtt();
 }
-function drawFiles() {
-  const el = $('fl'); if (!el) return;
-  const nf = S.newFiles.map((f, i) => { const k = fileKind(f.name, f.type); return '<div class="pk-file"><span class="pk-fi" aria-hidden="true">' + k.i + '</span><span class="pk-fn"><b>' + esc(f.name) + '</b><small>' + esc(k.l) + ' · ' + fmtSize(f.size) + ' · 올릴 파일</small></span><button type="button" class="pk-fb" data-act="unnew" data-i="' + i + '" aria-label="' + esc(f.name) + ' 빼기">빼기</button></div>'; }).join('');
-  el.innerHTML = filesHTML(S.keepFiles, { remove: true }) + (nf ? '<div class="pk-files" style="margin-top:6px">' + nf + '</div>' : '');
-  const n = S.keepFiles.length + S.newFiles.length;
-  $('fln').textContent = n ? n + ' / ' + MAX_FILES + '개' : '';
+// 고른 사진·파일 보이기 (글 쓰기 창 안)
+function drawAtt(wait) {
+  const el = $('att'); if (!el) return;
+  const pic = wait ? '<span class="cmp-wait">사진 줄이는 중…</span>' : S.pic ? '<div class="cmp-pic"><img src="' + S.pic + '" alt="고른 사진"><button type="button" data-act="nopic" aria-label="사진 빼기">✕</button></div>' : '';
+  const nf = S.newFiles.map((f, i) => { const k = fileKind(f.name, f.type); return '<div class="pk-file"><span class="pk-fi" aria-hidden="true">' + k.i + '</span><span class="pk-fn"><b>' + esc(f.name) + '</b><small>' + fmtSize(f.size) + '</small></span><button type="button" class="pk-fb" data-act="unnew" data-i="' + i + '" aria-label="' + esc(f.name) + ' 빼기">✕</button></div>'; }).join('');
+  el.innerHTML = pic + filesHTML(S.keepFiles, { remove: true }) + (nf ? '<div class="pk-files">' + nf + '</div>' : '');
 }
 function fmtDlg() {
   const L = layoutOf(S.board); S.fmt = L;
   openDlg('<form class="dlg" id="ff" novalidate><div class="tp"><h2 id="dlgt">패들렛 형식</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div>' +
-    '<p class="note">형식을 바꿔도 글·댓글·파일은 그대로 있어요. 학생 화면도 바로 바뀌어요.</p>' +
     '<div class="fmts" role="radiogroup" aria-label="형식 고르기">' + FORMATS.map(([id, nm, ic, ds]) => '<button type="button" class="fmt" role="radio" data-act="pickfmt" data-v="' + id + '" aria-checked="' + (id === L) + '"><span class="fi" aria-hidden="true">' + ic + '</span><b>' + nm + '</b><small>' + ds + '</small></button>').join('') + '</div>' +
-    '<label class="ck" id="grpL"' + (/^(grid|stream|timeline)$/.test(L) ? '' : ' hidden') + '><input type="checkbox" id="grp"' + (S.board.groups !== false ? ' checked' : '') + '> 칸(섹션)으로 묶어서 보이기</label>' +
-    '<p class="msg" id="fm" role="alert"></p><div class="row"><button type="submit" class="btn blue" id="fgo">이 형식으로 바꾸기 ▶</button></div></form>', 'dlgbox', '[aria-checked=true]');
+    '<label class="ck" id="grpL"' + (/^(grid|stream|timeline)$/.test(L) ? '' : ' hidden') + '><input type="checkbox" id="grp"' + (S.board.groups !== false ? ' checked' : '') + '> 칸으로 묶기</label>' +
+    '<p class="msg" id="fm" role="alert"></p><div class="row"><button type="submit" class="btn blue" id="fgo">바꾸기</button></div></form>', 'dlgbox', '[aria-checked=true]');
 }
 function secDlg(i) {
   const secs = secsOf();
@@ -506,19 +541,19 @@ async function sendPost() {
   let link = cleanTxt($('wl').value, 500);
   if (link && !/^https?:\/\//i.test(link)) link = 'https://' + link;
   const author = post ? (isOld && $('wa') ? cleanTxt($('wa').value, 30) || post.author || '선생님' : post.author || '선생님') : S.teacher ? '선생님' : cleanTxt($('wn').value, 10);
-  if (!post && !S.teacher && !author) { $('wm').textContent = '이름을 써 주세요.'; $('wn').focus(); return; }
-  if (!title && !body && !link && !S.pic && !S.keepFiles.length && !S.newFiles.length) { $('wm').textContent = '제목이나 내용, 사진, 파일 중 하나는 있어야 해요.'; $('wt').focus(); return; }
+  if (!post && !S.teacher && !author) { $('wm').textContent = '이름을 써 주세요.'; if ($('wn')) $('wn').focus(); return; }
+  if (!title && !body && !link && !S.pic && !S.keepFiles.length && !S.newFiles.length) { $('wm').textContent = '내용을 써 주세요.'; $('wt').focus(); return; }
   S.busy = true; const go = $('wgo'); go.disabled = true; go.textContent = '올리는 중…'; $('wm').textContent = '';
   const up = [];
   try {
     const nf = S.newFiles.slice();
     for (let k = 0; k < nf.length; k++) {
-      const say = (r) => { if (document.contains(go)) go.textContent = '파일 올리는 중 ' + (k + 1) + '/' + nf.length + ' · ' + Math.round(r * 100) + '%'; };
+      const say = (r) => { if (document.contains(go)) go.textContent = '파일 ' + (k + 1) + '/' + nf.length + ' · ' + Math.round(r * 100) + '%'; };
       say(0);
       up.push(await uploadFile(bid, nf[k], me(), say));
     }
     const files = S.keepFiles.concat(up).slice(0, MAX_FILES), color = okColor(S.color);
-    go.textContent = '저장하는 중…';
+    go.textContent = '저장 중…';
     if (!post) {
       const ref = doc(collection(fs, 'boards', bid, 'posts'));
       const d = { sec: si, title, body, link, img: S.pic || '', author, uid: me(), at: serverTimestamp() };
@@ -543,7 +578,7 @@ async function sendPost() {
     for (const f of up) removeFile(bid, f).catch(() => {});
     if (document.contains(go)) {
       $('wm').textContent = /permission/i.test(err.code || '') ? '지금은 글을 올릴 수 없어요. 선생님이 글쓰기를 잠갔거나 아직 준비 중이에요.' : err && err.message && !err.code ? err.message : errText(err);
-      go.disabled = false; go.textContent = post ? '저장하기 ▶' : '올리기 ▶';
+      go.disabled = false; go.textContent = post ? '저장' : '올리기';
     } else toast(errText(err), true);
   } finally { S.busy = false; }
 }
@@ -624,10 +659,12 @@ document.addEventListener('click', async (e) => {
   else if (a === 'write') { if (canWrite()) writeDlg(+t.dataset.s || 0, null, newAt()); }
   else if (a === 'editpost') { const p = postById(id); if (p && canEdit(p)) writeDlg(0, p); }
   else if (a === 'pickpic') $('picIn').click();
-  else if (a === 'nopic') { S.pic = ''; if ($('pv')) $('pv').innerHTML = picHTML(); }
-  else if (a === 'pickfile') { if (S.keepFiles.length + S.newFiles.length >= MAX_FILES) { $('wm').textContent = '파일은 한 글에 ' + MAX_FILES + '개까지 올릴 수 있어요.'; return; } $('fileIn').click(); }
-  else if (a === 'unnew') { S.newFiles.splice(+t.dataset.i, 1); drawFiles(); }
-  else if (a === 'pcolor') { S.color = t.dataset.v; t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t))); }
+  else if (a === 'nopic') { S.pic = ''; drawAtt(); }
+  else if (a === 'showlink') { const l = $('wl'); if (l) { l.hidden = !l.hidden; t.setAttribute('aria-pressed', String(!l.hidden)); if (!l.hidden) l.focus(); } }
+  else if (a === 'showsw') { const r = $('swrow'); if (r) { r.hidden = !r.hidden; t.setAttribute('aria-pressed', String(!r.hidden)); } }
+  else if (a === 'pickfile') { if (S.keepFiles.length + S.newFiles.length >= MAX_FILES) { $('wm').textContent = '파일은 ' + MAX_FILES + '개까지예요.'; return; } $('fileIn').click(); }
+  else if (a === 'unnew') { S.newFiles.splice(+t.dataset.i, 1); drawAtt(); }
+  else if (a === 'pcolor') { S.color = t.dataset.v; t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t))); if ($('wf')) $('wf').style.background = pcolor(S.color); }
   else if (a === 'pickfmt') { S.fmt = t.dataset.v; t.parentNode.querySelectorAll('[role=radio]').forEach((x) => x.setAttribute('aria-checked', String(x === t))); $('grpL').hidden = !/^(grid|stream|timeline)$/.test(S.fmt); }
   else if (a === 'delpost') delPost(id);
   else if (a === 'delcm') delComment(id);
@@ -649,25 +686,25 @@ $('lockBtn').addEventListener('click', async () => {
   try { await updateDoc(doc(fs, 'boards', bid), { lock: !S.board.lock }); toast(S.board.lock ? '학생 글쓰기를 열었어요.' : '학생 글쓰기를 잠갔어요. 읽기만 할 수 있어요.'); } catch (err) { toast(errText(err), true); }
 });
 $('picIn').addEventListener('change', async (e) => {
-  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f || !$('pv')) return;
-  if (!/^image\//.test(f.type)) { $('wm').textContent = '사진 파일만 고를 수 있어요. 다른 파일은 \'📎 파일 고르기\'로 올려 주세요.'; return; }
-  $('pv').innerHTML = '<span class="note">사진 줄이는 중…</span>';
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f || !$('att')) return;
+  if (!/^image\//.test(f.type)) { $('wm').textContent = '사진만 고를 수 있어요. 다른 파일은 📎로 올려요.'; return; }
+  $('wm').textContent = ''; drawAtt(true);
   try {
     const d = await shrink(f);
     if (!d) throw new Error('big');
-    S.pic = d; $('pv').innerHTML = picHTML();
-  } catch (err) { S.pic = ''; $('pv').innerHTML = picHTML(); $('wm').textContent = '이 사진은 올릴 수 없어요. 다른 사진을 골라 주세요.'; }
+    S.pic = d; drawAtt();
+  } catch (err) { S.pic = ''; drawAtt(); $('wm').textContent = '이 사진은 올릴 수 없어요.'; }
 });
 $('fileIn').addEventListener('change', (e) => {
-  const list = [...(e.target.files || [])]; e.target.value = ''; if (!$('fl')) return;
+  const list = [...(e.target.files || [])]; e.target.value = ''; if (!$('att')) return;
   const bad = [];
   for (const f of list) {
-    if (S.keepFiles.length + S.newFiles.length >= MAX_FILES) { bad.push('파일은 한 글에 ' + MAX_FILES + '개까지 올릴 수 있어요.'); break; }
+    if (S.keepFiles.length + S.newFiles.length >= MAX_FILES) { bad.push('파일은 ' + MAX_FILES + '개까지예요.'); break; }
     const m = checkFile(f);
     if (m) bad.push(m); else S.newFiles.push(f);
   }
   $('wm').textContent = bad.join(' ');
-  drawFiles();
+  drawAtt();
 });
 document.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -692,7 +729,7 @@ installPadkit({
   bid: () => bid,
   react,
   toast,
-  unfile: (fid) => { S.keepFiles = S.keepFiles.filter((f) => f.id !== fid); drawFiles(); }
+  unfile: (fid) => { S.keepFiles = S.keepFiles.filter((f) => f.id !== fid); drawAtt(); }
 });
 
 /* ---------- 불러오기 (실시간) ---------- */
