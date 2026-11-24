@@ -408,7 +408,7 @@ function draw() {
 function drawHome(ready) {
   const cs = classes(), full = cs.length >= MAX_CLASSES;
   const total = S.boards.filter((b) => !inTrash(b)).length, nTrash = trashed().length;
-  $('hdr').innerHTML = logo + '<div class="htxt"><small>클래스 ' + cs.length + ' / ' + MAX_CLASSES + ' · 저장된 패들렛 ' + total + '개</small><h1 class="hh1">내 패들렛</h1></div><div class="hright"><span class="save"></span><a class="hb" href="teacher.html">선생님 화면</a><button class="hb" data-act="trash">🗑 휴지통' + (nTrash ? ' ' + nTrash : '') + '</button><button class="hb go" data-act="newclass"' + (full ? ' disabled' : '') + '>＋ 클래스 만들기</button></div>';
+  $('hdr').innerHTML = logo + '<div class="htxt"><small>클래스 ' + cs.length + ' / ' + MAX_CLASSES + ' · 저장된 패들렛 ' + total + '개</small><h1 class="hh1">내 패들렛</h1></div><div class="hright"><span class="save"></span><a class="hb" href="teacher.html#classes" title="교실(선생님 화면)로 가기">🏫 교실</a><button class="hb" data-act="trash">🗑 휴지통' + (nTrash ? ' ' + nTrash : '') + '</button><button class="hb go" data-act="newclass"' + (full ? ' disabled' : '') + '>＋ 클래스 만들기</button></div>';
   let h = msgHTML();
   if (!ready) { $('main').className = ''; $('main').innerHTML = h + '<p class="note">저장된 클래스를 불러오는 중…</p>'; return; }
   if (!cs.length) {
@@ -458,6 +458,7 @@ function gridHTML(cs, full) {
     const bs = boardsOf(c.id), posts = bs.reduce((n, b) => n + (b.postCount || 0), 0), last = bs[bs.length - 1];
     return '<article class="dk-card" style="--c:' + esc(c.color) + '"><button class="dk-th" type="button" data-act="open" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 패들렛 열기"><span class="dk-tag">' + esc(c.kind) + '</span>' + (bs.length ? pads(bs) : '<span class="dk-big em" aria-hidden="true">🗒️</span>') + '</button>' +
       '<div class="dk-row"><div class="dk-tx"><b>' + esc(c.name) + '</b><small>패들렛 ' + bs.length + '개 · 글 ' + posts + '개 · ' + (last ? '최근 ' + md(last.date) : '새로 만든 클래스') + '</small></div>' +
+      '<a class="dk-ic" href="teacher.html#live-' + encodeURIComponent(c.id) + '" title="' + esc(c.name) + ' 교실(진행판)로 가기" aria-label="' + esc(c.name) + ' 교실로 가기">🏫</a>' +
       menu('<button type="button" data-act="open" data-id="' + esc(c.id) + '">📂 패들렛 열기</button><button type="button" data-act="editclass" data-id="' + esc(c.id) + '">✏️ 이름·색 고치기</button>') + '</div></article>';
   }).join('');
   if (!list.length) h += '<p class="dk-note" style="grid-column:1/-1">찾는 클래스가 없어요. 이름을 다시 확인해 주세요.</p>';
@@ -480,6 +481,7 @@ function drawBoard() {
     right += '<button type="button" class="hb" data-act="bfmt" title="형식 바꾸기">' + F[2] + ' 형식: ' + F[1] + '</button>' +
       (c.lib ? '' : '<button type="button" class="hb' + (b.public ? ' on' : '') + '" data-act="pubboard" aria-pressed="' + !!b.public + '" title="학생 첫 화면에 보이기">' + (b.public ? '✓ 학생에게 보여요' : '👀 학생에게 보이기') + '</button>');
   }
+  right += '<a class="hb" href="teacher.html#' + (c.lib ? 'classes' : 'live-' + encodeURIComponent(c.id)) + '" title="' + (c.lib ? '교실 목록으로 가기' : esc(c.name) + ' 교실(진행판)로 바로 가기') + '">🏫 교실</a>';
   right += '<div class="bset"><button type="button" class="hb" data-act="menu" aria-expanded="' + !!S.menu + '" aria-controls="bmenu" title="설정">⚙ 설정</button>';
   if (S.menu) {
     right += '<div class="bmenu pf" id="bmenu">' + (b ? '<p class="bminfo">' + esc(b.from || '') + ' · ' + md(b.date) + ' · ' + F[2] + ' ' + F[1] + ' 형식 · 글 ' + ((b.postCount || 0) + S.live.length) + '개 · 댓글 ' + S.cmts.length + '개</p>' : '') +
