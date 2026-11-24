@@ -65,16 +65,18 @@
 .bigin{width:100%;max-width:1560px;min-height:min(94vh,980px);margin:auto;background:#fff;border:6px solid var(--ink);box-shadow:10px 10px 0 rgba(0,0,0,.35);padding:clamp(14px,2.6vw,36px);display:flex;flex-direction:column;gap:2vh}
 .bi-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .bi-top h2{margin:0;font:400 clamp(24px,2.6vw,40px)/1.2 'Jua',sans-serif}
-.bi-main{flex:1;display:flex;gap:4vw;align-items:center;justify-content:center;flex-wrap:wrap}
-.bi-steps{flex:1 1 560px;min-width:0;display:flex;flex-direction:column;gap:2.2vh}
+.bi-main{flex:1;display:flex;flex-direction:column;justify-content:center;gap:2vh;min-width:0}
+.bi-row{display:flex;align-items:flex-end;justify-content:space-between;gap:3vw;flex-wrap:wrap;margin-top:1vh}
+.bi-rm{display:flex;flex-direction:column;gap:2vh;min-width:0}
 .bi-n{margin:0;font:400 clamp(24px,2.8vw,42px)/1.2 'Jua',sans-serif;color:var(--sub)}
 .bi-n b{display:inline-grid;place-items:center;width:1.5em;height:1.5em;margin-right:.3em;border-radius:50%;background:var(--ink);color:#fff;font:inherit}
-.bi-bar{display:flex;align-items:center;gap:.35em;padding:.28em .6em;background:#F1F3F4;border:5px solid #BFC4CC;border-radius:999px;font:800 clamp(44px,7.4vw,124px)/1.1 'Noto Sans KR',sans-serif;color:#111;overflow-wrap:anywhere}
-.bi-bar.long{font-size:clamp(24px,3.2vw,54px);border-radius:28px}
+.bi-bar{display:flex;align-items:center;gap:.35em;padding:.24em .6em;background:#F1F3F4;border:5px solid #BFC4CC;border-radius:999px;font:800 clamp(44px,8vw,140px)/1.15 'Noto Sans KR',sans-serif;color:#111;white-space:nowrap;overflow:hidden}
+.bi-bar span{min-width:0}
 .bi-bar i{font-style:normal;font-size:.5em;opacity:.55;flex:none}
 .bi-room{align-self:flex-start;font:800 clamp(70px,12.5vw,210px)/1 'Noto Sans KR',monospace;letter-spacing:.16em;background:var(--ink);color:var(--grn);padding:.1em .28em .1em .44em}
 .bi-qr{display:flex;flex-direction:column;align-items:center;gap:10px}
-.bi-qr svg{width:min(46vh,34vw,500px);min-width:200px;height:auto;background:#fff;border:5px solid var(--ink)}
+.bi-qr{margin-left:auto}
+.bi-qr svg{width:min(38vh,30vw,420px);min-width:180px;height:auto;background:#fff;border:5px solid var(--ink)}
 .bi-qr p{margin:0;font:400 clamp(20px,2.2vw,32px)/1.2 'Jua',sans-serif}
 @media print{.bigmodal{position:static;background:none;padding:0}.bigin{box-shadow:none;min-height:0}.bi-top .row{display:none}}
 .login{max-width:440px;margin:30px auto}
@@ -301,6 +303,18 @@ async function deleteClass(c) {
 // QR·링크 = 들어오는 방법을 크게 (교실 TV·칠판에 띄워 학생이 주소창에 그대로 쳐서 들어오게)
 function homeQrDlg() { bigEnter(null); }
 function qrDlg(c) { bigEnter(c); }
+// 주소 글자가 주소창 한 줄에 다 들어가게 크기 맞추기
+function fitBar() {
+  const bar = document.querySelector('.bi-bar'); if (!bar) return;
+  const sp = bar.querySelector('span'), ic = bar.querySelector('i');
+  bar.style.fontSize = '';
+  const cs = getComputedStyle(bar), size = parseFloat(cs.fontSize);
+  const room = bar.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - (ic ? ic.offsetWidth + size * 0.35 : 0) - 4;
+  if (sp.scrollWidth > room) bar.style.fontSize = Math.max(16, Math.floor(size * room / sp.scrollWidth)) + 'px';
+}
+addEventListener('resize', fitBar);
+document.addEventListener('fullscreenchange', () => setTimeout(fitBar, 100));
+if (document.fonts) document.fonts.ready.then(fitBar);
 function bigEnter(c) {
   const url = c ? SITE + '?r=' + c.room : homeUrl();
   // 반에 들어올 때는 주소 'moapang.kr' + 방번호, 우리 첫 화면은 전체 주소
@@ -310,10 +324,13 @@ function bigEnter(c) {
   lastFocus = document.activeElement;
   $('dlg').innerHTML = '<div class="modal bigmodal" data-close><div class="bigin" role="dialog" aria-modal="true" aria-labelledby="dlgT">' +
     '<div class="bi-top"><h2 id="dlgT">' + esc(c ? c.name + ' 들어오기' : '우리 첫 화면 들어오기') + '</h2><div class="row"><button class="btn blue sm" type="button" id="copyL">링크 복사</button><button class="btn sm" type="button" id="printQ">인쇄하기</button><button class="btn sm" type="button" id="fullQ">전체 화면 ⛶</button><button type="button" class="btn sm" data-x>닫기 ✕</button></div></div>' +
-    '<div class="bi-main"><div class="bi-steps">' +
-      '<p class="bi-n"><b>1</b>인터넷 주소창에 쓰기</p><div class="bi-bar' + (addr.length > 22 ? ' long' : '') + '" aria-label="주소 ' + esc(addr) + '"><i aria-hidden="true">🔒</i><span>' + esc(addr) + '</span></div>' +
-      (c ? '<p class="bi-n"><b>2</b>방번호 누르기</p><div class="bi-room" aria-label="방번호 ' + esc(String(c.room).split('').join(' ')) + '">' + esc(c.room) + '</div>' : '') +
-    '</div><div class="bi-qr">' + svg + '<p>📱 또는 QR 찍기</p></div></div></div></div>';
+    // 주소는 한 줄로 화면 넓이 가득(넘치면 글자를 줄임), 그 아래 줄에 방번호와 QR
+    '<div class="bi-main">' +
+      '<p class="bi-n"><b>1</b>인터넷 주소창에 쓰기</p><div class="bi-bar" aria-label="주소 ' + esc(addr) + '"><i aria-hidden="true">🔒</i><span>' + esc(addr) + '</span></div>' +
+      '<div class="bi-row">' + (c ? '<div class="bi-rm"><p class="bi-n"><b>2</b>방번호 누르기</p><div class="bi-room" aria-label="방번호 ' + esc(String(c.room).split('').join(' ')) + '">' + esc(c.room) + '</div></div>' : '') +
+      '<div class="bi-qr">' + svg + '<p>📱 또는 QR 찍기</p></div></div>' +
+    '</div></div></div>';
+  fitBar();
   $('copyL').focus();
   $('copyL').addEventListener('click', async () => { try { await navigator.clipboard.writeText(url); toast('링크를 복사했어요.'); } catch (e) { toast('복사하지 못했어요. 링크를 길게 눌러 복사해 주세요.', true); } });
   $('printQ').addEventListener('click', () => print());
