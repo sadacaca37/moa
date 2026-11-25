@@ -225,3 +225,8 @@ body.scene .ttl{color:#fff;text-shadow:0 2px 0 rgba(27,31,59,.5),0 4px 14px rgba
   .dk-add .dk-th{width:64px;height:64px;aspect-ratio:auto;flex:none;font-size:34px}
   .dk-add .dk-row{flex:1}
 }
+
+/* ⚙ 설정 단추 (⋮ 메뉴와 같은 방식으로 펼침) — 휴지통 같은 관리는 여기 안에만 */
+.dk-dots.dk-set{width:auto;height:36px;padding:0 14px;border:1px solid #D0D5DD;border-radius:10px;background:#fff;font:700 14px/1 'Noto Sans KR',sans-serif;color:#1D2030;white-space:nowrap}
+.dk-dots.dk-set:hover,.dk-dots.dk-set[aria-expanded=true]{background:#F2F4F7}
+.dk-menu b.dk-n{margin-left:auto;padding:0 8px;border-radius:999px;background:#EEF0F4;font:700 12px/20px 'Noto Sans KR',sans-serif;color:#6B7085}

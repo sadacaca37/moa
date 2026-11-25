@@ -423,7 +423,7 @@ function draw() {
 function drawHome(ready) {
   const cs = classes(), full = cs.length >= MAX_CLASSES;
   const total = S.boards.filter((b) => !inTrash(b)).length, nTrash = trashed().length + S.tclasses.length;
-  $('hdr').innerHTML = logo + '<div class="htxt"><small>교실 ' + cs.length + ' / ' + MAX_CLASSES + ' · 저장된 패들렛 ' + total + '개</small><h1 class="hh1">내 패들렛</h1></div><div class="hright"><span class="save"></span><a class="hb" href="teacher.html#classes" title="교실(선생님 화면)로 가기">🏫 교실</a><button class="hb" data-act="trash">🗑 휴지통' + (nTrash ? ' ' + nTrash : '') + '</button><button class="hb go" data-act="newpad">＋ 패들렛 만들기</button></div>';
+  $('hdr').innerHTML = logo + '<div class="htxt"><small>교실 ' + cs.length + ' / ' + MAX_CLASSES + ' · 저장된 패들렛 ' + total + '개</small><h1 class="hh1">내 패들렛</h1></div><div class="hright"><span class="save"></span><a class="hb" href="teacher.html#classes" title="교실(선생님 화면)로 가기">🏫 교실</a><span class="dk-mw"><button type="button" class="dk-dots dk-set" aria-expanded="false" aria-haspopup="true" title="설정">⚙ 설정</button><span class="dk-menu" hidden><button type="button" data-act="newclass"' + (full ? ' disabled' : '') + '>＋ 새 교실 만들기</button><button type="button" data-act="trash">🗑 휴지통' + (nTrash ? '<b class="dk-n">' + nTrash + '</b>' : '') + '</button></span></span><button class="hb go" data-act="newpad">＋ 패들렛 만들기</button></div>';
   let h = msgHTML();
   if (!ready) { $('main').className = ''; $('main').innerHTML = h + '<p class="note">저장된 패들렛을 불러오는 중…</p>'; return; }
   if (!cs.length) {
@@ -847,8 +847,8 @@ document.addEventListener('click', (e) => {
   else if (a === 'kind' || a === 'color') { pending[a] = t.dataset.v; t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t))); }
   else if (a === 'delclass') {
     const c = S.classes.find((x) => x.id === id); if (!c) return; const n = boardsOf(id).length;
-    confirmDlg('교실 버리기', '\'' + c.name + '\' 교실을 휴지통으로 옮겨요. 학생은 바로 못 들어오고' + (n ? ', 그 안의 패들렛 ' + n + '개도 같이 휴지통으로 가요' : '') + '. ' + TRASH_DAYS + '일 안에는 🗑 휴지통에서 학생 기록·패들렛까지 그대로 되살릴 수 있어요.', '🗑 휴지통으로', async () => {
-      try { const k = await trashClass(c, { own: ownQ(), homeRef: homeRefP() }); remove(ref(rt, 'live/' + c.id)).catch(() => {}); if (S.cid === c.id) goHome(); toast('\'' + c.name + '\'을 휴지통으로 옮겼어요' + (k ? ' (패들렛 ' + k + '개도 같이)' : '') + '. 🗑 휴지통에서 되살릴 수 있어요.'); }
+    confirmDlg('교실 버리기', '\'' + c.name + '\' 교실을 휴지통으로 옮겨요. 학생은 바로 못 들어오고' + (n ? ', 그 안의 패들렛 ' + n + '개도 같이 휴지통으로 가요' : '') + '. ' + TRASH_DAYS + '일 안에는 ⚙ 설정 → 휴지통에서 학생 기록·패들렛까지 그대로 되살릴 수 있어요.', '🗑 휴지통으로', async () => {
+      try { const k = await trashClass(c, { own: ownQ(), homeRef: homeRefP() }); remove(ref(rt, 'live/' + c.id)).catch(() => {}); if (S.cid === c.id) goHome(); toast('\'' + c.name + '\'을 휴지통으로 옮겼어요' + (k ? ' (패들렛 ' + k + '개도 같이)' : '') + '. ⚙ 설정 → 휴지통에서 되살릴 수 있어요.'); }
       catch (err) { toast(S.saveErr || errText(err), true); }
     });
   }
