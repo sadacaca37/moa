@@ -2,6 +2,7 @@
 //  - 콘솔: AI 서비스 > AI Logic 에서 Gemini Developer API를 켜 둠 (2026-11-23)
 //  - 키를 코드에 넣지 않아도 됨 (Firebase 프로젝트로 부름)
 //  - 모델이 없어지면 다음 모델로 넘어감
+import { APPCHECK_KEY } from './fb.js';
 const V = '12.19.0';
 const CFG = {
   apiKey: 'AIzaSyBlA9TN1BKvnsKrzuq2fMalCrATTeFgkUo',
@@ -20,8 +21,8 @@ export function aiReason(e) {
   if (/Failed to fetch|NetworkError|network|ERR_|Load failed|dynamically imported/i.test(m)) return '인터넷이나 학교 방화벽이 AI 연결(googleapis.com)을 막고 있어요';
   if (/has not been used|SERVICE_DISABLED|is disabled|not enabled/i.test(m)) return 'Firebase 콘솔에서 AI Logic(Gemini Developer API)이 꺼져 있어요';
   if (/API_KEY_SERVICE_BLOCKED|API key not valid|referer|referrer|blocked/i.test(m)) return 'API 키 설정이 AI 서비스나 이 주소를 막고 있어요';
-  if (/App ?Check|appcheck/i.test(m)) return 'App Check 때문에 막혔어요';
-  if (/\b429\b|quota|RESOURCE_EXHAUSTED|rate/i.test(m)) return 'AI 무료 사용량이 다 찼어요';
+  if (/App ?Check|app-check|appcheck/i.test(m)) return 'App Check(모아팡에서 온 요청인지 확인)가 아직 설정되지 않았어요';
+  if (/\b429\b|quota|RESOURCE_EXHAUSTED|rate.?limit/i.test(m)) return 'AI 무료 사용량이 다 찼어요';
   if (/location|region|country|not supported/i.test(m)) return '이 지역에서는 이 AI를 쓸 수 없대요';
   if (/\b404\b|not found/i.test(m)) return 'AI 모델을 찾지 못했어요';
   if (/JSON|Unexpected token/i.test(m)) return 'AI 답을 읽지 못했어요';
@@ -33,8 +34,15 @@ function load() {
     ready = Promise.all([
       import('https://www.gstatic.com/firebasejs/' + V + '/firebase-app.js'),
       import('https://www.gstatic.com/firebasejs/' + V + '/firebase-ai.js')
-    ]).then(([A, AI]) => {
-      const app = A.getApps().find((x) => x.name === 'moa-ai') || A.initializeApp(CFG, 'moa-ai');
+    ]).then(async ([A, AI]) => {
+      const old = A.getApps().find((x) => x.name === 'moa-ai');
+      const app = old || A.initializeApp(CFG, 'moa-ai');
+      // App Check: Firebase가 AI Logic에는 App Check를 꼭 켜 둠(2026-07부터 설정할 때 자동).
+      // js/fb.js의 APPCHECK_KEY(reCAPTCHA v3 사이트 키)가 있으면 AI 요청에 '모아팡에서 온 요청' 표시를 붙인다
+      if (APPCHECK_KEY && !old) {
+        const AC = await import('https://www.gstatic.com/firebasejs/' + V + '/firebase-app-check.js');
+        AC.initializeAppCheck(app, { provider: new AC.ReCaptchaV3Provider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true });
+      }
       return { AI, ai: AI.getAI(app, { backend: new AI.GoogleAIBackend() }) };
     });
     ready.catch(() => { ready = null; });
@@ -61,7 +69,7 @@ export async function aiJSON(prompt, { signal } = {}) {
   try { loaded = await withSignal(load(), signal); }
   catch (e) { if (e && e.name === 'AbortError') throw e; console.warn('[모아팡 AI] 불러오기 실패', e); const x = new Error(String((e && e.message) || e)); x.code = 'unavailable'; x.detail = x.message; throw x; }
   const { AI, ai } = loaded;
-  const errs = []; let limited = 0;
+  const errs = []; let limited = 0, guard = 0;
   for (const m of MODELS) {
     try {
       const model = AI.getGenerativeModel(ai, { model: m, generationConfig: { responseMimeType: 'application/json', temperature: 0.9 } });
@@ -74,11 +82,12 @@ export async function aiJSON(prompt, { signal } = {}) {
       const msg = String((e && e.message) || e);
       console.warn('[모아팡 AI] ' + m + ' 실패:', msg);
       errs.push(m + ': ' + msg);
-      if (/\b429\b|quota|RESOURCE_EXHAUSTED|rate/i.test(msg)) limited++; // 이 모델 사용량이 찼으면 다음 모델로
+      if (/App ?Check|app-check|appcheck/i.test(msg)) { guard++; break; } // App Check는 모델을 바꿔도 같음
+      if (/\b429\b|quota|RESOURCE_EXHAUSTED|rate.?limit/i.test(msg)) limited++; // 이 모델 사용량이 찼으면 다음 모델로
     }
   }
   const x = new Error(errs.join(' | ') || 'AI');
-  x.code = limited === MODELS.length ? 'rate_limited' : 'unavailable';
+  x.code = guard ? 'appcheck' : limited === MODELS.length ? 'rate_limited' : 'unavailable';
   // 화면에 보여 줄 이유: 모델 이름 문제(404)가 아닌 첫 번째 진짜 이유
   x.detail = (errs.find((s) => !/\b404\b|not found/i.test(s)) || errs[0] || '').replace(/^[^:]+:\s*/, '');
   throw x;

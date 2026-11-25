@@ -797,7 +797,7 @@ function aiQuizDlg(k, tg) {
       $('aiAct').hidden = false; $('aiMsg').textContent = aiItems.length + '문제를 만들었어요. 마음에 드는 문제만 골라 넣어요.';
     } catch (err) {
       if (!$('aiMsg') || (err && err.name === 'AbortError')) return;
-      $('aiMsg').textContent = (err && err.code === 'rate_limited' ? 'AI 무료 사용량이 잠깐 다 찼어요. 1분쯤 뒤에 다시 눌러 주세요.' : 'AI가 문제를 만들지 못했어요. 잠시 뒤 다시 눌러 주세요.') + ' (이유: ' + aiReason(err) + ')';
+      $('aiMsg').textContent = (err && err.code === 'appcheck' ? 'AI 보안 설정(App Check)이 아직 안 돼서 Google이 AI 요청을 막았어요. 설정을 마치면 바로 돼요.' : err && err.code === 'rate_limited' ? 'AI 무료 사용량이 잠깐 다 찼어요. 1분쯤 뒤에 다시 눌러 주세요.' : 'AI가 문제를 만들지 못했어요. 잠시 뒤 다시 눌러 주세요.') + ' (이유: ' + aiReason(err) + ')';
     } finally { if ($('aiGo')) $('aiGo').disabled = false; }
   };
   $('aiGo').addEventListener('click', make);

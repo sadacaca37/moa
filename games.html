@@ -1937,7 +1937,7 @@ async function aiMake() {
     $('#aiAct').hidden = false; msg.textContent = `${qbAI.length}문제를 만들었어요. 마음에 드는 문제만 골라 넣어요.`; sfx('key_get', 0.8);
   } catch (e) {
     const code = e && e.code;
-    msg.textContent = code === 'not_granted' ? 'AI 쓰기를 허락하지 않아서 만들 수 없어요.' : code === 'rate_limited' ? 'AI가 바빠요. 조금 뒤에 다시 눌러 주세요.' : e && e.name === 'AbortError' ? '' : 'AI가 문제를 만들지 못했어요. 다시 눌러 주세요. (이유: ' + aiReason(e) + ')';
+    msg.textContent = code === 'not_granted' ? 'AI 쓰기를 허락하지 않아서 만들 수 없어요.' : code === 'appcheck' ? 'AI 보안 설정(App Check)이 아직 안 돼서 AI 요청이 막혔어요. 설정을 마치면 바로 돼요.' : code === 'rate_limited' ? 'AI가 바빠요. 조금 뒤에 다시 눌러 주세요.' : e && e.name === 'AbortError' ? '' : 'AI가 문제를 만들지 못했어요. 다시 눌러 주세요. (이유: ' + aiReason(e) + ')';
   } finally { qbAbort = null; go.disabled = false; }
 }
 $('#aiGo').addEventListener('click', aiMake);
