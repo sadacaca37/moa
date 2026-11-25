@@ -1099,7 +1099,12 @@ async function loadUsage() {
   if (!isAdmin()) return;
   const btn = $('useGo'); btn.disabled = true; btn.textContent = '불러오는 중…';
   try {
-    const [cs, bs, cf, bk] = await Promise.all([getDocs(collection(fs, 'classes')), getDocs(collection(fs, 'boards')), getDocs(collection(fs, 'config')), getDocs(collection(fs, 'banks'))]);
+    const [cs, bs, cf, bk, tr] = await Promise.all([getDocs(collection(fs, 'classes')), getDocs(collection(fs, 'boards')), getDocs(collection(fs, 'config')), getDocs(collection(fs, 'banks')), getDocs(collection(fs, 'taja_reports')).catch(() => ({ docs: [] }))]);
+    // 타자팡: 오늘의 연습 보고(반별) · 이번 달 타자 랭킹에 오른 사람 수(모두 합쳐서)
+    const reps = tr.docs.map((d) => d.data()), wk = Date.now() - 7 * 86400000;
+    const tsOf = (t) => (typeof t === 'number' ? t : t && t.toMillis ? t.toMillis() : Date.parse(t) || 0);
+    const ym = new Date().toISOString().slice(0, 7);
+    let lbN = 0; try { lbN = Object.keys((await rget(ref(rt, 'taja/lb/' + ym))).val() || {}).length; } catch (e) { /* 0 */ }
     const classesAll = cs.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((c) => !inTrash(c));
     const boardsAll = bs.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((b) => !inTrash(b));
     const seats = new Map(cf.docs.filter((d) => d.id.startsWith('sess_')).map((d) => [d.id.slice(5), d.data()]));
@@ -1107,10 +1112,15 @@ async function loadUsage() {
     const byEm = new Map(team.map((t) => [String(t.email || t.id).toLowerCase(), t]));
     // 반마다 학생 수·지금 접속 (반 수만큼 읽음)
     const per = await Promise.all(classesAll.map(async (c) => {
-      let st = 0, on = 0;
-      try { st = (await getDocs(collection(fs, 'classes', c.id, 'students'))).size; } catch (e) { /* 못 읽으면 0 */ }
+      let st = 0, on = 0, tj = 0, last = 0;
+      try {
+        const ss = (await getDocs(collection(fs, 'classes', c.id, 'students'))).docs.map((d) => d.data());
+        st = ss.length; tj = ss.filter((x) => x.taja && typeof x.taja === 'object' && Object.keys(x.taja).length).length; // 타자팡을 쓴 학생 (타자팡 기록이 있는 학생)
+        last = Math.max(0, ...ss.map((x) => tsOf(x.seen)));
+      } catch (e) { /* 못 읽으면 0 */ }
       try { const v = (await rget(ref(rt, 'live/' + c.id + '/players'))).val() || {}; on = Object.values(v).filter((p) => p && !p.tc).length; } catch (e) { /* 0 */ }
-      return { c, st, on };
+      const rp = reps.filter((r) => r.cid === c.id);
+      return { c, st, on, tj, last, rp: rp.length, rpw: rp.filter((r) => tsOf(r.sentAt) >= wk).length, rpLast: Math.max(0, ...rp.map((r) => tsOf(r.sentAt))) };
     }));
     const owners = new Set([''].concat(classesAll.map((c) => c.owner || ''), boardsAll.map((b) => b.owner || ''), [...seats.keys()].filter((u) => seats.get(u).em && byEm.has(seats.get(u).em))));
     const ago = (t) => { if (!t) return '-'; const ms = typeof t === 'number' ? t : (t.toMillis ? t.toMillis() : Date.parse(t)); if (!ms) return '-'; const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? '방금' : m < 60 ? m + '분 전' : m < 1440 ? Math.round(m / 60) + '시간 전' : Math.round(m / 1440) + '일 전'; };
@@ -1118,17 +1128,19 @@ async function loadUsage() {
       const seat = u ? seats.get(u) || {} : {}, t = seat.em ? byEm.get(seat.em) : null;
       const mine = per.filter((x) => (x.c.owner || '') === u);
       return { u, name: u ? (t ? (t.name || t.email) : seat.em || '이름 모르는 선생님 (' + u.slice(0, 6) + ')') : '나 (주 선생님)', em: u ? seat.em || '' : String(user.email || ''),
-        cls: mine.length, pads: boardsAll.filter((b) => (b.owner || '') === u).length, st: mine.reduce((n, x) => n + x.st, 0), on: mine.reduce((n, x) => n + x.on, 0), sets: libs.get(u) || 0, seen: u ? ago(seat.seen || seat.at) : '지금' };
+        cls: mine.length, pads: boardsAll.filter((b) => (b.owner || '') === u).length, st: mine.reduce((n, x) => n + x.st, 0), on: mine.reduce((n, x) => n + x.on, 0), sets: libs.get(u) || 0, seen: u ? ago(seat.seen || seat.at) : '지금',
+        tj: mine.reduce((n, x) => n + x.tj, 0), rpw: mine.reduce((n, x) => n + x.rpw, 0), rp: mine.reduce((n, x) => n + x.rp, 0), stLast: ago(Math.max(0, ...mine.map((x) => Math.max(x.last, x.rpLast)))) };
     }).sort((a, b) => (a.u === '' ? -1 : b.u === '' ? 1 : b.cls + b.pads - (a.cls + a.pads)));
     // 올렸지만 아직 한 번도 안 들어온 선생님
     const seenEm = new Set(rows.map((r) => r.em));
-    team.filter((t) => !seenEm.has(String(t.email || t.id).toLowerCase())).forEach((t) => rows.push({ u: '-', name: t.name || t.email, em: t.email || t.id, cls: 0, pads: 0, st: 0, on: 0, sets: 0, seen: '아직 안 들어옴' }));
-    const tot = rows.reduce((o, r) => ({ cls: o.cls + r.cls, pads: o.pads + r.pads, st: o.st + r.st, on: o.on + r.on, sets: o.sets + r.sets }), { cls: 0, pads: 0, st: 0, on: 0, sets: 0 });
+    team.filter((t) => !seenEm.has(String(t.email || t.id).toLowerCase())).forEach((t) => rows.push({ u: '-', name: t.name || t.email, em: t.email || t.id, cls: 0, pads: 0, st: 0, on: 0, sets: 0, seen: '아직 안 들어옴', tj: 0, rpw: 0, rp: 0, stLast: '-' }));
+    const tot = rows.reduce((o, r) => ({ cls: o.cls + r.cls, pads: o.pads + r.pads, st: o.st + r.st, on: o.on + r.on, sets: o.sets + r.sets, tj: o.tj + r.tj, rpw: o.rpw + r.rpw, rp: o.rp + r.rp }), { cls: 0, pads: 0, st: 0, on: 0, sets: 0, tj: 0, rpw: 0, rp: 0 });
     const td = (v) => '<td style="text-align:right;padding:6px 8px">' + v + '</td>';
-    usageHTML = '<p class="note" style="color:var(--ink);font-weight:700">지금 실시간 교실 접속: ' + tot.on + ' / 100명 (모든 선생님 합쳐서)</p>' +
-      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:560px"><thead><tr style="background:#F4F6FA">' + ['선생님', '교실', '패들렛', '학생', '퀴즈 세트', '지금 접속', '마지막 접속'].map((h, i) => '<th style="padding:8px;text-align:' + (i ? 'right' : 'left') + '">' + h + '</th>').join('') + '</tr></thead><tbody>' +
-      rows.map((r) => '<tr style="border-top:1px solid #E5E8EF"><td style="padding:6px 8px"><b>' + esc(r.name) + '</b>' + (r.em && r.name !== r.em ? '<br><small style="color:var(--sub)">' + esc(r.em) + '</small>' : '') + '</td>' + td(r.cls) + td(r.pads) + td(r.st) + td(r.sets) + td(r.on ? '<b style="color:#1E9E4A">' + r.on + '명</b>' : '0') + td(esc(r.seen)) + '</tr>').join('') +
-      '<tr style="border-top:2px solid #1D2030;font-weight:800"><td style="padding:6px 8px">모두</td>' + td(tot.cls) + td(tot.pads) + td(tot.st) + td(tot.sets) + td(tot.on + '명') + td('') + '</tr></tbody></table></div>' +
+    usageHTML = '<p class="note" style="color:var(--ink);font-weight:700">지금 실시간 교실 접속: ' + tot.on + ' / 100명 (모든 선생님 합쳐서) · ⌨️ 타자팡 이번 달 랭킹에 오른 사람: ' + lbN + '명</p>' +
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:820px"><thead><tr style="background:#F4F6FA">' + ['선생님', '교실', '패들렛', '학생', '퀴즈 세트', '지금 접속', '⌨️ 타자팡 학생', '⌨️ 연습 보고 (이번 주 / 모두)', '학생 최근 접속', '선생님 마지막 접속'].map((h, i) => '<th style="padding:8px;text-align:' + (i ? 'right' : 'left') + '">' + h + '</th>').join('') + '</tr></thead><tbody>' +
+      rows.map((r) => '<tr style="border-top:1px solid #E5E8EF"><td style="padding:6px 8px"><b>' + esc(r.name) + '</b>' + (r.em && r.name !== r.em ? '<br><small style="color:var(--sub)">' + esc(r.em) + '</small>' : '') + '</td>' + td(r.cls) + td(r.pads) + td(r.st) + td(r.sets) + td(r.on ? '<b style="color:#1E9E4A">' + r.on + '명</b>' : '0') + td(r.tj ? r.tj + '명' : '0') + td(r.rpw + ' / ' + r.rp) + td(esc(r.stLast)) + td(esc(r.seen)) + '</tr>').join('') +
+      '<tr style="border-top:2px solid #1D2030;font-weight:800"><td style="padding:6px 8px">모두</td>' + td(tot.cls) + td(tot.pads) + td(tot.st) + td(tot.sets) + td(tot.on + '명') + td(tot.tj + '명') + td(tot.rpw + ' / ' + tot.rp) + td('') + td('') + '</tr></tbody></table></div>' +
+      '<p class="note">⌨️ 타자팡 학생 = 타자팡 기록이 있는 학생 수. 연습 보고 = 학생이 타자팡에서 선생님께 보낸 \'오늘의 연습 보고\' 수(지금은 주 선생님 반 학생만 보낼 수 있어요). 학생 최근 접속 = 모아팡·연습 보고 중 가장 최근.</p>' +
       '<p class="note">이름 모르는 선생님은 다음에 선생님 화면에 들어오면 이름이 붙어요. 휴지통에 있는 교실·패들렛은 세지 않아요. ' + new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ' 기준</p>';
     if ($('useT')) $('useT').innerHTML = usageHTML;
   } catch (err) { toast(errText(err), true); }
