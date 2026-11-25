@@ -146,7 +146,7 @@ import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, increment, writeBatch,
   ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast, TEACHER_EM_KEY, endPreview, previewUrl, onLiveState
 } from './js/fb.js';
-import { emoHTML, emoRich, emoOnly } from './js/emo.js';
+import { emoHTML, emoRich, emoOnly, emoTok, openEmoPicker } from './js/emo.js';
 import { DEF_OX, DEF_MC, defWhy } from './js/questions.js';
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
 import { aiQuiz, AGES, CATS } from './js/ai.js';
@@ -496,12 +496,16 @@ function drawLive(cid) {
       '<p class="note">\'학생들 초대하기\'를 누르면 반에 들어와 있는 학생 화면이 게임으로 넘어가고, 선생님도 게임 화면으로 넘어가요. 모두 들어오면 선생님 게임 화면에서 <b>시작</b>을 눌러요. 똥 피하기·술래잡기·달리기·땅따먹기·좀비·폭탄·OX는 반 친구들이 한 게임에서 같이 움직여요(모자라면 🤖가 채워요). 끝나면 기록이 여기로 모여요. 문제는 미니 게임 화면의 \'문제 만들기\'에서 저장해요.</p><div id="gmR"></div></section>' +
     '</div><div class="stack">' +
       '<section class="pf card"><h2 id="plH">들어온 학생</h2><div class="chips" id="plL"></div></section>' +
-      '<section class="pf card"><h2>채팅</h2><div class="row"><button class="btn sm" type="button" id="chOff"></button><button class="btn sm red" type="button" id="chClr">채팅 지우기</button></div><div id="chatLog" aria-live="polite"></div></section>' +
+      '<section class="pf card"><h2>채팅</h2><div class="row"><button class="btn sm" type="button" id="chOff"></button><button class="btn sm red" type="button" id="chClr">채팅 지우기</button></div><div id="chatLog" aria-live="polite"></div><form class="row" id="tChatF" autocomplete="off" style="flex-wrap:nowrap;margin-top:8px"><button class="btn sm" type="button" id="tChatE" aria-label="이모티콘" title="이모티콘" style="padding:0 6px">' + emoHTML(0, '30px') + '</button><input class="field" id="tChatI" maxlength="40" placeholder="학생들에게 한마디 (40자까지)" style="flex:1;min-width:0"><button class="btn sm blue" type="submit">보내기</button></form></section>' +
       '<section class="pf card" id="padC"></section>' +
       '<section class="pf card"><h2>반 링크</h2><p class="note">반 화면 게시판 탭에 보여요. 패들렛은 위 📋 학생 패들렛 탭에서 넣어요.</p>' + linksHTML(c.links || [], 'clsL') + '</section>' +
-      '<section class="pf card"><h2 id="stH">학생 기록</h2><ul class="list" id="stL"></ul></section>' +
+      '<section class="pf card"><h2 id="stH">학생 기록</h2><div class="row" id="stBar" style="align-items:center"></div><ul class="list" id="stL"></ul></section>' +
     '</div></div></div>';
   bindLive(c);
+  // 선생님 채팅: 글 + 모아팡 이모티콘(바로 보냄) + 😀 이모지(칸에 넣기)
+  const tSend = async (m) => { m = String(m || '').replace(/\s+/g, ' ').trim().slice(0, 40); if (!m) return; try { await push(ref(rt, 'live/' + cid + '/chat'), { u: user.uid, n: '선생님', m, t: rnow() }); } catch (err) { toast(errText(err), true); } };
+  $('tChatF').addEventListener('submit', (e) => { e.preventDefault(); const v = $('tChatI').value; $('tChatI').value = ''; tSend(v); });
+  $('tChatE').addEventListener('click', () => openEmoPicker($('tChatE'), (i) => tSend(emoTok(i)), { emoji: (ch) => { const el = $('tChatI'); const a = el.selectionStart ?? el.value.length, b = el.selectionEnd ?? a; const v = (el.value.slice(0, a) + ch + el.value.slice(b)).slice(0, 40); el.value = v; const k = Math.min(v.length, a + ch.length); try { el.setSelectionRange(k, k); } catch (er) { /* 무시 */ } } }));
   bindLinks('clsL', () => (classes.find((x) => x.id === cid) || {}).links || [], (list) => setDoc(doc(fs, 'classes', cid), { links: list }, { merge: true }));
   paintLive(); paintChat(); paintStudents(); paintQuiz(); paintPads();
 }
@@ -602,18 +606,33 @@ function paintChat() {
   $('chatLog').innerHTML = L.chat.map((m) => '<p><b>' + esc(m.n || '?') + '</b> ' + (emoOnly(m.m) >= 0 ? emoHTML(emoOnly(m.m), '40px') : emoRich(esc(m.m || ''), '1.4em')) + '</p>').join('') || '<p class="note">채팅이 없어요.</p>';
   $('chatLog').scrollTop = $('chatLog').scrollHeight;
 }
+// 학생 기록: 골라서 지우기 · 전체 지우기 · 점수만 0으로 (기록은 남겨도 되고, 필요할 때 정리)
+const stSel = new Set();
 function paintStudents() {
   if (!L || !$('stL')) return;
   const list = L.students.slice().sort((a, b) => (b.score || 0) - (a.score || 0) || String(a.name).localeCompare(String(b.name)));
+  for (const id of [...stSel]) if (!list.some((s) => s.id === id)) stSel.delete(id);
   $('stH').textContent = '학생 기록 · ' + list.length + '명';
-  $('stL').innerHTML = list.map((s) => '<li><canvas width="40" height="40" data-o="' + esc(JSON.stringify(s.outfit || A.START)) + '" aria-hidden="true"></canvas><b class="sp">' + esc(s.name) + '</b><span>점수 ' + (s.score || 0) + '</span><button class="btn sm" type="button" data-p1="' + esc(s.id) + '">+1</button><button class="btn sm" type="button" data-sr="' + esc(s.id) + '">0점으로</button><button class="btn sm red" type="button" data-sd="' + esc(s.id) + '">지우기</button></li>').join('') || '<li>아직 들어온 학생이 없어요.</li>';
+  const bar = $('stBar');
+  if (bar) bar.innerHTML = list.length ? '<label class="ck" style="display:flex;gap:6px;align-items:center;font-weight:700;font-size:14px"><input type="checkbox" id="stAll"' + (stSel.size && stSel.size === list.length ? ' checked' : '') + ' style="width:18px;height:18px"> 모두 고르기</label>' +
+    '<button class="btn sm red" type="button" id="stDelSel"' + (stSel.size ? '' : ' disabled') + '>고른 기록 지우기' + (stSel.size ? ' (' + stSel.size + ')' : '') + '</button><button class="btn sm" type="button" id="stZero">점수 모두 0으로</button><button class="btn sm red" type="button" id="stDelAll">전체 지우기</button>' : '';
+  $('stL').innerHTML = list.map((s) => '<li><input type="checkbox" data-sk="' + esc(s.id) + '"' + (stSel.has(s.id) ? ' checked' : '') + ' aria-label="' + esc(s.name) + ' 고르기" style="width:18px;height:18px;flex:none"><canvas width="40" height="40" data-o="' + esc(JSON.stringify(s.outfit || A.START)) + '" aria-hidden="true"></canvas><b class="sp">' + esc(s.name) + '</b><span>점수 ' + (s.score || 0) + '</span><button class="btn sm" type="button" data-p1="' + esc(s.id) + '">+1</button><button class="btn sm" type="button" data-sr="' + esc(s.id) + '">0점으로</button><button class="btn sm red" type="button" data-sd="' + esc(s.id) + '">지우기</button></li>').join('') || '<li>아직 들어온 학생이 없어요.</li>';
   $('stL').querySelectorAll('canvas[data-o]').forEach(async (cv) => { try { const o = A.clean(JSON.parse(cv.dataset.o)); await A.ensure(o); A.drawFrame(cv.getContext('2d'), A.sheet(o), 'front', 0, false, 40); } catch (e) { /* 그림 없이 */ } });
+  const sref = (id) => doc(fs, 'classes', L.cid, 'students', id);
+  const delMany = async (ids, label) => { let n = 0; for (const id of ids) { try { await deleteDoc(sref(id)); n++; } catch (err) { /* 다음 것 */ } } stSel.clear(); toast(label + ' ' + n + '명을 지웠어요.', n < ids.length); };
   $('stL').onclick = (e) => {
+    const k = e.target.closest('[data-sk]'); if (k) { if (k.checked) stSel.add(k.dataset.sk); else stSel.delete(k.dataset.sk); paintStudents(); return; }
     const b = e.target.closest('button'); if (!b) return;
-    const sref = (id) => doc(fs, 'classes', L.cid, 'students', id);
     if (b.dataset.p1) updateDoc(sref(b.dataset.p1), { score: increment(1) }).catch((err) => toast(errText(err), true));
     else if (b.dataset.sr) updateDoc(sref(b.dataset.sr), { score: 0 }).catch((err) => toast(errText(err), true));
     else if (b.dataset.sd) { const s = L.students.find((x) => x.id === b.dataset.sd); confirmDlg('학생 기록 지우기', '\'' + (s ? s.name : '') + '\' 학생의 캐릭터와 점수를 지워요.', '지우기', () => deleteDoc(sref(b.dataset.sd)).catch((err) => toast(errText(err), true))); }
+  };
+  if (bar) bar.onclick = (e) => {
+    if (e.target.id === 'stAll') { if (e.target.checked) list.forEach((s) => stSel.add(s.id)); else stSel.clear(); paintStudents(); return; }
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.id === 'stDelSel' && stSel.size) { const ids = [...stSel], names = list.filter((s) => stSel.has(s.id)).map((s) => s.name); confirmDlg('고른 기록 지우기', '고른 학생 ' + ids.length + '명(' + names.join(', ') + ')의 캐릭터와 점수를 지워요. 되돌릴 수 없어요.', '지우기', () => delMany(ids, '고른 학생')); }
+    else if (b.id === 'stDelAll') confirmDlg('학생 기록 전체 지우기', '이 반 학생 기록 ' + list.length + '명을 모두 지워요(캐릭터·점수). 학생은 다음에 들어올 때 이름을 다시 써요. 되돌릴 수 없어요.', '전체 지우기', () => delMany(list.map((s) => s.id), '학생'));
+    else if (b.id === 'stZero') confirmDlg('점수 모두 0으로', '이 반 학생 ' + list.length + '명의 점수를 모두 0으로 바꿔요. 캐릭터는 그대로예요.', '0점으로', async () => { for (const s of list) { try { await updateDoc(sref(s.id), { score: 0 }); } catch (err) { /* 다음 것 */ } } toast('점수를 모두 0으로 바꿨어요.'); });
   };
 }
 
@@ -798,8 +817,9 @@ function watchAnswers(qid) {
   rget(ref(rt, 'live/' + L.cid + '/key/' + qid)).then((s) => { L.key[qid] = s.val(); paintQuizLive(); }).catch(() => {});
 }
 // 🏆 순위: 이 판에 낸 문제마다 정답이면 1개, 같으면 빨리 답한 순 (5등까지 발표, 모두의 맞힌 수도 함께 보냄)
-const MEDAL = ['🥇', '🥈', '🥉', '4등', '5등'];
-const rankHTML = (rk) => '<ol class="list" style="max-height:none;padding-left:0">' + (rk.top || []).map((r, i) => '<li><b style="width:44px;text-align:center">' + MEDAL[i] + '</b><span class="sp">' + esc(r.n) + '</span><span>' + r.s + ' / ' + rk.total + '개</span></li>').join('') + (rk.top && rk.top.length ? '' : '<li>답한 학생이 없어요.</li>') + '</ol>';
+const MEDAL = ['🥇', '🥈', '🥉', '4등', '5등', '6등', '7등', '8등', '9등', '10등'];
+// 선생님 진행판: 이번 퀴즈 모두의 맞힌 수 (학생 화면에는 1~3등만)
+const rankHTML = (rk) => { const full = L && L.rankFull && L.rankFull.id === rk.id ? L.rankFull.list : (rk.top || []); return '<ol class="list" style="max-height:320px;padding-left:0">' + full.map((r, i) => '<li><b style="width:44px;text-align:center">' + (MEDAL[i] || (i + 1) + '등') + '</b><span class="sp">' + esc(r.n) + '</span><span>' + r.s + ' / ' + rk.total + '개</span></li>').join('') + (full.length ? '' : '<li>답한 학생이 없어요.</li>') + '</ol>' + (full.length > 3 ? '<p class="note">학생 화면에는 1~3등만 떠요. 이 목록은 선생님만 봐요.</p>' : ''); };
 async function announceRank() {
   const run = L.st.qrun; if (!run) return;
   const base = 'live/' + L.cid;
@@ -818,10 +838,15 @@ async function announceRank() {
     }
     const list = Object.values(sc).sort((a, b) => b.s - a.s || a.tm - b.tm || a.n.localeCompare(b.n));
     // t는 서버 시각 기준 (학생 컴퓨터 시계가 틀려도 순위 창이 뜨게)
-    const rk = { id: run.id, name: run.name || '', total: Object.keys(qs).length, top: list.slice(0, 5).map((o) => ({ n: o.n, s: o.s })), list: list.map((o) => ({ n: o.n, k: o.k, s: o.s })), t: rnow() };
+    // 학생 화면에는 이번 퀴즈 1~3등만 (퀴즈마다 새로 매김). 모두의 맞힌 수는 선생님 진행판에서만 봄
+    const rk = { id: run.id, name: run.name || '', total: Object.keys(qs).length, top: list.slice(0, 3).map((o) => ({ n: o.n, k: o.k, s: o.s })), n: list.length, t: rnow() };
+    L.rankFull = { id: run.id, list: list.map((o) => ({ n: o.n, s: o.s })) };
     await setSt({ quiz: null, qrun: null, qrank: rk });
     remove(ref(rt, base + '/qruns/' + run.id)).catch(() => {});
-    toast('🏆 순위를 발표했어요! 학생 화면에 5등까지 떠요.');
+    // 퀴즈가 끝나면 그걸로 끝: 이 판의 답·정답 기록을 지우고, 발표 창은 20초 뒤 저절로 내림
+    for (const qid of Object.keys(qs)) { remove(ref(rt, base + '/answers/' + qid)).catch(() => {}); remove(ref(rt, base + '/key/' + qid)).catch(() => {}); }
+    const cidNow = L.cid; setTimeout(() => { if (L && L.cid === cidNow && L.st.qrank && L.st.qrank.id === rk.id) setSt({ qrank: null }); }, 20000);
+    toast('🏆 순위를 발표했어요! 학생 화면에 1~3등이 20초 동안 떠요. 모두의 기록은 여기 진행판에서만 보여요.');
   } catch (err) { toast(errText(err), true); }
 }
 function paintQuizLive() {
@@ -830,7 +855,7 @@ function paintQuizLive() {
   $('qzB').textContent = q ? '푸는 중' : '쉬는 중'; $('qzB').className = 'badge' + (q ? ' go' : '');
   if (!q) {
     const rk = L.st.qrank, run = L.st.qrun;
-    $('qzLive').innerHTML = (rk && rk.top ? '<div class="pf white pad stack" style="padding:12px;box-shadow:none;border-color:#E0A800"><b>🏆 ' + esc(rk.name || '퀴즈') + ' 순위 · ' + rk.total + '문제 · ' + (rk.list || []).length + '명</b>' + rankHTML(rk) + '<div class="row"><button class="btn sm" type="button" id="qzRankX">발표 창 내리기</button></div></div>' : '') +
+    $('qzLive').innerHTML = (rk && rk.top ? '<div class="pf white pad stack" style="padding:12px;box-shadow:none;border-color:#E0A800"><b>🏆 ' + esc(rk.name || '퀴즈') + ' 순위 · ' + rk.total + '문제 · ' + (rk.n || (rk.list || []).length) + '명</b>' + rankHTML(rk) + '<div class="row"><button class="btn sm" type="button" id="qzRankX">발표 창 내리기</button></div></div>' : '') +
       (run && !rk ? '<div class="row"><button class="btn grn" type="button" id="qzRank">🏆 \'' + esc(run.name || '퀴즈') + '\' 지금까지 순위 발표</button></div>' : '');
     if ($('qzRank')) $('qzRank').addEventListener('click', announceRank);
     if ($('qzRankX')) $('qzRankX').addEventListener('click', () => setSt({ qrank: null }));
@@ -865,7 +890,12 @@ function paintQuizLive() {
   $('qzRev').addEventListener('click', reveal);
   if ($('qzNext')) $('qzNext').addEventListener('click', () => afterReveal(() => sendSetQ(set, q.n + 1)));
   if ($('qzRank')) $('qzRank').addEventListener('click', () => afterReveal(announceRank));
-  $('qzEnd').addEventListener('click', () => setSt({ quiz: null }));
+  // 퀴즈 닫기 = 이 판 끝 (순위 발표 단추도 남기지 않고, 답 기록도 지움)
+  $('qzEnd').addEventListener('click', async () => {
+    const run = L.st.qrun, base = 'live/' + L.cid;
+    await setSt({ quiz: null, qrun: null });
+    if (run) { try { const qs = (await rget(ref(rt, base + '/qruns/' + run.id))).val() || {}; for (const qid of Object.keys(qs)) { remove(ref(rt, base + '/answers/' + qid)).catch(() => {}); remove(ref(rt, base + '/key/' + qid)).catch(() => {}); } remove(ref(rt, base + '/qruns/' + run.id)).catch(() => {}); } catch (e) { /* 무시 */ } }
+  });
   if ($('qzHold')) $('qzHold').addEventListener('click', () => { QZO.auto = false; saveQZO(); setSt({ 'quiz/auto': false }); const box = $('qzOpt'); if (box) box.outerHTML = qzOptHTML(); toast('자동 넘기기를 멈췄어요. \'다음 문제\'를 누르면 넘어가요.'); });
   quizTick();
   // 들어온 학생이 모두 답하면 정답을 저절로 공개

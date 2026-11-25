@@ -109,7 +109,7 @@ html.embed .mapbox{border:0;box-shadow:none}
     <span class="tag" id="cntT">접속 0명</span>
   </div>
   <div class="row">
-    <div class="who"><canvas id="meCv" width="56" height="56" aria-hidden="true"></canvas><div><b id="meT"></b><small id="scoreT">점수 0</small></div></div>
+    <div class="who"><canvas id="meCv" width="56" height="56" aria-hidden="true"></canvas><div><b id="meT"></b><small id="scoreT"></small></div></div>
     <a class="btn sm" href="dress.html">꾸미기</a>
     <button class="btn sm" type="button" id="out">나가기</button>
   </div>
@@ -353,14 +353,19 @@ async function sendChat(m, typed) {
 function chatHTML(n, m) { const ei = emoOnly(m); return '<b>' + esc(n || '?') + '</b>' + (ei >= 0 ? emoHTML(ei, '56px', 'stk') : emoRich(esc(m || ''), '1.5em')); }
 $('chatE').innerHTML = emoHTML(0, '30px');
 emoImg();
-$('chatE').addEventListener('click', () => { if (!user) return; openEmoPicker($('chatE'), (i) => sendChat(emoTok(i), false)); });
+// 이모티콘 단추: 모아팡 이모티콘은 바로 보내고, 😀 이모지 탭은 채팅 칸에 글자처럼 넣음
+$('chatE').addEventListener('click', () => { if (!user) return; openEmoPicker($('chatE'), (i) => sendChat(emoTok(i), false), { emoji: (ch) => { const el = $('chatI'); const a = el.selectionStart ?? el.value.length, b = el.selectionEnd ?? a; const v = (el.value.slice(0, a) + ch + el.value.slice(b)).slice(0, 40); el.value = v; const c = Math.min(v.length, a + ch.length); try { el.setSelectionRange(c, c); } catch (e) { /* 무시 */ } } }); });
 function say(a, text) { a.bubble = String(text).length > 22 ? String(text).slice(0, 21) + '…' : String(text); a.bubbleT = 5; }
 
 /* ---------- 선생님 진행 ---------- */
-let lastCall = null, lastClr = null, quizState = null;
+let lastCall = null, lastClr = null, quizState = null, noticeT0 = null, noticeShown = 0, noticeTimer = 0;
 function applyState(prevPhase, prevMap) {
-  const n = st.notice && st.notice.m;
-  $('notice').hidden = !n; $('noticeT').textContent = n || '';
+  // 공지 띠(모아 + 글): 들어올 때 이미 있던 공지는 띄우지 않고(교실 스크린 칠판에는 보임), 들어와 있는 동안 새로 띄운 공지만 15초 보여 줌
+  const n = st.notice && st.notice.m, nt = (st.notice && st.notice.t) || 0;
+  if (noticeT0 === null) noticeT0 = n ? nt : 0;
+  const fresh = n && nt !== noticeT0 && nt !== noticeShown;
+  if (!n) { $('notice').hidden = true; noticeShown = 0; }
+  else if (fresh) { noticeShown = nt; $('noticeT').textContent = n; $('notice').hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { $('notice').hidden = true; }, 15000); }
   const g = st.game;
   const done = JSON.parse(sessionStorage.getItem('moa_runs') || '[]');
   if (g && g.run && g.id) {
@@ -395,11 +400,14 @@ function rankUpdate() {
   $('rankH').textContent = (rk.name ? rk.name + ' · ' : '') + rk.total + '문제 퀴즈 결과';
   const top = rk.top || [], n = top.length;
   $('rankL').innerHTML = top.map((r, i) => '<li class="r' + (i + 1) + (r.n === me.name && !TEACH ? ' me' : '') + '" style="animation-delay:' + ((n - 1 - i) * 0.7).toFixed(1) + 's"><b>' + MEDAL[i] + '</b><span>' + esc(r.n) + '</span><small>' + r.s + ' / ' + rk.total + '개 맞힘</small></li>').join('') || '<li><span>답한 친구가 없어요</span></li>';
-  const mine = TEACH ? -1 : (rk.list || []).findIndex((r) => r.k === me.key); // 선생님 화면은 내 순위 없음 (예전에는 false가 0처럼 되어 오류)
+  // 학생은 1~3등만 봄 (모두의 기록은 선생님만). 내가 3등 안에 들면 축하 한 줄
+  const mine = TEACH ? -1 : top.findIndex((r) => (r.k && r.k === me.key) || (!r.k && r.n === me.name));
   $('rankMe').hidden = TEACH || PV || mine < 0;
-  if (mine >= 0) $('rankMe').textContent = mine < 5 ? '🎉 축하해요! ' + (mine + 1) + '등이에요. (' + rk.list[mine].s + '개 맞힘)' : '나는 ' + rk.list[mine].s + '개 맞혔어요. (' + (mine + 1) + '등) 다음에 더 잘할 수 있어요! 💪';
+  if (mine >= 0) $('rankMe').textContent = '🎉 축하해요! ' + (mine + 1) + '등이에요. (' + top[mine].s + '개 맞힘)';
   $('rank').hidden = false;
+  clearTimeout(rankTimer); rankTimer = setTimeout(() => { $('rank').hidden = true; }, 20000); // 발표 창은 20초 뒤 저절로 닫힘
 }
+let rankTimer = 0;
 $('rankX').addEventListener('click', () => { $('rank').hidden = true; $('cv').focus({ preventScroll: true }); });
 
 /* ---------- 퀴즈 (동시 풀이) ---------- */
@@ -759,7 +767,7 @@ function frame(now) {
   if (PV) { $('scoreT').textContent = '점수 0 · 미리보기'; document.querySelector('a[href="dress.html"]').hidden = true; }
   if (!TEACH && !PV) onSnapshot(doc(fs, 'classes', ses.cid, 'students', ses.key), (s) => {
     if (!s.exists()) return;
-    const d = s.data(); $('scoreT').textContent = '점수 ' + (d.score || 0);
+    const d = s.data(); $('scoreT').textContent = ''; // 점수(모은 기록)는 선생님만 봄
     if (d.outfit && JSON.stringify(A.clean(d.outfit)) !== JSON.stringify(me.o)) {
       me.o = A.clean(d.outfit); ses.outfit = me.o; setSession(ses);
       A.ensure(me.o).then(() => { me.sheet = A.sheet(me.o); A.drawFrame($('meCv').getContext('2d'), me.sheet, 'front', 0, false, 56); sendAll(); });

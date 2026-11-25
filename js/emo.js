@@ -54,6 +54,8 @@ function addRecent(i) { try { localStorage.setItem(RKEY, JSON.stringify([i].conc
 let pop = null, popPick = null, popTab = null;
 export function closeEmoPicker() { if (pop) { pop.remove(); pop = null; popPick = null; } }
 /** anchor 옆에 이모티콘 고르는 창을 연다. onPick(i) */
+// 보통 이모지 (글자 사이에 넣기) — opt.emoji(글자)를 주면 고르는 창에 '😀 이모지' 탭이 생김
+export const EMOJI = ['😀', '😆', '🤣', '😊', '😍', '🥰', '😎', '🤩', '🤔', '😮', '😳', '🥺', '😢', '😭', '😡', '🤯', '😴', '🤗', '👍', '👏', '🙌', '💪', '🙏', '👋', '✌️', '🎉', '❤️', '💛', '⭐', '✨', '🔥', '💯', '✅', '❌', '❓', '‼️', '🌈', '🍀', '🐹', '🐶', '🐸', '🐧', '🍕', '🍦', '⚽', '🎮', '📚', '✏️'];
 export function openEmoPicker(anchor, onPick, opt) {
   ensureCSS();
   if (pop && popPick === onPick) { closeEmoPicker(); return; }
@@ -62,18 +64,20 @@ export function openEmoPicker(anchor, onPick, opt) {
   pop = document.createElement('div'); pop.className = 'mpep'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', '이모티콘 고르기');
   const rc = recent();
   if (!popTab) popTab = rc.length ? 'recent' : EMO_CHARS[0][0];
-  const tabs = (rc.length ? [['recent', '최근', rc[0]]] : []).concat(EMO_CHARS.map((c) => [c[0], c[1], c[2][0][0]]));
+  const tabs = (rc.length ? [['recent', '최근', rc[0]]] : []).concat(opt && opt.emoji ? [['emoji', '이모지', -1]] : [], EMO_CHARS.map((c) => [c[0], c[1], c[2][0][0]]));
   if (!tabs.some((t) => t[0] === popTab)) popTab = tabs[0][0];
   const grid = () => {
+    if (popTab === 'emoji') return EMOJI.map((ch) => '<button type="button" class="mpeb mpej" data-emj="' + ch + '" aria-label="' + ch + '">' + ch + '</button>').join('');
     const list = popTab === 'recent' ? recent() : emoList(EMO_CHARS.find((x) => x[0] === popTab));
     return list.map((i) => '<button type="button" class="mpeb" data-emo="' + i + '">' + emoHTML(i, '100%') + '</button>').join('');
   };
   const draw = () => {
-    pop.innerHTML = '<div class="mpet" role="tablist">' + tabs.map((t) => '<button type="button" role="tab" aria-selected="' + (t[0] === popTab) + '" data-emtab="' + t[0] + '" title="' + t[1] + '">' + emoHTML(t[2], '30px') + '<b>' + t[1] + '</b></button>').join('') + '</div><div class="mpeg">' + grid() + '</div>';
+    pop.innerHTML = '<div class="mpet" role="tablist">' + tabs.map((t) => '<button type="button" role="tab" aria-selected="' + (t[0] === popTab) + '" data-emtab="' + t[0] + '" title="' + t[1] + '">' + (t[2] < 0 ? '<span class="mpej0" aria-hidden="true">😀</span>' : emoHTML(t[2], '30px')) + '<b>' + t[1] + '</b></button>').join('') + '</div><div class="mpeg">' + grid() + '</div>';
   };
   draw();
   pop.addEventListener('click', (e) => {
     const t = e.target.closest('[data-emtab]'); if (t) { popTab = t.dataset.emtab; draw(); return; }
+    const j = e.target.closest('[data-emj]'); if (j) { if (opt && opt.emoji) opt.emoji(j.dataset.emj); return; } // 이모지는 창을 열어 둔 채 여러 개 넣기
     const b = e.target.closest('[data-emo]'); if (!b) return;
     const i = +b.dataset.emo; addRecent(i); const f = popPick;
     if (!(opt && opt.keep)) closeEmoPicker();
@@ -108,6 +112,8 @@ function ensureCSS() {
 .mpeg{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:2px;padding:6px;max-height:244px;overflow-y:auto}
 .mpeb{aspect-ratio:1;border:0;background:none;border-radius:8px;padding:3px;cursor:pointer;display:flex}
 .mpeb:hover,.mpeb:focus-visible{background:#fff3a6;outline:2px solid #1b1f3b}
-.mpeb .mpemo{width:100%;height:100%;--s:100%;background-size:1000% ${EMO_ROWS * 100}%;background-position:calc(var(--x)*100%/9) calc(var(--y)*100%/${Math.max(1, EMO_ROWS - 1)})}`;
+.mpeb .mpemo{width:100%;height:100%;--s:100%;background-size:1000% ${EMO_ROWS * 100}%;background-position:calc(var(--x)*100%/9) calc(var(--y)*100%/${Math.max(1, EMO_ROWS - 1)})}
+.mpeb.mpej{align-items:center;justify-content:center;font-size:30px;line-height:1}
+.mpej0{display:block;width:30px;height:30px;font-size:24px;line-height:30px;text-align:center}`;
   document.head.append(st);
 }

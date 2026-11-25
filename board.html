@@ -67,6 +67,27 @@
 .lkx{position:absolute;transform:translate(-50%,-50%);width:30px;height:30px;border:1px solid #D5DAE3;border-radius:12px;border-radius:50%;background:#fff;font-size:13px;cursor:pointer;z-index:3;padding:0}
 .lkx:hover{background:#FFB4A6}
 .cvhint{position:absolute;left:40px;top:40px;max-width:420px;padding:16px 18px;font-size:15px;font-weight:700;line-height:1.6}
+/* 캔버스 그룹: 메모를 모아 두는 칸 (선생님이 ＋ 그룹으로 만들고, 머리를 끌어 옮기고, 오른쪽 아래를 끌어 크기 바꾸기) */
+.zone{position:absolute;border:2px dashed color-mix(in srgb,var(--zc) 75%,#1D2030);border-radius:18px;background:color-mix(in srgb,var(--zc) 15%,transparent)}
+.zhd{position:absolute;z-index:3;display:flex;align-items:center;gap:8px;min-height:46px;padding:6px 8px 6px 14px;border-radius:16px 16px 0 0;background:color-mix(in srgb,var(--zc) 45%,#fff);box-sizing:border-box}
+.zhd.mopen{z-index:9}
+.zhd b{font:800 17px/1.3 'Noto Sans KR',sans-serif;color:#1D2030;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zhd small{flex:none;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.8);font:700 12px 'Noto Sans KR',sans-serif;color:#4B4F62}
+.zhd .sp{flex:1}
+.zhd.zm{cursor:grab;touch-action:none}
+.zone.mopen{z-index:7}
+.zone.zdrag{z-index:4;box-shadow:0 12px 30px rgba(16,24,40,.25)}
+.zadd{flex:none;width:34px;height:34px;border:0;border-radius:10px;background:#fff;font:400 22px/1 'Noto Sans KR',sans-serif;color:#1D2030;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.12)}
+.zadd:hover{background:#F2F4F7}
+.zrs{position:absolute;z-index:3;width:26px;height:26px;cursor:nwse-resize;touch-action:none;border-radius:0 0 16px 0;background:linear-gradient(135deg,transparent 55%,color-mix(in srgb,var(--zc) 80%,#1D2030) 55%)}
+.mrs{position:absolute;right:-4px;bottom:-4px;width:22px;height:22px;border-radius:6px;cursor:ew-resize;touch-action:none;background:linear-gradient(135deg,transparent 50%,rgba(29,32,48,.55) 50%);opacity:0;transition:opacity .15s}
+.memo:hover .mrs,.memo.rsz .mrs{opacity:1}
+@media (hover:none){.mrs{opacity:.8}}
+.zbar{position:sticky;left:12px;top:12px;z-index:6;width:max-content;display:flex;gap:8px}
+.zbtn{min-height:40px;padding:0 16px;border:0;border-radius:12px;background:#1D2030;color:#fff;font:800 15px 'Noto Sans KR',sans-serif;cursor:pointer;box-shadow:0 4px 12px rgba(16,24,40,.25)}
+.zbtn:hover{background:#2F3450}
+.pmn .zcs{display:flex;gap:6px;padding:6px 8px}
+.pmn .zcs button{min-height:0;width:26px;height:26px;padding:0;border:1px solid #C9CED8;border-radius:50%}
 /* 글 카드 */
 .post{background:#fff;border:1px solid #D5DAE3;border-radius:12px;box-shadow:0 2px 10px rgba(16,24,40,.12);display:flex;flex-direction:column}
 .post.mine{box-shadow:4px 4px 0 var(--blue)}
@@ -425,17 +446,41 @@ function groupedHTML(L, all, ctx) {
     '<div class="' + cls + '">' + g.list.map((p) => postHTML(p, ctx)).join('') + '</div>').join('') +
     (S.teacher && on ? '<button class="addsec wide hd" type="button" data-act="addsec">칸 추가</button>' : '') + (all.length || (ctx.w && on) ? '' : emptyHTML(ctx.w)) + '</div>';
 }
+// 캔버스 그룹 (보드 문서의 zones: [{id, n 이름, x, y, w, h, c 색}])
+const ZC = ['#FFD23F', '#7FD3F7', '#9BE07A', '#FF9AA2', '#C9A7FF', '#FFB870'];
+const zonesOf = () => (S.board && Array.isArray(S.board.zones) ? S.board.zones : []).filter((z) => z && z.id);
+const inZone = (z, x, y) => x + 120 >= z.x && x + 120 <= z.x + z.w && y + 40 >= z.y && y + 40 <= z.y + z.h; // 메모 윗부분 가운데가 그룹 안에 있으면 그 그룹
+// 그룹 칸(바탕)은 메모 아래에, 그룹 머리·크기 손잡이는 메모 위에 그려서 메모가 겹쳐도 머리를 끌 수 있게
+function zonesHTML(spots, ctx) {
+  const T = S.teacher && !PREVIEW;
+  const zs = zonesOf();
+  const bodies = zs.map((z) => '<div class="zone" data-zid="' + esc(z.id) + '" style="left:' + z.x + 'px;top:' + z.y + 'px;width:' + z.w + 'px;height:' + z.h + 'px;--zc:' + esc(z.c || ZC[0]) + '"></div>').join('');
+  const heads = zs.map((z) => {
+    const n = spots.filter((m) => inZone(z, m.x, m.y)).length, zid = esc(z.id);
+    return '<div class="zhd' + (T ? ' zm' : '') + '" data-zid="' + zid + '" style="left:' + z.x + 'px;top:' + z.y + 'px;width:' + z.w + 'px;--zc:' + esc(z.c || ZC[0]) + '"><b>' + esc(z.n || '그룹') + '</b><small>' + n + '</small><span class="sp"></span>' +
+      (ctx.w ? '<button type="button" class="zadd" data-act="zadd" data-zid="' + zid + '" aria-label="' + esc(z.n || '그룹') + '에 메모 쓰기" title="이 그룹에 메모 쓰기">＋</button>' : '') +
+      (T ? '<span class="pmw"><button type="button" class="dots" data-act="menu" aria-expanded="false" aria-label="그룹 메뉴" title="그룹 메뉴">⋮</button><span class="pmn" hidden><button type="button" data-act="zren" data-zid="' + zid + '">✏️ 이름 바꾸기</button><div class="zcs" role="group" aria-label="그룹 색">' + ZC.map((c) => '<button type="button" data-act="zcol" data-zid="' + zid + '" data-v="' + c + '" style="background:' + c + '" aria-label="색 ' + c + '"></button>').join('') + '</div><hr><button type="button" data-act="zdel" data-zid="' + zid + '">🗑 그룹 지우기</button></span></span>' : '') +
+      '</div>' + (T ? '<span class="zrs" data-zrs="' + zid + '" title="끌어서 크기 바꾸기" aria-hidden="true" style="left:' + (z.x + z.w - 26) + 'px;top:' + (z.y + z.h - 26) + 'px;--zc:' + esc(z.c || ZC[0]) + '"></span>' : '');
+  }).join('');
+  return { bodies, heads };
+}
 function canvasHTML(all, ctx) {
   let auto = 0;
+  const spots = [];
   const memos = all.map((p) => {
     const ps = S.pos[p.id];
     let x, y;
     if (ps && Number.isFinite(ps.x) && Number.isFinite(ps.y)) { x = clamp(ps.x, 0, CW - 120); y = clamp(ps.y, 0, CH - 80); }
     else { x = 40 + (auto % 5) * 270; y = 40 + Math.floor(auto / 5) * 330; auto++; }
-    return '<div class="memo' + (canMove(p) ? ' mv' : '') + (S.linkFrom === p.id ? ' from' : '') + '" data-pid="' + esc(p.id) + '" style="left:' + x + 'px;top:' + y + 'px">' + postHTML(p, ctx, true) + '</div>';
+    spots.push({ pid: p.id, x, y });
+    const mw = S.board.msize && +S.board.msize[p.id]; // 선생님이 바꾼 메모 넓이
+    return '<div class="memo' + (canMove(p) ? ' mv' : '') + (S.linkFrom === p.id ? ' from' : '') + '" data-pid="' + esc(p.id) + '" style="left:' + x + 'px;top:' + y + 'px' + (mw ? ';width:' + clamp(mw, 160, 600) + 'px' : '') + '">' + postHTML(p, ctx, true) +
+      (S.teacher && !PREVIEW ? '<span class="mrs" data-mrs="' + esc(p.id) + '" title="끌어서 메모 크기 바꾸기" aria-hidden="true"></span>' : '') + '</div>';
   }).join('');
-  return '<div class="cv" id="cv" style="width:' + CW + 'px;height:' + CH + 'px"><svg class="cvl" id="cvl" width="' + CW + '" height="' + CH + '" aria-hidden="true"></svg>' + memos + '<div id="cvx"></div>' +
-    (all.length ? '' : '<p class="cvhint pf">' + (ctx.w ? '빈 곳을 두 번 누르면 메모가 생겨요.' : '아직 메모가 없어요.') + '</p>') + '</div>';
+  const ZH = zonesHTML(spots, ctx);
+  return '<div class="cv" id="cv" style="width:' + CW + 'px;height:' + CH + 'px">' + (S.teacher && !PREVIEW ? '<div class="zbar"><button type="button" class="zbtn" data-act="zone" title="메모를 모아 둘 그룹 칸 만들기">＋ 그룹</button></div>' : '') +
+    ZH.bodies + '<svg class="cvl" id="cvl" width="' + CW + '" height="' + CH + '" aria-hidden="true"></svg>' + memos + ZH.heads + '<div id="cvx"></div>' +
+    (all.length || zonesOf().length ? '' : '<p class="cvhint pf">' + (ctx.w ? '빈 곳을 두 번 누르면 메모가 생겨요.' + (S.teacher ? ' 왼쪽 위 ＋ 그룹으로 메모를 모아 둘 칸을 만들 수 있어요.' : '') : '아직 메모가 없어요.') + '</p>') + '</div>';
 }
 function postHTML(p, ctx, memo) {
   const cs = ctx.byPid.get(p.id) || [], rs = ctx.rByPid.get(p.id) || [], w = ctx.w;
@@ -526,6 +571,26 @@ async function linkTo(pid) {
 const box = $('cols');
 box.addEventListener('pointerdown', (e) => {
   if (!S.board || layoutOf(S.board) !== 'canvas' || e.button > 0) return;
+  // 그룹: 머리를 끌면 옮기기(안의 메모도 같이), 오른쪽 아래 모서리를 끌면 크기 바꾸기 (선생님)
+  // 메모 오른쪽 아래 손잡이: 메모 넓이 바꾸기 (선생님)
+  const mr = e.target.closest('.mrs');
+  if (mr && S.teacher && !PREVIEW) {
+    const el = mr.closest('.memo'); e.preventDefault(); e.stopPropagation();
+    S.drag = { memoW: mr.dataset.mrs, el, sx: e.clientX, sy: e.clientY, ow: el.offsetWidth, w: el.offsetWidth, moved: false, id: e.pointerId };
+    el.classList.add('rsz'); try { mr.setPointerCapture(e.pointerId); } catch (err) { /* 무시 */ }
+    return;
+  }
+  const zr = e.target.closest('.zrs'), zh = e.target.closest('.zhd.zm');
+  if (S.teacher && !PREVIEW && (zr || (zh && !e.target.closest('button,a,input,.pmn')))) {
+    const zid = (zr && zr.dataset.zrs) || zh.dataset.zid, z = zonesOf().find((x) => x.id === zid); if (!z) return;
+    const cv = $('cv'), el = cv.querySelector('.zone[data-zid="' + CSS.escape(zid) + '"]'), head = cv.querySelector('.zhd[data-zid="' + CSS.escape(zid) + '"]'), rs = cv.querySelector('.zrs[data-zrs="' + CSS.escape(zid) + '"]');
+    if (!el) return;
+    e.preventDefault();
+    const inside = zr ? [] : [...cv.querySelectorAll('.memo')].filter((m) => inZone(z, m.offsetLeft, m.offsetTop)).map((m) => ({ el: m, pid: m.dataset.pid, ox: m.offsetLeft, oy: m.offsetTop }));
+    S.drag = { zone: z.id, resize: !!zr, el, head, rs, sx: e.clientX, sy: e.clientY, ox: z.x, oy: z.y, ow: z.w, oh: z.h, x: z.x, y: z.y, w: z.w, h: z.h, inside, moved: false, id: e.pointerId };
+    try { (zr || zh).setPointerCapture(e.pointerId); } catch (err) { /* 무시 */ }
+    return;
+  }
   const m = e.target.closest('.memo'); if (!m || !m.classList.contains('mv')) return;
   if (e.target.closest('button,a,input,textarea,select,label,form,.pk-pal')) return;
   const p = postById(m.dataset.pid); if (!p || !canMove(p)) return;
@@ -537,14 +602,54 @@ box.addEventListener('pointermove', (e) => {
   const d = S.drag; if (!d || e.pointerId !== d.id) return;
   const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
   if (!d.moved && Math.abs(dx) + Math.abs(dy) < 5) return;
-  if (!d.moved) { d.moved = true; d.el.classList.add('drag'); }
+  if (d.memoW) { d.moved = true; d.w = clamp(d.ow + dx, 160, 600); d.el.style.width = d.w + 'px'; drawLinks(); return; }
+  if (!d.moved) { d.moved = true; d.el.classList.add(d.zone ? 'zdrag' : 'drag'); }
+  if (d.zone && d.resize) {
+    d.w = clamp(d.ow + dx, 260, CW - d.ox); d.h = clamp(d.oh + dy, 180, CH - d.oy);
+    d.el.style.width = d.w + 'px'; d.el.style.height = d.h + 'px';
+    if (d.head) d.head.style.width = d.w + 'px';
+    if (d.rs) { d.rs.style.left = (d.ox + d.w - 26) + 'px'; d.rs.style.top = (d.oy + d.h - 26) + 'px'; }
+    return;
+  }
+  if (d.zone) {
+    d.x = clamp(d.ox + dx, 0, CW - d.w); d.y = clamp(d.oy + dy, 0, CH - d.h);
+    d.el.style.left = d.x + 'px'; d.el.style.top = d.y + 'px';
+    if (d.head) { d.head.style.left = d.x + 'px'; d.head.style.top = d.y + 'px'; }
+    if (d.rs) { d.rs.style.left = (d.x + d.w - 26) + 'px'; d.rs.style.top = (d.y + d.h - 26) + 'px'; }
+    const mx = d.x - d.ox, my = d.y - d.oy;
+    d.inside.forEach((m) => { m.el.style.left = clamp(m.ox + mx, 0, CW - 120) + 'px'; m.el.style.top = clamp(m.oy + my, 0, CH - 80) + 'px'; });
+    drawLinks(); return;
+  }
   d.x = clamp(d.ox + dx, 0, CW - 120); d.y = clamp(d.oy + dy, 0, CH - 80);
   d.el.style.left = d.x + 'px'; d.el.style.top = d.y + 'px';
   drawLinks();
 });
 async function endDrag(e) {
   const d = S.drag; if (!d || (e && e.pointerId !== d.id)) return;
-  S.drag = null; d.el.classList.remove('drag');
+  S.drag = null; d.el.classList.remove('drag'); d.el.classList.remove('zdrag'); d.el.classList.remove('rsz');
+  if (d.memoW) {
+    if (d.moved) {
+      S.noClick = Date.now();
+      const w = Math.round(d.w); S.board.msize = Object.assign({}, S.board.msize, { [d.memoW]: w });
+      try { await updateDoc(doc(fs, 'boards', bid), { msize: S.board.msize }); } catch (err) { toast('메모 크기를 저장하지 못했어요.', true); }
+    }
+    if (S.dirty) { S.dirty = false; draw(); }
+    return;
+  }
+  if (d.zone) {
+    if (d.moved) {
+      S.noClick = Date.now();
+      // 같이 옮긴 메모 자리는 저장하기 전에 먼저 계산 (저장하면 화면이 다시 그려짐)
+      const mx = d.x - d.ox, my = d.y - d.oy, moved = d.inside.map((m) => ({ pid: m.pid, x: Math.round(clamp(m.ox + mx, 0, CW - 120)), y: Math.round(clamp(m.oy + my, 0, CH - 80)) }));
+      moved.forEach((m) => { S.pos[m.pid] = { x: m.x, y: m.y, uid: me() }; });
+      try {
+        await saveZones(zonesOf().map((z) => z.id === d.zone ? Object.assign({}, z, d.resize ? { w: Math.round(d.w), h: Math.round(d.h) } : { x: Math.round(d.x), y: Math.round(d.y) }) : z));
+        for (const m of moved) await setDoc(doc(fs, 'boards', bid, 'pos', m.pid), { x: m.x, y: m.y, uid: me() });
+      } catch (err) { toast('그룹을 옮긴 자리를 저장하지 못했어요.', true); }
+    }
+    if (S.dirty) { S.dirty = false; draw(); }
+    return;
+  }
   if (d.moved) {
     S.noClick = Date.now();
     const x = Math.round(d.x), y = Math.round(d.y);
@@ -562,6 +667,23 @@ box.addEventListener('dblclick', (e) => {
   const r = cv.getBoundingClientRect();
   writeDlg(0, null, { x: clamp(Math.round(e.clientX - r.left - 120), 0, CW - 260), y: clamp(Math.round(e.clientY - r.top - 30), 0, CH - 160) });
 });
+// 그룹 만들기·고치기 (선생님)
+async function saveZones(list) { S.board.zones = list; await updateDoc(doc(fs, 'boards', bid), { zones: list }); }
+async function addZone() {
+  if (PREVIEW) { previewToast(); return; }
+  const b = $('cols'), zs = zonesOf(), n = zs.length;
+  const z = { id: 'z' + Date.now().toString(36), n: '그룹 ' + (n + 1), x: clamp(Math.round(b.scrollLeft + 40 + (n % 3) * 30), 0, CW - 560), y: clamp(Math.round(b.scrollTop + 70 + (n % 3) * 30), 0, CH - 420), w: 560, h: 420, c: ZC[n % ZC.length] };
+  try { await saveZones(zs.concat(z)); draw(); toast('\'' + z.n + '\'을 만들었어요. 머리를 끌어 옮기고, 오른쪽 아래를 끌어 크기를 바꿔요.'); } catch (err) { toast(errText(err), true); }
+}
+function zoneSpot(z) {
+  // 그룹 안의 빈자리(메모 칸) 찾기: 왼쪽 위부터 줄 맞춰
+  const cols = Math.max(1, Math.floor((z.w - 20) / 260)), used = [...($('cv') || document).querySelectorAll('.memo')].filter((m) => inZone(z, m.offsetLeft, m.offsetTop)).length;
+  return { x: clamp(z.x + 14 + (used % cols) * 260, 0, CW - 260), y: clamp(z.y + 58 + Math.floor(used / cols) * 300, 0, CH - 160) };
+}
+function zoneDlg(z) {
+  S.zEdit = z.id;
+  openDlg('<form class="dlg" id="zf" novalidate><div class="tp"><h2 id="dlgt">그룹 이름 바꾸기</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div><label class="lb">그룹 이름<input id="zn" class="field" maxlength="30" autocomplete="off" value="' + esc(z.n || '') + '"></label><p class="msg" id="zm" role="alert"></p><div class="row"><button type="submit" class="btn blue">저장하기</button></div></form>', 'dlgbox', '#zn');
+}
 function newAt() {
   if (layoutOf(S.board) !== 'canvas') return null;
   const b = $('cols');
@@ -848,7 +970,7 @@ document.addEventListener('click', async (e) => {
   if (a === 'menu') {
     const m = t.nextElementSibling, open = m.hidden;
     closeMenus();
-    if (open) { m.hidden = false; t.setAttribute('aria-expanded', 'true'); t.closest('.post,.shd,.memo')?.classList.add('mopen'); }
+    if (open) { m.hidden = false; t.setAttribute('aria-expanded', 'true'); t.closest('.post,.shd,.memo,.zhd')?.classList.add('mopen'); }
     return;
   }
   if (a === 'ovclose') { if (e.target === t) closeDlg(); return; }
@@ -864,6 +986,11 @@ document.addEventListener('click', async (e) => {
   else if (a === 'pcolor') { S.color = t.dataset.v; t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t))); if ($('wf')) $('wf').style.background = pcolor(S.color); }
   else if (a === 'pickfmt') { S.fmt = t.dataset.v; t.parentNode.querySelectorAll('[role=radio]').forEach((x) => x.setAttribute('aria-checked', String(x === t))); $('grpL').hidden = !/^(grid|stream|timeline)$/.test(S.fmt); }
   else if (a === 'delpost') delPost(id);
+  else if (a === 'zone') { if (S.teacher) addZone(); }
+  else if (a === 'zadd') { const z = zonesOf().find((x) => x.id === t.dataset.zid); if (z && canWrite()) writeDlg(0, null, zoneSpot(z)); }
+  else if (a === 'zren') { const z = zonesOf().find((x) => x.id === t.dataset.zid); closeMenus(); if (z && S.teacher) zoneDlg(z); }
+  else if (a === 'zcol') { const z = zonesOf().find((x) => x.id === t.dataset.zid); closeMenus(); if (z && S.teacher) saveZones(zonesOf().map((x) => x.id === z.id ? Object.assign({}, x, { c: t.dataset.v }) : x)).then(draw, (err) => toast(errText(err), true)); }
+  else if (a === 'zdel') { const z = zonesOf().find((x) => x.id === t.dataset.zid); closeMenus(); if (z && S.teacher && confirm('\'' + (z.n || '그룹') + '\' 그룹을 지울까요? 그룹 칸만 없어지고 안에 있던 메모는 그 자리에 그대로 남아요.')) saveZones(zonesOf().filter((x) => x.id !== z.id)).then(draw, (err) => toast(errText(err), true)); }
   else if (a === 'copypost' || a === 'movepost') { const p = postById(id); closeMenus(); if (p && S.teacher) copyPostDlg(p, a === 'movepost'); }
   else if (a === 'duppost') { const p = postById(id); closeMenus(); if (p && S.teacher) dupPost(p); }
   else if (a === 'pinpost') { const p = postById(id); closeMenus(); if (p && S.teacher) patchPost(p, { pin: !p.pin }).then(() => toast(p.pin ? '고정을 풀었어요.' : '칸 맨 위에 고정했어요.'), (err) => toast(errText(err), true)); }
@@ -911,6 +1038,10 @@ document.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (e.target.id === 'wf') sendPost();
   else if (e.target.id === 'cpf') copyPostGo();
+  else if (e.target.id === 'zf') {
+    const v = cleanTxt($('zn').value, 30); if (!v) { $('zn').focus(); return; }
+    try { await saveZones(zonesOf().map((x) => x.id === S.zEdit ? Object.assign({}, x, { n: v }) : x)); closeDlg(); draw(); } catch (err) { $('zm').textContent = errText(err); }
+  }
   else if (e.target.id === 'ff') {
     if (PREVIEW || !S.teacher) return;
     try { await updateDoc(doc(fs, 'boards', bid), { layout: S.fmt, groups: !!($('grp') && $('grp').checked) }); S.linkFrom = null; closeDlg(); toast('형식을 \'' + FORMATS.find((f) => f[0] === S.fmt)[1] + '\'(으)로 바꿨어요.'); }
