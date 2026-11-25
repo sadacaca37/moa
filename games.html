@@ -358,7 +358,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 import { fs, rt, whenAuth, ensureUser, isTeacher, teacherRole, bankId, doc, getDoc, setDoc, ref, set, update, rget, rnow, getSession, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, PREVIEW } from './js/fb.js';
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
 import { QUIZ, OXT as DEF_OX, defWhy } from './js/questions.js'; // 기본 문제 (선생님 화면과 같은 것)
-import { aiJSON } from './js/ai.js';
+import { aiJSON, aiReason } from './js/ai.js';
 import { emoHTML, emoOnly, emoTok, emoImg, drawEmoBubble, openEmoPicker, EMO_N } from './js/emo.js';
 {
 'use strict';
@@ -1937,7 +1937,7 @@ async function aiMake() {
     $('#aiAct').hidden = false; msg.textContent = `${qbAI.length}문제를 만들었어요. 마음에 드는 문제만 골라 넣어요.`; sfx('key_get', 0.8);
   } catch (e) {
     const code = e && e.code;
-    msg.textContent = code === 'not_granted' ? 'AI 쓰기를 허락하지 않아서 만들 수 없어요.' : code === 'rate_limited' ? 'AI가 바빠요. 조금 뒤에 다시 눌러 주세요.' : e && e.name === 'AbortError' ? '' : 'AI가 문제를 만들지 못했어요. 다시 눌러 주세요.';
+    msg.textContent = code === 'not_granted' ? 'AI 쓰기를 허락하지 않아서 만들 수 없어요.' : code === 'rate_limited' ? 'AI가 바빠요. 조금 뒤에 다시 눌러 주세요.' : e && e.name === 'AbortError' ? '' : 'AI가 문제를 만들지 못했어요. 다시 눌러 주세요. (이유: ' + aiReason(e) + ')';
   } finally { qbAbort = null; go.disabled = false; }
 }
 $('#aiGo').addEventListener('click', aiMake);

@@ -150,7 +150,7 @@ import {
 import { emoHTML, emoRich, emoOnly, emoTok, openEmoPicker } from './js/emo.js';
 import { DEF_OX, DEF_MC, defWhy } from './js/questions.js';
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
-import { aiQuiz, AGES, CATS } from './js/ai.js';
+import { aiQuiz, aiReason, AGES, CATS } from './js/ai.js';
 import { trashBoard, inTrash, TRASH_DAYS, trashClass, purgeExpiredClasses } from './js/trash.js';
 import { duplicateClass } from './js/padcopy.js';
 import { classSections, sectionsHTML, grpField, grpNames, cleanGrp, toggleFold } from './js/groups.js';
@@ -797,7 +797,7 @@ function aiQuizDlg(k, tg) {
       $('aiAct').hidden = false; $('aiMsg').textContent = aiItems.length + '문제를 만들었어요. 마음에 드는 문제만 골라 넣어요.';
     } catch (err) {
       if (!$('aiMsg') || (err && err.name === 'AbortError')) return;
-      $('aiMsg').textContent = err && err.code === 'rate_limited' ? 'AI 무료 사용량이 잠깐 다 찼어요. 1분쯤 뒤에 다시 눌러 주세요.' : 'AI가 문제를 만들지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.';
+      $('aiMsg').textContent = (err && err.code === 'rate_limited' ? 'AI 무료 사용량이 잠깐 다 찼어요. 1분쯤 뒤에 다시 눌러 주세요.' : 'AI가 문제를 만들지 못했어요. 잠시 뒤 다시 눌러 주세요.') + ' (이유: ' + aiReason(err) + ')';
     } finally { if ($('aiGo')) $('aiGo').disabled = false; }
   };
   $('aiGo').addEventListener('click', make);

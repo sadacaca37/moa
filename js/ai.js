@@ -10,7 +10,23 @@ const CFG = {
   messagingSenderId: '986530203160',
   appId: '1:986530203160:web:b48121b7113f38a49c656d'
 };
-const MODELS = ['gemini-4-hydrogen', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+// 빠른 모델부터 (2026-11 Firebase AI Logic 문서: 세 모델 모두 무료 등급에서 결제 없이 씀). 하나가 막히면 다음 모델로
+const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-4-hydrogen', 'gemini-3.6-flash'];
+const TIMEOUT = 40000; // 모델 하나를 이만큼 기다려도 답이 없으면 다음 모델로
+// 실패 이유를 선생님이 알아볼 수 있는 말로 (화면에 작게 보여 줌)
+export function aiReason(e) {
+  const m = String((e && (e.detail || e.message)) || e || '');
+  if (/timeout|시간 초과/i.test(m)) return 'AI 답이 너무 늦어요(40초 넘게)';
+  if (/Failed to fetch|NetworkError|network|ERR_|Load failed|dynamically imported/i.test(m)) return '인터넷이나 학교 방화벽이 AI 연결(googleapis.com)을 막고 있어요';
+  if (/has not been used|SERVICE_DISABLED|is disabled|not enabled/i.test(m)) return 'Firebase 콘솔에서 AI Logic(Gemini Developer API)이 꺼져 있어요';
+  if (/API_KEY_SERVICE_BLOCKED|API key not valid|referer|referrer|blocked/i.test(m)) return 'API 키 설정이 AI 서비스나 이 주소를 막고 있어요';
+  if (/App ?Check|appcheck/i.test(m)) return 'App Check 때문에 막혔어요';
+  if (/\b429\b|quota|RESOURCE_EXHAUSTED|rate/i.test(m)) return 'AI 무료 사용량이 다 찼어요';
+  if (/location|region|country|not supported/i.test(m)) return '이 지역에서는 이 AI를 쓸 수 없대요';
+  if (/\b404\b|not found/i.test(m)) return 'AI 모델을 찾지 못했어요';
+  if (/JSON|Unexpected token/i.test(m)) return 'AI 답을 읽지 못했어요';
+  return m.slice(0, 80);
+}
 let ready = null;
 function load() {
   if (!ready) {
@@ -41,21 +57,31 @@ function parseJSON(t) {
 }
 // prompt를 보내고 JSON으로 받기. 실패하면 code: 'rate_limited' | 'unavailable'
 export async function aiJSON(prompt, { signal } = {}) {
-  let last = null;
-  const { AI, ai } = await withSignal(load(), signal);
+  let loaded;
+  try { loaded = await withSignal(load(), signal); }
+  catch (e) { if (e && e.name === 'AbortError') throw e; console.warn('[모아팡 AI] 불러오기 실패', e); const x = new Error(String((e && e.message) || e)); x.code = 'unavailable'; x.detail = x.message; throw x; }
+  const { AI, ai } = loaded;
+  const errs = []; let limited = 0;
   for (const m of MODELS) {
     try {
       const model = AI.getGenerativeModel(ai, { model: m, generationConfig: { responseMimeType: 'application/json', temperature: 0.9 } });
-      const r = await withSignal(model.generateContent(prompt), signal);
+      let timer;
+      const late = new Promise((_, no) => { timer = setTimeout(() => no(new Error('timeout ' + m)), TIMEOUT); });
+      const r = await withSignal(Promise.race([model.generateContent(prompt), late]), signal).finally(() => clearTimeout(timer));
       return parseJSON(r.response.text());
     } catch (e) {
       if (e && e.name === 'AbortError') throw e;
       const msg = String((e && e.message) || e);
-      if (/\b429\b|quota|RESOURCE_EXHAUSTED|rate/i.test(msg)) { const x = new Error(msg); x.code = 'rate_limited'; throw x; }
-      last = e; // 404(모델 없음)·잠깐 오류 → 다음 모델
+      console.warn('[모아팡 AI] ' + m + ' 실패:', msg);
+      errs.push(m + ': ' + msg);
+      if (/\b429\b|quota|RESOURCE_EXHAUSTED|rate/i.test(msg)) limited++; // 이 모델 사용량이 찼으면 다음 모델로
     }
   }
-  const x = new Error(String((last && last.message) || 'AI')); x.code = 'unavailable'; throw x;
+  const x = new Error(errs.join(' | ') || 'AI');
+  x.code = limited === MODELS.length ? 'rate_limited' : 'unavailable';
+  // 화면에 보여 줄 이유: 모델 이름 문제(404)가 아닌 첫 번째 진짜 이유
+  x.detail = (errs.find((s) => !/\b404\b|not found/i.test(s)) || errs[0] || '').replace(/^[^:]+:\s*/, '');
+  throw x;
 }
 
 // 퀴즈 문제 만들기 (OX·객관식) — 선생님 화면과 미니 게임이 같이 씀
