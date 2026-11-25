@@ -140,6 +140,9 @@ header.compact .save.busy{color:#B7791F}header.compact .save.bad{background:#FF6
 .bpick:hover span{text-decoration:underline}
 .bpm{position:absolute;left:0;top:calc(100% + 6px);z-index:8;width:min(90vw,300px);padding:8px;display:flex;flex-direction:column;gap:4px;background:#fff}
 .bpm .mi[aria-current=true]{background:#FFF3C4}
+.bpmh{margin:6px 6px 0;font:800 12px 'Noto Sans KR',sans-serif;color:#6B7085}
+.bpmh:first-child{margin-top:2px}
+.bpmh small{font-weight:600;color:#9AA0B4}
 header.compact .bset{margin-left:0}
 .bmsg{padding:8px max(2vw,12px) 0;display:flex;flex-direction:column;gap:6px}
 header.compact .bmenu.pf,header.compact .bpm.pf{border:0;border-radius:14px;box-shadow:0 12px 32px rgba(16,24,40,.22);padding:8px;gap:6px;background:#fff}
@@ -193,6 +196,7 @@ import { fs, rt, ref, set, auth, whenAuth, isTeacher, teacherRole, doc, getDoc, 
 import { readXlsx, readCSV } from './js/xlsx.js';
 import { TRASH_DAYS, inTrash, daysLeft, trashTime, trashBoard, restoreBoard, purgeBoard, purgeExpired } from './js/trash.js';
 import { cleanFiles, okColor, copyFiles, purgeBoardSubs, layoutOf, FORMATS } from './js/padkit.js';
+import { classSections, sectionsHTML, groupBy, grpField, grpNames, cleanGrp, toggleFold } from './js/groups.js';
 {
 const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
 const SEC_COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
@@ -418,8 +422,8 @@ function drawHome(ready) {
   const counts = { '전체': cs.length, '정규반': cs.filter((c) => c.kind === '정규반').length, '특강반': cs.filter((c) => c.kind === '특강반').length };
   h += '<section class="dk-wrap"><div class="dk-h"><h1>내가 만든 클래스<small>' + cs.length + ' / ' + MAX_CLASSES + '</small></h1><div class="dk-tools"><div class="dk-chips" role="group" aria-label="반 종류로 거르기">' + ['전체', '정규반', '특강반'].map((f) => '<button class="dk-chip" data-act="filter" data-v="' + f + '" aria-pressed="' + (S.filter === f) + '">' + f + ' ' + counts[f] + '</button>').join('') + '</div>' +
     '<label class="dk-find" for="q"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7085" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg><input id="q" type="search" autocomplete="off" placeholder="클래스 찾기" aria-label="클래스 이름으로 찾기" value="' + esc(S.q) + '"></label></div></div>';
-  h += '<div class="dk-grid" id="grid">' + gridHTML(cs, full) + '</div>';
-  h += '<p class="dk-note">클래스를 누르면 그 반에 저장된 패들렛이 열려요. 패들렛 → 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 파일을 클래스 안의 ⚙ 설정 → \'패들렛에서 가져오기\'로 넣어요.</p></section>';
+  h += '<div id="grid" class="dk-secs">' + gridHTML(cs, full) + '</div>';
+  h += '<p class="dk-note">정규 교실·특강 교실로 나뉘고, 클래스 ⋮ → 📁 묶음 바꾸기로 그 안에서 한 번 더 나눌 수 있어요. 클래스를 누르면 그 반에 저장된 패들렛이 열려요. 패들렛 → 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 파일을 클래스 안의 ⚙ 설정 → \'패들렛에서 가져오기\'로 넣어요.</p></section>';
   $('main').className = ''; $('main').innerHTML = h;
 }
 const stamp = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
@@ -451,18 +455,27 @@ function gridHTML(cs, full) {
   const pads = (bs) => bs.length ? '<span class="dk-pads">' + bs.slice(-3).reverse().map((b) => '<span>' + esc(b.title) + '</span>').join('') + '</span>' : '';
   const menu = (items) => '<span class="dk-mw"><button type="button" class="dk-dots" aria-expanded="false" aria-label="메뉴" title="메뉴">⋮</button><span class="dk-menu" hidden>' + items + '</span></span>';
   // 첫 카드: 패들렛처럼 점선 '＋ 클래스 만들기'
-  let h = '<article class="dk-card dk-add"><button class="dk-th" type="button" data-act="newclass"' + (full ? ' disabled' : '') + ' aria-label="클래스 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>클래스 만들기</b><small>' + (full ? '20개가 다 찼어요' : cs.length + ' / ' + MAX_CLASSES + '개') + '</small></div></div></article>';
-  if (S.filter === '전체' && !q) h += '<article class="dk-card" style="--c:#B7E06A"><button class="dk-th" type="button" data-act="open" data-id="lib" aria-label="과제 보관함 열기"><span class="dk-tag">보관함</span><span class="dk-big em" aria-hidden="true">📦</span>' + pads(lb) + '</button>' +
+  let first = '<article class="dk-card dk-add"><button class="dk-th" type="button" data-act="newclass"' + (full ? ' disabled' : '') + ' aria-label="클래스 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>클래스 만들기</b><small>' + (full ? '20개가 다 찼어요' : cs.length + ' / ' + MAX_CLASSES + '개') + '</small></div></div></article>';
+  if (S.filter === '전체' && !q) first += '<article class="dk-card" style="--c:#B7E06A"><button class="dk-th" type="button" data-act="open" data-id="lib" aria-label="과제 보관함 열기"><span class="dk-tag">보관함</span><span class="dk-big em" aria-hidden="true">📦</span>' + pads(lb) + '</button>' +
     '<div class="dk-row"><div class="dk-tx"><b>과제 보관함</b><small>미리 만든 과제방 ' + lb.length + '개 · 반을 골라 보내요</small></div>' + menu('<button type="button" data-act="open" data-id="lib">📂 보관함 열기</button>') + '</div></article>';
-  h += list.map((c) => {
+  const card = (c) => {
     const bs = boardsOf(c.id), posts = bs.reduce((n, b) => n + (b.postCount || 0), 0), last = bs[bs.length - 1];
     return '<article class="dk-card" style="--c:' + esc(c.color) + '"><button class="dk-th" type="button" data-act="open" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 패들렛 열기"><span class="dk-tag">' + esc(c.kind) + '</span>' + (bs.length ? pads(bs) : '<span class="dk-big em" aria-hidden="true">🗒️</span>') + '</button>' +
       '<div class="dk-row"><div class="dk-tx"><b>' + esc(c.name) + '</b><small>패들렛 ' + bs.length + '개 · 글 ' + posts + '개 · ' + (last ? '최근 ' + md(last.date) : '새로 만든 클래스') + '</small></div>' +
       '<a class="dk-ic" href="teacher.html#live-' + encodeURIComponent(c.id) + '" title="' + esc(c.name) + ' 교실(진행판)로 가기" aria-label="' + esc(c.name) + ' 교실로 가기">🏫</a>' +
-      menu('<button type="button" data-act="open" data-id="' + esc(c.id) + '">📂 패들렛 열기</button><button type="button" data-act="editclass" data-id="' + esc(c.id) + '">✏️ 이름·색 고치기</button>') + '</div></article>';
-  }).join('');
-  if (!list.length) h += '<p class="dk-note" style="grid-column:1/-1">찾는 클래스가 없어요. 이름을 다시 확인해 주세요.</p>';
+      menu('<button type="button" data-act="open" data-id="' + esc(c.id) + '">📂 패들렛 열기</button><button type="button" data-act="grpclass" data-id="' + esc(c.id) + '">📁 묶음 바꾸기</button><button type="button" data-act="editclass" data-id="' + esc(c.id) + '">✏️ 이름·색 고치기</button><button type="button" class="del" data-act="delclass" data-id="' + esc(c.id) + '">🗑 이 클래스 지우기</button>') + '</div></article>';
+  };
+  // 정규 교실 → 특강 교실, 그 안에서 묶음(📁)별로. 첫 칸에는 ＋ 만들기와 과제 보관함
+  let h = sectionsHTML(classSections(list), card, first, 'p:');
+  if (!list.length) h += '<p class="dk-note">찾는 클래스가 없어요. 이름을 다시 확인해 주세요.</p>';
   return h;
+}
+// 패들렛 고르기 목록: 묶음(📁 1학기, 캔바 단원 …)이 있으면 묶음별로 머리를 달아 보여 줌
+function pickList(bs, b) {
+  const item = (x) => '<button type="button" class="mi" role="menuitem" data-act="tab" data-id="' + esc(x.id) + '" aria-current="' + (b && x.id === b.id) + '">' + (b && x.id === b.id ? '✓ ' : '') + esc(x.title) + '</button>';
+  const gs = groupBy(bs, (x) => x.grp);
+  if (gs.length < 2 && !(gs[0] && gs[0].name)) return bs.map(item).join('');
+  return gs.map((g) => '<p class="bpmh" role="presentation">📁 ' + esc(g.name || '묶음 없음') + ' <small>' + g.list.length + '</small></p>' + g.list.map(item).join('')).join('');
 }
 function drawBoard() {
   const c = curClass(); if (!c) return;
@@ -475,7 +488,7 @@ function drawBoard() {
   // 패들렛처럼 한 줄 머리 띠: 왼쪽 ◀·반 이름·패들렛 이름(▾ 누르면 이 반 패들렛 고르기), 오른쪽 한곳에 버튼 모두
   const F = b ? FORMATS.find((f) => f[0] === layoutOf(b)) || FORMATS[1] : null, nT = trashed().length;
   const pick = '<div class="bpw"><button type="button" class="bpick" data-act="pick" aria-expanded="' + !!S.pick + '" aria-haspopup="true" title="이 반 패들렛 고르기"><span>' + esc(b ? b.title : c.name) + '</span><i aria-hidden="true">▾</i></button>' +
-    (S.pick ? '<div class="bpm pf" role="menu">' + bs.map((x) => '<button type="button" class="mi" role="menuitem" data-act="tab" data-id="' + esc(x.id) + '" aria-current="' + (b && x.id === b.id) + '">' + (b && x.id === b.id ? '✓ ' : '') + esc(x.title) + '</button>').join('') + '<button type="button" class="mi" role="menuitem" data-act="newboard">＋ 빈 패들렛 만들기</button></div>' : '') + '</div>';
+    (S.pick ? '<div class="bpm pf" role="menu">' + pickList(bs, b) + '<button type="button" class="mi" role="menuitem" data-act="newboard">＋ 빈 패들렛 만들기</button></div>' : '') + '</div>';
   let right = '<span class="save"></span>';
   if (b) {
     right += '<button type="button" class="hb" data-act="bfmt" title="형식 바꾸기">' + F[2] + ' 형식: ' + F[1] + '</button>' +
@@ -489,7 +502,7 @@ function drawBoard() {
       (b ? '<div class="bmg"><b>보기</b><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '" target="_blank" rel="noopener" data-menu>↗ 새 창으로 크게 보기</a><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '&preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '') + '" target="_blank" rel="noopener" data-menu>👀 학생 화면으로 보기</a></div>' +
         '<div class="bmg"><b>학생</b><button class="mi" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김 (누르면 열기)' : '✎ 학생 글쓰기 열림 (누르면 잠그기)') + '</button></div>' +
         '<div class="bmg"><b>보내기</b><button class="mi" data-act="deploy">🚀 여러 반에 보내기</button><button class="mi" data-act="copyboard">📋 다른 패들렛으로 복사</button>' + (c.lib ? '' : '<button class="mi" data-act="pinhome">🏠 첫 화면 링크에 올리기</button>') + '</div>' +
-        '<div class="bmg"><b>관리</b><button class="mi" data-act="renameboard">✏️ 이름 바꾸기</button><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button><button class="mi del" data-act="delboard">🗑 이 패들렛 삭제</button></div>'
+        '<div class="bmg"><b>관리</b><button class="mi" data-act="renameboard">✏️ 이름 바꾸기</button><button class="mi" data-act="grpboard">📁 묶음 바꾸기' + (b.grp ? ' (' + esc(b.grp) + ')' : '') + '</button><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button><button class="mi del" data-act="delboard">🗑 이 패들렛 삭제</button></div>'
         : '<div class="bmg"><b>관리</b><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button></div>') + '</div>';
   }
   right += '</div>' + (b ? '<button type="button" class="hb go" data-act="bwrite">＋ 글 쓰기</button>' : '');
@@ -532,9 +545,15 @@ function classDlg(c) {
   openDlg(dlgTop(isNew ? '새 클래스' : '클래스 고치기') +
     '<label for="cn">반 이름</label><input id="cn" class="field" maxlength="24" autocomplete="off" value="' + esc(d.name) + '" placeholder="예: 4학년 캔바반">' +
     '<label>반 종류</label><div class="seg" role="group" aria-label="반 종류">' + ['정규반', '특강반'].map((k) => '<button type="button" class="chip" data-act="kind" data-v="' + k + '" aria-pressed="' + (d.kind === k) + '">' + k + '</button>').join('') + '</div>' +
+    grpField('cgp', d.grp, grpNames(S.classes)) +
     '<label>색</label><div class="sw" role="group" aria-label="반 색">' + COLORS.map((col) => '<button type="button" data-act="color" data-v="' + col + '" style="background:' + col + '" aria-label="색 ' + col + '" aria-pressed="' + (d.color === col) + '"></button>').join('') + '</div>' +
     '<p>방번호 <b>' + esc(d.room) + '</b> (모아팡 반 입장 때 쓰는 5자리)</p>' +
     '<div class="row"><button type="submit" class="btn blue" data-form="class">' + (isNew ? '만들기 ▶' : '저장하기 ▶') + '</button>' + (isNew ? '' : '<button type="button" class="btn red" data-act="delclass" data-id="' + esc(c.id) + '">이 클래스 지우기</button>') + '</div>', '#cn');
+}
+// 📁 묶음 바꾸기 (클래스·패들렛 같이 씀). 비우면 '묶음 없음'
+function grpDlg(title, note, value, names, fn) {
+  pending = fn;
+  openDlg(dlgTop(esc(title)) + '<p>' + esc(note) + '</p>' + grpField('gv', value, names) + '<div class="row"><button type="submit" class="btn blue" data-form="grp">저장하기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#gv');
 }
 function textDlg(title, label, value, max, fn) {
   pending = fn;
@@ -680,7 +699,7 @@ async function saveClass() {
   const p = pending, old = p.id ? S.classes.find((x) => x.id === p.id) : null;
   if (!old && S.classes.length >= MAX_CLASSES) { closeDlg(); toast('클래스는 20개까지 만들 수 있어요.', true); return; }
   const id = p.id || uid('c');
-  const data = { name, kind: p.kind, color: p.color, room: p.room, created: old ? old.created : new Date().toISOString() };
+  const data = { name, kind: p.kind, color: p.color, room: p.room, grp: cleanGrp($('cgp') ? $('cgp').value : (old && old.grp)), created: old ? old.created : new Date().toISOString() };
   closeDlg();
   try {
     await put('classes/' + id, Object.assign(data, old ? {} : { map: 'classroom' }));
@@ -753,6 +772,8 @@ document.addEventListener('click', (e) => {
   else if (a === 'open') openClass(id);
   else if (a === 'newclass') { if (S.classes.length < MAX_CLASSES) classDlg(null); }
   else if (a === 'editclass') classDlg(S.classes.find((c) => c.id === id));
+  else if (a === 'grpclass') { const c = S.classes.find((x) => x.id === id); if (c) grpDlg('📁 묶음 바꾸기 — ' + c.name, (c.kind || '정규반') + ' 안에서 같은 묶음끼리 모아 보여요. 비워 두면 \'묶음 없음\'으로 가요.', c.grp, grpNames(S.classes), (v) => put('classes/' + c.id, { grp: v })); }
+  else if (a === 'grpboard') { const b = curBoard(), c = curClass(); if (b && c) grpDlg('📁 묶음 바꾸기 — ' + b.title, '이 반 패들렛 고르기(▾)에서 같은 묶음끼리 모아 보여요. 예: 1학기, 캔바 단원. 비워 두면 \'묶음 없음\'으로 가요.', b.grp, grpNames(boardsOf(c.id)), (v) => saveBoard(b, { grp: v })); }
   else if (a === 'kind' || a === 'color') { pending[a] = t.dataset.v; t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t))); }
   else if (a === 'delclass') {
     const c = S.classes.find((x) => x.id === id), bs = boardsOf(id);
@@ -780,11 +801,18 @@ document.addEventListener('click', (e) => {
   else if (a === 'purge') { const b = S.boards.find((x) => x.id === id); if (!b) return; confirmDlg('영구 삭제', '\'' + b.title + '\'과 그 안의 글·사진·댓글을 완전히 지워요. 되돌릴 수 없어요.', '영구 삭제', async () => { try { await purgeBoard(b, { own: ownQ() }); toast('영구 삭제했어요.'); } catch (err) { toast(errText(err), true); } }); }
   else if (a === 'emptytrash') { const list = trashed(); if (!list.length) return; confirmDlg('휴지통 비우기', '휴지통의 패들렛 ' + list.length + '개를 모두 완전히 지워요. 되돌릴 수 없어요.', '모두 영구 삭제', async () => { let n = 0; for (const b of list) { try { await purgeBoard(b, { own: ownQ() }); n++; } catch (err) { /* 다음 것 */ } } toast('패들렛 ' + n + '개를 영구 삭제했어요.', n < list.length); }); }
 });
+// 정규 교실·특강 교실·묶음 머리를 누르면 접고 펴기
+document.addEventListener('click', (e) => {
+  const f = e.target.closest('#grid [data-fold]'); if (!f) return;
+  toggleFold(f.dataset.fold); const g = $('grid'); if (g) g.innerHTML = gridHTML(classes(), S.classes.length >= MAX_CLASSES);
+  const nf = document.querySelector('[data-fold="' + CSS.escape(f.dataset.fold) + '"]'); if (nf) nf.focus();
+});
 document.addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = (e.submitter && e.submitter.dataset.form) ? e.submitter : e.target.querySelector('[data-form]');
   const f = btn && btn.dataset.form;
   if (f === 'class') saveClass();
+  else if (f === 'grp') { const v = cleanGrp($('gv').value), fn = pending; closeDlg(); try { await fn(v); toast(v ? '\'' + v + '\' 묶음으로 옮겼어요.' : '묶음에서 뺐어요.'); } catch (err) { toast(S.saveErr || '저장하지 못했어요.', true); } }
   else if (f === 'text') { const v = $('tv').value.trim(); if (!v) { $('tv').focus(); return; } const fn = pending; closeDlg(); try { await fn(v); toast('저장했어요.'); } catch (err) { toast(S.saveErr || '저장하지 못했어요.', true); } }
   else if (f === 'confirm') { const fn = pending; closeDlg(); fn(); }
   else if (f === 'restore') { const b = S.boards.find((x) => x.id === pending), cid = $('rc').value; closeDlg(); if (b && cid) doRestore(b, cid); }

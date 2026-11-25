@@ -25,6 +25,8 @@
 .padbar{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
 .padpick{min-height:38px;padding:0 14px;border:1px solid #D0D5DD;border-radius:999px;background:#fff;font:700 14px 'Noto Sans KR',sans-serif;color:#3B3F52;cursor:pointer}
 .padpick[aria-pressed=true]{background:#1D2030;border-color:#1D2030;color:#fff}
+.padgh{align-self:center;margin-left:6px;font:800 13px 'Noto Sans KR',sans-serif;color:#6B7085}
+.padgh:first-child{margin-left:0}
 .padframe{display:block;width:100%;height:calc(100vh - 170px);min-height:520px;border:0;border-radius:18px;background:transparent}
 .boardTab .dk-wrap h2{margin:0;font:800 19px/1.3 'Noto Sans KR',sans-serif;color:#15171F}
 .boardTab .dk-note{grid-column:1/-1;padding:18px;border-radius:12px;background:#F4F5F8;text-align:center}
@@ -189,6 +191,7 @@ import {
   getSession, setSession, clearSession, mapName, WAIT_MAP, esc, safeUrl, hostOf, errText, toast, PREVIEW, onLiveState
 } from './js/fb.js';
 import { emoHTML, emoRich, emoOnly, emoTok, emoImg, drawEmoBubble, openEmoPicker } from './js/emo.js';
+import { groupBy } from './js/groups.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
 // 선생님 모드: class.html?teach=반ID (&embed=1 은 진행판 안의 작은 화면) — 선생님도 캐릭터로 교실에 들어감
@@ -226,7 +229,10 @@ const boardOrPad = () => tab(PADS.length ? 'pad' : 'board');
 let PADS = [], padSel = '';
 function drawPad() {
   if (!PADS.find((b) => b.id === padSel)) padSel = PADS.length ? PADS[PADS.length - 1].id : '';
-  $('padBar').innerHTML = PADS.length > 1 ? PADS.map((b) => '<button type="button" class="padpick" data-pad="' + esc(b.id) + '" aria-pressed="' + (b.id === padSel) + '">' + esc(b.title) + '</button>').join('') : '';
+  // 선생님이 패들렛에 묶음(📁)을 정해 두었으면 묶음 이름을 앞에 달아 같이 모아 보여 줌
+  const chip = (b) => '<button type="button" class="padpick" data-pad="' + esc(b.id) + '" aria-pressed="' + (b.id === padSel) + '">' + esc(b.title) + '</button>';
+  const gs = groupBy(PADS, (b) => b.grp), named = gs.some((g) => g.name);
+  $('padBar').innerHTML = PADS.length > 1 ? (named ? gs.map((g) => '<span class="padgh">📁 ' + esc(g.name || '그 밖의 패들렛') + '</span>' + g.list.map(chip).join('')).join('') : PADS.map(chip).join('')) : '';
   $('padBar').hidden = PADS.length < 2;
   const slot = $('padSlot');
   if (!padSel) { slot.dataset.bid = ''; slot.innerHTML = '<div class="dk-wrap"><p class="dk-note">아직 선생님이 공유한 패들렛이 없어요.<br>선생님이 내 패들렛에서 \'학생에게 보이기\'를 켜면 여기에 바로 나와요.</p></div>'; return; }
