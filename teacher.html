@@ -464,6 +464,9 @@ function drawLive(cid) {
     liveOffs.push(onValue(rquery(ref(rt, base + '/chat'), limitToLast(40)), (s) => { L.chat = []; s.forEach((x) => { L.chat.push(x.val()); }); paintChat(); }));
     liveOffs.push(onValue(ref(rt, base + '/lastRun'), (s) => { const r = s.val(); if (r && r !== L.resFor && !(L.st.game && L.st.game.run)) watchResults(r); }));
     liveOffs.push(onSnapshot(collection(fs, 'classes', cid, 'students'), (s) => { L.students = s.docs.map((d) => Object.assign({ id: d.id }, d.data())); paintStudents(); }, () => {}));
+    // 내 패들렛 목록 (학생 📋 패들렛 탭에 넣고 빼기)
+    const bq = isAdmin() ? collection(fs, 'boards') : query(collection(fs, 'boards'), where('owner', '==', user.uid));
+    liveOffs.push(onSnapshot(bq, (s) => { L.boards = s.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((b) => (isAdmin() ? !b.owner : b.owner === user.uid) && !inTrash(b)).sort((a, b) => String(a.created || '').localeCompare(String(b.created || ''))); paintPads(); }, () => {}));
   }
   $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 class="ttl">' + esc(c.name) + ' 진행판</h1><div class="row"><button class="btn sm yel" type="button" data-qr="' + esc(c.id) + '" title="주소창 글자·방번호·QR을 크게 띄워요">📺 방번호 ' + esc(c.room) + ' · 주소 크게</button><a class="btn sm grn" href="' + esc(previewUrl(c)) + '" title="학생에게 보이는 첫 화면·교실·패들렛·게임을 그대로 봐요 (기록은 남지 않아요)">👀 학생 화면으로 보기</a><a class="btn sm" href="padlet.html#class-' + encodeURIComponent(c.id) + '" title="이 반 패들렛으로 바로 가기">📋 패들렛</a><a class="btn sm" href="#classes">◀ 교실</a></div></div>' +
     // 교실 화면: 선생님도 캐릭터(👑)로 들어가서 학생들과 같이 보임
@@ -480,12 +483,55 @@ function drawLive(cid) {
     '</div><div class="stack">' +
       '<section class="pf card"><h2 id="plH">들어온 학생</h2><div class="chips" id="plL"></div></section>' +
       '<section class="pf card"><h2>채팅</h2><div class="row"><button class="btn sm" type="button" id="chOff"></button><button class="btn sm red" type="button" id="chClr">채팅 지우기</button></div><div id="chatLog" aria-live="polite"></div></section>' +
-      '<section class="pf card"><h2>반 링크</h2><p class="note">반 화면 게시판 탭에 보여요. 수업 보드는 내 패들렛에서 \'학생에게 보이기\'를 켜면 함께 보여요.</p>' + linksHTML(c.links || [], 'clsL') + '</section>' +
+      '<section class="pf card" id="padC"></section>' +
+      '<section class="pf card"><h2>반 링크</h2><p class="note">반 화면 게시판 탭에 보여요. 패들렛은 위 📋 학생 패들렛 탭에서 넣어요.</p>' + linksHTML(c.links || [], 'clsL') + '</section>' +
       '<section class="pf card"><h2 id="stH">학생 기록</h2><ul class="list" id="stL"></ul></section>' +
     '</div></div></div>';
   bindLive(c);
   bindLinks('clsL', () => (classes.find((x) => x.id === cid) || {}).links || [], (list) => setDoc(doc(fs, 'classes', cid), { links: list }, { merge: true }));
-  paintLive(); paintChat(); paintStudents(); paintQuiz();
+  paintLive(); paintChat(); paintStudents(); paintQuiz(); paintPads();
+}
+/* 📋 학생 패들렛 탭: 이 반 패들렛 중 '학생에게 보이기'를 켠 것 + 다른 교실에서 더한 패들렛(classes.pads) — 여러 개 */
+async function setBoardPub(b, v) {
+  await updateDoc(doc(fs, 'boards', b.id), { public: v });
+  const own = isAdmin() ? [] : [where('owner', '==', user.uid)];
+  for (const p of (await getDocs(query(collection(fs, 'parts'), where('bid', '==', b.id), ...own))).docs) await updateDoc(p.ref, { pub: v });
+}
+function padsShown() {
+  const c = classes.find((x) => x.id === L.cid) || {}, bs = L.boards || [], extra = Array.isArray(c.pads) ? c.pads : [];
+  const mine = bs.filter((b) => b.cid === L.cid && b.public);
+  return { c, bs, extra, list: mine.concat(extra.map((id) => bs.find((b) => b.id === id)).filter((b) => b && !mine.includes(b))) };
+}
+function paintPads() {
+  if (!L || !$('padC')) return;
+  const { bs, list } = padsShown();
+  const cname = (id) => id === 'lib' ? '📦 과제 보관함' : (classes.find((x) => x.id === id) || {}).name || '다른 교실';
+  const rest = bs.filter((b) => !list.includes(b));
+  const order = [L.cid].concat(classes.map((x) => x.id).filter((id) => id !== L.cid), ['lib']);
+  const groups = order.map((cid) => { const g = rest.filter((b) => b.cid === cid); return g.length ? '<optgroup label="' + esc(cid === L.cid ? '이 교실' : cname(cid)) + '">' + g.map((b) => '<option value="' + esc(b.id) + '">' + esc(b.title) + '</option>').join('') + '</optgroup>' : ''; }).join('');
+  $('padC').innerHTML = '<h2>📋 학생 패들렛 탭 <span class="badge">' + list.length + '개</span></h2><p class="note">학생 화면 📋 패들렛 탭에 보이는 패들렛이에요. 여러 개 넣으면 학생이 위쪽 단추로 골라 봐요.</p>' +
+    '<ul class="list" id="padL" style="max-height:none">' + (list.length ? list.map((b, i) => '<li><b style="width:22px">' + (i + 1) + '</b><span class="sp"><b>' + esc(b.title) + '</b>' + (b.cid !== L.cid ? ' <small style="color:var(--sub)">· ' + esc(cname(b.cid)) + '에서</small>' : '') + '</span><a class="btn sm" href="padlet.html#class-' + encodeURIComponent(b.cid) + '" title="내 패들렛에서 열기">열기</a><button class="btn sm red" type="button" data-pdel="' + esc(b.id) + '" aria-label="' + esc(b.title) + ' 빼기">빼기</button></li>').join('') : '<li>아직 없어요. 아래에서 패들렛을 골라 넣어 주세요.</li>') + '</ul>' +
+    (rest.length ? '<div class="mapsel"><select class="field" id="padS" aria-label="넣을 패들렛 고르기">' + groups + '</select><button class="btn blue" type="button" id="padA">＋ 패들렛 넣기</button></div>' : '<p class="note">넣을 수 있는 패들렛이 더 없어요. <a href="padlet.html#class-' + encodeURIComponent(L.cid) + '">내 패들렛</a>에서 새로 만들어요.</p>') +
+    '<p class="note">다른 교실 패들렛을 넣으면 그 패들렛의 \'학생에게 보이기\'도 켜져요(그 교실 학생도 볼 수 있어요). 학생 글은 패들렛 하나에 같이 쌓여요.</p>';
+  if ($('padA')) $('padA').onclick = async () => {
+    const b = (L.boards || []).find((x) => x.id === $('padS').value); if (!b) return;
+    const { c, extra } = padsShown();
+    try {
+      if (!b.public) await setBoardPub(b, true);
+      if (b.cid !== L.cid && !extra.includes(b.id)) await setDoc(doc(fs, 'classes', c.id), { pads: extra.concat(b.id).slice(-8) }, { merge: true });
+      toast('\'' + b.title + '\'을 학생 📋 패들렛 탭에 넣었어요.');
+    } catch (err) { toast(errText(err), true); }
+  };
+  $('padL').onclick = async (e) => {
+    const x = e.target.closest('[data-pdel]'); if (!x) return;
+    const b = (L.boards || []).find((y) => y.id === x.dataset.pdel); if (!b) return;
+    const { c, extra } = padsShown();
+    try {
+      if (extra.includes(b.id)) await setDoc(doc(fs, 'classes', c.id), { pads: extra.filter((id) => id !== b.id) }, { merge: true });
+      if (b.cid === L.cid && b.public) await setBoardPub(b, false);
+      toast('\'' + b.title + '\'을 학생 탭에서 뺐어요.');
+    } catch (err) { toast(errText(err), true); }
+  };
 }
 const rset = (r, v) => set(r, v); // sendSetQ 안에서 'set'(세트) 이름과 헷갈리지 않게
 const stRef = () => ref(rt, 'live/' + L.cid + '/state');
@@ -1032,7 +1078,7 @@ function start(u) {
     watchCounts();
     if (view === 'classes') drawClasses();
     else if (view === 'quiz') drawQuizLib();
-    else if (view === 'live' && L) { const c = classes.find((x) => x.id === L.cid); if (!c) route(); else refreshList('clsL', c.links || [], () => (classes.find((x) => x.id === c.id) || {}).links || [], (list) => setDoc(doc(fs, 'classes', c.id), { links: list }, { merge: true }));  paintQuiz(); }
+    else if (view === 'live' && L) { const c = classes.find((x) => x.id === L.cid); if (!c) route(); else refreshList('clsL', c.links || [], () => (classes.find((x) => x.id === c.id) || {}).links || [], (list) => setDoc(doc(fs, 'classes', c.id), { links: list }, { merge: true }));  paintQuiz(); paintPads(); }
     else if (!view) route();
   }, (err) => { $('view').innerHTML = '<p class="pf pad">' + esc(errText(err)) + '</p>'; });
   onSnapshot(doc(fs, 'banks', bankId(myOwner(), 'lib')), (s) => { LIB.sets = s.exists() ? s.data().sets || [] : []; LIB.ok = true; if (view === 'quiz') drawQuizLib(); }, () => { LIB.ok = true; });

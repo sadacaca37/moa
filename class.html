@@ -237,7 +237,19 @@ $('tabBoard').addEventListener('click', () => tab('board'));
 // 칠판 앞: 공유된 패들렛이 있으면 패들렛, 없으면 게시판
 const boardOrPad = () => tab(PADS.length ? 'pad' : 'board');
 /* ---------- 패들렛 탭 ---------- */
-let PADS = [], padSel = '';
+let PADS = [], padSel = '', OWN_PADS = [], EXTRA_PADS = [], extraFor = '';
+// 📋 패들렛 탭 = 이 반 패들렛 중 '학생에게 보이기'를 켠 것 + 선생님이 진행판에서 더한 다른 교실 패들렛(cls.pads, 여러 개)
+function mixPads() {
+  const seen = new Set(OWN_PADS.map((b) => b.id));
+  PADS = OWN_PADS.concat(EXTRA_PADS.filter((b) => !seen.has(b.id)));
+  $('tabPad').textContent = '📋 패들렛' + (PADS.length > 1 ? ' ' + PADS.length : ''); if (!$('padTab').hidden) drawPad();
+}
+async function loadExtraPads(ids) {
+  const key = (ids || []).join(','); if (key === extraFor) return; extraFor = key;
+  const got = await Promise.all((ids || []).slice(0, 8).map(async (id) => { try { const s = await getDoc(doc(fs, 'boards', id)); return s.exists() && s.data().public && !s.data().trash ? Object.assign({ id }, s.data()) : null; } catch (e) { return null; } }));
+  if (extraFor !== key) return;
+  EXTRA_PADS = got.filter(Boolean); mixPads();
+}
 function drawPad() {
   if (!PADS.find((b) => b.id === padSel)) padSel = PADS.length ? PADS[PADS.length - 1].id : '';
   // 선생님이 패들렛에 묶음(📁)을 정해 두었으면 묶음 이름을 앞에 달아 같이 모아 보여 줌
@@ -246,7 +258,7 @@ function drawPad() {
   $('padBar').innerHTML = PADS.length > 1 ? (named ? gs.map((g) => '<span class="padgh">📁 ' + esc(g.name || '그 밖의 패들렛') + '</span>' + g.list.map(chip).join('')).join('') : PADS.map(chip).join('')) : '';
   $('padBar').hidden = PADS.length < 2;
   const slot = $('padSlot');
-  if (!padSel) { slot.dataset.bid = ''; slot.innerHTML = '<div class="dk-wrap"><p class="dk-note">아직 선생님이 공유한 패들렛이 없어요.<br>선생님이 내 패들렛에서 \'학생에게 보이기\'를 켜면 여기에 바로 나와요.</p></div>'; return; }
+  if (!padSel) { slot.dataset.bid = ''; slot.innerHTML = '<div class="dk-wrap"><p class="dk-note">아직 선생님이 공유한 패들렛이 없어요.' + (PV || TEACH ? '<br>진행판의 📋 학생 패들렛 탭에서 패들렛을 여러 개 넣을 수 있어요.</p><p><a class="btn blue" href="teacher.html#live-' + encodeURIComponent(ses.cid) + '">＋ 진행판에서 패들렛 넣기</a>' : '<br>선생님이 패들렛을 넣으면 여기에 바로 나와요.') + '</p></div>'; return; }
   if (slot.dataset.bid === padSel) return;
   slot.dataset.bid = padSel;
   const b = PADS.find((x) => x.id === padSel);
@@ -739,7 +751,8 @@ function frame(now) {
   // 반 정보 (기본 맵, 링크)
   onSnapshot(doc(fs, 'classes', ses.cid), (s) => {
     if (!s.exists() || s.data().trash) { toast(s.exists() ? '이 반은 선생님이 휴지통으로 옮겼어요. 첫 화면으로 가요.' : '이 반이 없어졌어요. 첫 화면으로 가요.', true); if (!TEACH) clearSession(); setTimeout(() => { location.href = TEACH ? 'teacher.html' : './'; }, 1500); return; }
-    cls = s.data(); if (cls.name && cls.name !== ses.className) { ses.className = cls.name; keepSes(ses); $('clsT').textContent = cls.name; document.title = cls.name + ' · 모아팡'; }
+    cls = s.data(); loadExtraPads(Array.isArray(cls.pads) ? cls.pads : []);
+    if (cls.name && cls.name !== ses.className) { ses.className = cls.name; keepSes(ses); $('clsT').textContent = cls.name; document.title = cls.name + ' · 모아팡'; }
     drawLinks();
   }, (err) => toast(errText(err), true));
   // 학생 기록 (점수, 다른 기기에서 바꾼 옷)
@@ -756,7 +769,7 @@ function frame(now) {
   onSnapshot(query(collection(fs, 'boards'), where('cid', '==', ses.cid), where('public', '==', true)), (snap) => {
     const bs = snap.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((b) => !b.trash).sort((a, b) => String(a.created || '').localeCompare(String(b.created || '')));
     $('clsBoards').innerHTML = bs.map((b, i) => card({ bid: b.id, t: b.title, d: (b.postCount || 0) + '개의 글', c: b.color }, i)).join('') || '<p class="dk-note">아직 열린 수업 보드가 없어요.</p>';
-    PADS = bs; $('tabPad').textContent = '📋 패들렛' + (bs.length > 1 ? ' ' + bs.length : ''); if (!$('padTab').hidden) drawPad();
+    OWN_PADS = bs; mixPads();
   }, () => { $('clsBoards').innerHTML = '<p class="dk-note">수업 보드를 불러오지 못했어요.</p>'; });
 
   // 실시간
