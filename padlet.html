@@ -140,6 +140,15 @@ header.compact .save.busy{color:#B7791F}header.compact .save.bad{background:#FF6
 .bpick:hover span{text-decoration:underline}
 .bpm{position:absolute;left:0;top:calc(100% + 6px);z-index:8;width:min(90vw,300px);padding:8px;display:flex;flex-direction:column;gap:4px;background:#fff}
 .bpm .mi[aria-current=true]{background:#FFF3C4}
+.bpr{display:flex;align-items:center;gap:2px}
+.bpr .mi{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bpd{flex:none;width:32px;height:32px;border:0;border-radius:8px;background:none;font:800 16px sans-serif;color:#6B7085;cursor:pointer}
+.bpd:hover,.bpd[aria-expanded=true]{background:#F1F3F7;color:#1D2030}
+.bpa{display:flex;gap:4px;padding:2px 4px 6px 12px}
+.bpa button{flex:1;min-height:34px;border:0;border-radius:8px;background:#F4F5F8;font:600 13px 'Noto Sans KR',sans-serif;color:#1D2030;cursor:pointer}
+.bpa button:hover{background:#E9EBF0}
+.bpa .del{color:#D92D20;background:#FEF3F2}
+.bpa .del:hover{background:#FEE4E2}
 .bpmh{margin:6px 6px 0;font:800 12px 'Noto Sans KR',sans-serif;color:#6B7085}
 .bpmh:first-child{margin-top:2px}
 .bpmh small{font-weight:600;color:#9AA0B4}
@@ -472,7 +481,10 @@ function gridHTML(cs, full) {
 }
 // 패들렛 고르기 목록: 묶음(📁 1학기, 캔바 단원 …)이 있으면 묶음별로 머리를 달아 보여 줌
 function pickList(bs, b) {
-  const item = (x) => '<button type="button" class="mi" role="menuitem" data-act="tab" data-id="' + esc(x.id) + '" aria-current="' + (b && x.id === b.id) + '">' + (b && x.id === b.id ? '✓ ' : '') + esc(x.title) + '</button>';
+  // 패들렛마다 오른쪽 ⋮ → 이름 바꾸기 · 묶음 바꾸기 · 삭제
+  const item = (x) => '<div class="bpr"><button type="button" class="mi" role="menuitem" data-act="tab" data-id="' + esc(x.id) + '" aria-current="' + (b && x.id === b.id) + '">' + (b && x.id === b.id ? '✓ ' : '') + esc(x.title) + '</button>' +
+    '<button type="button" class="bpd" data-act="pmenu" data-id="' + esc(x.id) + '" aria-expanded="' + (S.pmenu === x.id) + '" aria-label="' + esc(x.title) + ' 메뉴" title="메뉴">⋮</button></div>' +
+    (S.pmenu === x.id ? '<div class="bpa"><button type="button" data-act="renameboard" data-id="' + esc(x.id) + '">✏️ 이름</button><button type="button" data-act="grpboard" data-id="' + esc(x.id) + '">📁 묶음</button><button type="button" class="del" data-act="delboard" data-id="' + esc(x.id) + '">🗑 삭제</button></div>' : '');
   const gs = groupBy(bs, (x) => x.grp);
   if (gs.length < 2 && !(gs[0] && gs[0].name)) return bs.map(item).join('');
   return gs.map((g) => '<p class="bpmh" role="presentation">📁 ' + esc(g.name || '묶음 없음') + ' <small>' + g.list.length + '</small></p>' + g.list.map(item).join('')).join('');
@@ -759,9 +771,10 @@ document.addEventListener('click', (e) => {
   const a = t.dataset.act, id = t.dataset.id, si = +t.dataset.s || 0;
   if (a === 'ovclose') { if (e.target === t) closeDlg(); return; }
   if (a === 'menu') { e.preventDefault(); S.menu = !S.menu; S.pick = false; draw(); return; }
-  if (a === 'pick') { e.preventDefault(); S.pick = !S.pick; S.menu = false; draw(); return; }
+  if (a === 'pick') { e.preventDefault(); S.pick = !S.pick; S.menu = false; S.pmenu = null; draw(); return; }
+  if (a === 'pmenu') { e.preventDefault(); S.pmenu = S.pmenu === id ? null : id; draw(); const nb = document.querySelector('.bpd[data-id="' + CSS.escape(id) + '"]'); if (nb) nb.focus(); return; }
   if (a === 'bfmt' || a === 'bwrite') { frameAct(a === 'bfmt' ? 'fmtBtn' : 'writeBtn'); return; }
-  if (S.pick && t.closest('.bpm')) S.pick = false;
+  if (S.pick && t.closest('.bpm')) { S.pick = false; S.pmenu = null; }
   if (S.menu && t.closest('.bmenu')) { S.menu = false; setTimeout(draw, 0); } // 설정에서 하나 고르면 접힘
   if (t.tagName === 'A' && a !== 'home') return;
   e.preventDefault();
@@ -773,7 +786,7 @@ document.addEventListener('click', (e) => {
   else if (a === 'newclass') { if (S.classes.length < MAX_CLASSES) classDlg(null); }
   else if (a === 'editclass') classDlg(S.classes.find((c) => c.id === id));
   else if (a === 'grpclass') { const c = S.classes.find((x) => x.id === id); if (c) grpDlg('📁 묶음 바꾸기 — ' + c.name, (c.kind || '정규반') + ' 안에서 같은 묶음끼리 모아 보여요. 비워 두면 \'묶음 없음\'으로 가요.', c.grp, grpNames(S.classes), (v) => put('classes/' + c.id, { grp: v })); }
-  else if (a === 'grpboard') { const b = curBoard(), c = curClass(); if (b && c) grpDlg('📁 묶음 바꾸기 — ' + b.title, '이 반 패들렛 고르기(▾)에서 같은 묶음끼리 모아 보여요. 예: 1학기, 캔바 단원. 비워 두면 \'묶음 없음\'으로 가요.', b.grp, grpNames(boardsOf(c.id)), (v) => saveBoard(b, { grp: v })); }
+  else if (a === 'grpboard') { const b = id ? S.boards.find((x) => x.id === id) : curBoard(), c = curClass(); if (b && c) grpDlg('📁 묶음 바꾸기 — ' + b.title, '이 반 패들렛 고르기(▾)에서 같은 묶음끼리 모아 보여요. 예: 1학기, 캔바 단원. 비워 두면 \'묶음 없음\'으로 가요.', b.grp, grpNames(boardsOf(c.id)), (v) => saveBoard(b, { grp: v })); }
   else if (a === 'kind' || a === 'color') { pending[a] = t.dataset.v; t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t))); }
   else if (a === 'delclass') {
     const c = S.classes.find((x) => x.id === id), bs = boardsOf(id);
@@ -789,8 +802,8 @@ document.addEventListener('click', (e) => {
   else if (a === 'copyboard') copyDlg();
   else if (a === 'deploy') deployDlg();
   else if (a === 'dpall' || a === 'dpnone') document.querySelectorAll('#dpL input').forEach((x) => { x.checked = a === 'dpall'; });
-  else if (a === 'renameboard') { const b = curBoard(); textDlg('패들렛 이름 바꾸기', '패들렛 이름', b.title, 60, (v) => saveBoard(b, { title: v })); }
-  else if (a === 'delboard') { const b = curBoard(); if (!b) return; confirmDlg('패들렛 삭제', '\'' + b.title + '\'을 휴지통으로 옮겨요. 학생 화면에서는 바로 사라지고, ' + TRASH_DAYS + '일 안에는 휴지통에서 되살릴 수 있어요. ' + TRASH_DAYS + '일이 지나면 영구 삭제돼요.', '휴지통으로 옮기기', async () => { try { await trashBoard(b, { own: ownQ(), homeRef: homeRefP() }); S.bid = null; toast('\'' + b.title + '\'을 휴지통으로 옮겼어요. (' + TRASH_DAYS + '일 안에 되살릴 수 있어요)'); } catch (err) { toast(errText(err), true); } }); }
+  else if (a === 'renameboard') { const b = id ? S.boards.find((x) => x.id === id) : curBoard(); if (!b) return; textDlg('패들렛 이름 바꾸기', '패들렛 이름', b.title, 60, (v) => saveBoard(b, { title: v })); }
+  else if (a === 'delboard') { const b = id ? S.boards.find((x) => x.id === id) : curBoard(); if (!b) return; confirmDlg('패들렛 삭제', '\'' + b.title + '\'을 휴지통으로 옮겨요. 학생 화면에서는 바로 사라지고, ' + TRASH_DAYS + '일 안에는 휴지통에서 되살릴 수 있어요. ' + TRASH_DAYS + '일이 지나면 영구 삭제돼요.', '휴지통으로 옮기기', async () => { try { await trashBoard(b, { own: ownQ(), homeRef: homeRefP() }); if (S.bid === b.id) S.bid = null; toast('\'' + b.title + '\'을 휴지통으로 옮겼어요. (' + TRASH_DAYS + '일 안에 되살릴 수 있어요)'); } catch (err) { toast(errText(err), true); } }); }
   else if (a === 'trash') openTrash();
   else if (a === 'restore') {
     const b = S.boards.find((x) => x.id === id); if (!b) return;
