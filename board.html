@@ -214,6 +214,11 @@
 .pmn button{min-height:40px;padding:0 12px;border:0;border-radius:8px;background:none;text-align:left;font:500 15px 'Noto Sans KR',sans-serif;color:#1D2030;cursor:pointer;white-space:nowrap}
 .pmn button:hover,.pmn button:focus-visible{background:#F1F3F7}
 .pmn button[data-act=delpost],.pmn button[data-act=delsec]{color:#C0362C}
+.pmn hr{margin:4px 6px;border:0;border-top:1px solid #EEF0F4}
+.pmn .pcs{display:flex;gap:6px;padding:6px 8px}
+.pmn .pcs button{min-height:0;width:26px;height:26px;padding:0;border:1px solid #C9CED8;border-radius:50%}
+.pmn .pcs button[aria-pressed=true]{outline:3px solid #2F7BF6;outline-offset:1px}
+.ptop .pin1{flex:none;font-size:15px}
 .memo{width:260px}
 .fab{border:0;background:var(--yel);box-shadow:0 6px 18px rgba(0,0,0,.28)}
 .fab:active{box-shadow:0 2px 6px rgba(0,0,0,.25)}
@@ -260,9 +265,9 @@ body.colsfit::after{display:none}
 <input type="file" id="fileIn" multiple hidden>
 <div class="ground" aria-hidden="true"></div>
 <script type="module">
-import { fs, ensureUser, isTeacher, teacherRole, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, esc, safeUrl, hostOf, errText, getSession, toast, PREVIEW, previewToast } from './js/fb.js';
+import { fs, ensureUser, isTeacher, teacherRole, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, esc, safeUrl, hostOf, errText, getSession, toast, PREVIEW, previewToast } from './js/fb.js';
 import { emoHTML, emoRich, emoOnly, emoTok } from './js/emo.js';
-import { installPadkit, filesHTML, reactsHTML, emojiBtn, emojiPal, closePals, checkFile, uploadFile, removeFile, cleanFiles, fmtSize, fileKind, MAX_FILES, PCOLORS, pcolor, okColor, FORMATS, layoutOf, formatName, usesSecs } from './js/padkit.js';
+import { installPadkit, filesHTML, reactsHTML, emojiBtn, emojiPal, closePals, checkFile, uploadFile, removeFile, cleanFiles, copyFiles, fmtSize, fileKind, MAX_FILES, PCOLORS, pcolor, okColor, FORMATS, layoutOf, formatName, usesSecs } from './js/padkit.js';
 const $ = (id) => document.getElementById(id);
 const NAME_KEY = 'moa_board_name';
 const Q = new URLSearchParams(location.search);
@@ -307,7 +312,8 @@ function allPosts() {
   const old = [];
   S.parts.slice().sort((a, c) => a.n - c.n).forEach((pt) => (pt.posts || []).forEach((x) => old.push(Object.assign({ kind: 'old', part: pt.id }, x))));
   const live = S.live.slice().sort((a, c) => ms(a.at) - ms(c.at)).map((x) => Object.assign({ kind: 'live' }, x));
-  return old.concat(live);
+  // 📌 고정한 글은 칸 맨 위로 (나머지 순서는 그대로)
+  return old.concat(live).sort((a, c) => (c.pin ? 1 : 0) - (a.pin ? 1 : 0));
 }
 const postById = (id) => allPosts().find((p) => p.id === id) || null;
 
@@ -438,12 +444,16 @@ function postHTML(p, ctx, memo) {
   const img = p.kind === 'live' && /^data:image\/(jpeg|png|webp);base64,/.test(p.img || '') ? p.img : '';
   const bg = pcolor(okColor(p.color) || (memo ? 'y' : ''));
   const yt = video && (/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/)([\w-]{11})/.exec(link) || [])[1];
-  const acts = (canEdit(p) ? '<button type="button" data-act="editpost" data-id="' + esc(p.id) + '">고치기</button>' : '') +
-    (canDel(p) ? '<button type="button" data-act="delpost" data-id="' + esc(p.id) + '">지우기</button>' : '') +
-    (memo && w ? '<button type="button" data-act="linkfrom" data-id="' + esc(p.id) + '" aria-label="이 메모에서 다른 메모로 선 잇기">🔗 선 잇기</button>' : '');
+  // ⋮ 메뉴 (패들렛처럼): 카드 색 · 고치기 / 고정 · 복제 · 다른 패들렛으로 복사·옮기기 / 선 잇기 / 지우기
+  const T = S.teacher && !PREVIEW, ed = canEdit(p) && !PREVIEW, pid = esc(p.id), cur = okColor(p.color) || '';
+  const acts = (ed ? '<div class="pcs" role="group" aria-label="카드 색">' + PCOLORS.map(([v, nm, hex]) => '<button type="button" data-act="setcolor" data-id="' + pid + '" data-v="' + v + '" style="background:' + hex + '" aria-label="' + nm + '" aria-pressed="' + (cur === v) + '" title="' + nm + '"></button>').join('') + '</div>' : '') +
+    (ed ? '<button type="button" data-act="editpost" data-id="' + pid + '">✏️ 고치기</button>' : '') +
+    (T ? '<hr><button type="button" data-act="pinpost" data-id="' + pid + '">' + (p.pin ? '📌 고정 풀기' : '📌 맨 위에 고정') + '</button><button type="button" data-act="duppost" data-id="' + pid + '">📄 이 패들렛에 복제</button><button type="button" data-act="copypost" data-id="' + pid + '">📋 다른 패들렛으로 복사</button><button type="button" data-act="movepost" data-id="' + pid + '">➡️ 다른 패들렛으로 옮기기</button>' : '') +
+    (memo && w ? '<hr><button type="button" data-act="linkfrom" data-id="' + pid + '" aria-label="이 메모에서 다른 메모로 선 잇기">🔗 선 잇기</button>' : '') +
+    (canDel(p) ? (ed || T ? '<hr>' : '') + '<button type="button" data-act="delpost" data-id="' + pid + '">🗑 지우기</button>' : '');
   const menu = acts ? '<span class="pmw"><button type="button" class="dots" data-act="menu" aria-expanded="false" aria-label="글 메뉴" title="글 메뉴">⋮</button><span class="pmn" hidden>' + acts + '</span></span>' : '';
   let h = '<article class="post' + (mine ? ' mine' : '') + '" data-pid="' + esc(p.id) + '" style="background:' + bg + '">';
-  if (p.title || menu) h += '<div class="ptop">' + (p.title ? '<h3>' + emoRich(esc(p.title), '1.3em') + '</h3>' : '<span class="sp"></span>') + menu + '</div>';
+  if (p.title || menu || p.pin) h += '<div class="ptop">' + (p.pin ? '<span class="pin1" title="맨 위에 고정한 글" aria-label="고정한 글">📌</span>' : '') + (p.title ? '<h3>' + emoRich(esc(p.title), '1.3em') + '</h3>' : '<span class="sp"></span>') + menu + '</div>';
   h += '<div class="pin">';
   if (img) h += '<button type="button" class="pic" data-act="big" data-id="' + esc(p.id) + '" aria-label="사진 크게 보기"><img src="' + img + '" alt="' + esc(p.title || (p.author || '') + '의 사진') + '" loading="lazy" draggable="false"></button>';
   if (link) h += '<a class="lnk' + (yt ? ' yt' : '') + '" href="' + esc(link) + '" target="_blank" rel="noopener"' + (yt ? ' style="background-image:url(https://i.ytimg.com/vi/' + yt + '/hqdefault.jpg)"' : '') + '><i aria-hidden="true">' + (video ? '▶' : '🔗') + '</i><b>' + esc(hostOf(link) || link) + '</b></a>';
@@ -717,9 +727,72 @@ async function react(pid, e) {
   try { if (has) await deleteDoc(doc(fs, 'boards', bid, 'reacts', id)); else await setDoc(doc(fs, 'boards', bid, 'reacts', id), { pid, e, uid: me() }); }
   catch (err) { toast(/permission/i.test(err.code || '') ? '지금은 이모티콘을 달 수 없어요.' : errText(err), true); }
 }
-async function delPost(id) {
+// ⋮ → 📋 다른 패들렛으로 복사 (선생님): 내 패들렛을 골라 그 칸에 새 글로 (사진·파일도), 고르면 옮기기(여기 글 지우기)
+let CP = null;
+async function copyPostDlg(p, moveMode) {
+  const own = S.board.owner ? [where('owner', '==', S.board.owner)] : [], keep = (d) => (S.board.owner ? d.owner === S.board.owner : !d.owner) && !d.trash;
+  let cls = [], bs = [];
+  try {
+    const [a, b] = await Promise.all([getDocs(query(collection(fs, 'classes'), ...own)), getDocs(query(collection(fs, 'boards'), ...own))]);
+    cls = a.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter(keep);
+    bs = b.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter(keep).filter((x) => x.id !== bid).sort((x, y) => String(x.created || '').localeCompare(String(y.created || '')));
+  } catch (err) { toast(errText(err), true); return; }
+  if (!bs.length) { toast('복사해 넣을 다른 패들렛이 없어요. 내 패들렛에서 먼저 만들어 주세요.', true); return; }
+  const srcSec = secsOf()[p.sec || 0] || '글 모음';
+  CP = { p, bs, srcSec };
+  const order = [S.board.cid].concat(cls.map((c) => c.id).filter((id) => id !== S.board.cid), ['lib']);
+  const cname = (id) => id === 'lib' ? '📦 과제 보관함' : (cls.find((c) => c.id === id) || {}).name || '다른 교실';
+  const groups = order.map((cid) => { const g = bs.filter((x) => x.cid === cid); return g.length ? '<optgroup label="' + esc(cid === S.board.cid ? '이 교실 · ' + cname(cid) : cname(cid)) + '">' + g.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.title) + '</option>').join('') + '</optgroup>' : ''; }).join('');
+  openDlg('<form class="dlg" id="cpf" novalidate><div class="tp"><h2 id="dlgt">' + (moveMode ? '➡️ 다른 패들렛으로 옮기기' : '📋 다른 패들렛으로 복사') + '</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div>' +
+    '<p class="note">\'' + esc(p.title || (p.body || '').slice(0, 30) || '이 글') + '\'을 다른 패들렛에 새 글로 ' + (moveMode ? '옮겨요. 여기 글은 지워져요.' : '넣어요.') + ' 사진·파일·카드 색도 같이 가요. 댓글·이모티콘은 따라가지 않아요.</p>' +
+    '<label class="lb">넣을 패들렛<select id="cpB" class="field">' + groups + '</select></label>' +
+    '<label class="lb">넣을 칸<select id="cpS" class="field"></select></label>' +
+    '<label class="ck"><input type="checkbox" id="cpMv"' + (moveMode ? ' checked' : '') + '> 옮기기 (넣은 뒤 여기 글은 지우기)</label>' +
+    '<p class="msg" id="cpM" role="status"></p><div class="row"><button type="submit" class="btn blue" id="cpGo">' + (moveMode ? '옮기기 ▶' : '복사하기 ▶') + '</button></div></form>', 'dlgbox', '#cpB');
+  $('cpMv').addEventListener('change', () => { $('cpGo').textContent = $('cpMv').checked ? '옮기기 ▶' : '복사하기 ▶'; });
+  const fill = () => {
+    const tb = CP.bs.find((x) => x.id === $('cpB').value); if (!tb) return;
+    const secs = tb.sections && tb.sections.length ? tb.sections : ['글 모음'], same = secs.indexOf(CP.srcSec);
+    $('cpS').innerHTML = secs.map((n, i) => '<option value="' + i + '"' + (i === (same >= 0 ? same : 0) ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + (same < 0 ? '<option value="-1">＋ 새 칸 만들기: ' + esc(CP.srcSec) + '</option>' : '');
+  };
+  $('cpB').addEventListener('change', fill); fill();
+}
+// 📄 같은 패들렛에 복제 (선생님): 같은 칸에 새 글로 (사진·파일은 새로 올려서 따로 지워도 괜찮게)
+async function dupPost(p) {
+  try {
+    const d = { sec: p.sec || 0, title: p.title || '', body: p.body || '', link: p.link || '', img: p.img || '', author: p.author || '선생님', uid: S.user.uid, at: serverTimestamp() };
+    const fl = cleanFiles(p.files); if (fl.length) d.files = await copyFiles(bid, bid, fl, S.user.uid);
+    const col = okColor(p.color); if (col) d.color = col;
+    await setDoc(doc(collection(fs, 'boards', bid, 'posts')), d);
+    toast('글을 복제했어요. 칸 맨 아래에 있어요.');
+  } catch (err) { toast(errText(err), true); }
+}
+// 묶음 글(가져온 글)은 글 묶음 안에서, 함께 쓴 글은 그 글 문서에서 몇 칸만 바꿈
+async function patchPost(p, patch) {
+  if (p.kind === 'live') return updateDoc(doc(fs, 'boards', bid, 'posts', p.id), patch);
+  const part = S.parts.find((x) => x.id === p.part); if (!part) return;
+  return savePart(part, (part.posts || []).map((x) => x.id === p.id ? Object.assign({}, x, patch) : x));
+}
+async function copyPostGo() {
+  const c = CP; if (!c) return;
+  const tb = c.bs.find((x) => x.id === $('cpB').value); if (!tb) return;
+  const move = $('cpMv').checked, p = c.p;
+  $('cpGo').disabled = true; $('cpM').textContent = '복사하는 중…';
+  try {
+    let si = +$('cpS').value;
+    if (si < 0) { const secs = (tb.sections && tb.sections.length ? tb.sections : ['글 모음']).concat(c.srcSec); si = secs.length - 1; await updateDoc(doc(fs, 'boards', tb.id), { sections: secs }); }
+    const d = { sec: si, title: p.title || '', body: p.body || '', link: p.link || '', img: p.img || '', author: p.author || '선생님', uid: S.user.uid, at: serverTimestamp() };
+    const fl = cleanFiles(p.files); if (fl.length) d.files = await copyFiles(bid, tb.id, fl, S.user.uid);
+    const col = okColor(p.color); if (col) d.color = col;
+    await setDoc(doc(collection(fs, 'boards', tb.id, 'posts')), d);
+    CP = null; closeDlg();
+    if (move) await delPost(p.id, true);
+    toast('\'' + tb.title + '\'(으)로 ' + (move ? '옮겼어요.' : '복사했어요.'));
+  } catch (err) { if ($('cpM')) { $('cpM').textContent = errText(err); $('cpGo').disabled = false; } else toast(errText(err), true); }
+}
+async function delPost(id, quiet) {
   const p = postById(id); if (!p || !canDel(p)) return;
-  if (!confirm('이 글을 지울까요? 딸린 파일·댓글·이모티콘도 함께 지워져요. 지운 글은 되돌릴 수 없어요.')) return;
+  if (!quiet && !confirm('이 글을 지울까요? 딸린 파일·댓글·이모티콘도 함께 지워져요. 지운 글은 되돌릴 수 없어요.')) return;
   try {
     if (p.kind === 'live') await deleteDoc(doc(fs, 'boards', bid, 'posts', id));
     else {
@@ -791,6 +864,10 @@ document.addEventListener('click', async (e) => {
   else if (a === 'pcolor') { S.color = t.dataset.v; t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t))); if ($('wf')) $('wf').style.background = pcolor(S.color); }
   else if (a === 'pickfmt') { S.fmt = t.dataset.v; t.parentNode.querySelectorAll('[role=radio]').forEach((x) => x.setAttribute('aria-checked', String(x === t))); $('grpL').hidden = !/^(grid|stream|timeline)$/.test(S.fmt); }
   else if (a === 'delpost') delPost(id);
+  else if (a === 'copypost' || a === 'movepost') { const p = postById(id); closeMenus(); if (p && S.teacher) copyPostDlg(p, a === 'movepost'); }
+  else if (a === 'duppost') { const p = postById(id); closeMenus(); if (p && S.teacher) dupPost(p); }
+  else if (a === 'pinpost') { const p = postById(id); closeMenus(); if (p && S.teacher) patchPost(p, { pin: !p.pin }).then(() => toast(p.pin ? '고정을 풀었어요.' : '칸 맨 위에 고정했어요.'), (err) => toast(errText(err), true)); }
+  else if (a === 'setcolor') { const p = postById(id); if (p && canEdit(p) && !PREVIEW) { closeMenus(); patchPost(p, { color: okColor(t.dataset.v) }).catch((err) => toast(errText(err), true)); } }
   else if (a === 'delcm') delComment(id);
   else if (a === 'more') { S.open.add(id); draw(); }
   else if (a === 'less') { S.open.delete(id); draw(); }
@@ -833,6 +910,7 @@ $('fileIn').addEventListener('change', (e) => {
 document.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (e.target.id === 'wf') sendPost();
+  else if (e.target.id === 'cpf') copyPostGo();
   else if (e.target.id === 'ff') {
     if (PREVIEW || !S.teacher) return;
     try { await updateDoc(doc(fs, 'boards', bid), { layout: S.fmt, groups: !!($('grp') && $('grp').checked) }); S.linkFrom = null; closeDlg(); toast('형식을 \'' + FORMATS.find((f) => f[0] === S.fmt)[1] + '\'(으)로 바꿨어요.'); }
