@@ -175,7 +175,7 @@ async function claimSeat(u) {
   const sid = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
   seatMem = sid;
   try { localStorage.setItem(SEAT_KEY, sid); } catch (e) { /* 이 탭에서만 기억 */ }
-  try { await setDoc(seatRef(u.uid), { sid, at: serverTimestamp() }); } catch (e) { /* 자리표를 못 적으면 이 기능만 꺼짐 */ }
+  try { await setDoc(seatRef(u.uid), { sid, at: serverTimestamp() }, { merge: true }); } catch (e) { /* 자리표를 못 적으면 이 기능만 꺼짐 */ }
 }
 async function leaveSeat() {
   if (leaving) return;
