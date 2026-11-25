@@ -144,12 +144,13 @@ header.compact .save.busy{color:#B7791F}header.compact .save.bad{background:#FF6
 .bpr .mi{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bpd{flex:none;width:32px;height:32px;border:0;border-radius:8px;background:none;font:800 16px sans-serif;color:#6B7085;cursor:pointer}
 .bpd:hover,.bpd[aria-expanded=true]{background:#F1F3F7;color:#1D2030}
-.bpa{display:flex;gap:4px;padding:2px 4px 6px 12px}
+.bpa{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:2px 4px 6px 12px}
 .bpa button{flex:1;min-height:34px;border:0;border-radius:8px;background:#F4F5F8;font:600 13px 'Noto Sans KR',sans-serif;color:#1D2030;cursor:pointer}
 .bpa button:hover{background:#E9EBF0}
 .bpa .del{color:#D92D20;background:#FEF3F2}
 .bpa .del:hover{background:#FEE4E2}
-.bpmh{margin:6px 6px 0;font:800 12px 'Noto Sans KR',sans-serif;color:#6B7085}
+.trh{margin:14px max(3vw,16px) 0;font:800 17px 'Noto Sans KR',sans-serif;color:#1D2030}
+.bpmh{display:flex;align-items:center;gap:6px;margin:6px 6px 0;font:800 12px 'Noto Sans KR',sans-serif;color:#6B7085}
 .bpmh:first-child{margin-top:2px}
 .bpmh small{font-weight:600;color:#9AA0B4}
 header.compact .bset{margin-left:0}
@@ -201,16 +202,17 @@ header.compact .bpm .mi[aria-current=true]{background:#FFF3C4;font-weight:700}
 <input type="file" id="fileIn" accept=".csv,.xlsx,text/csv" hidden>
 <footer><span class="studio">© 2026 MOAPANG STUDIO</span><span>Created by Eunkyung Kim</span><a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a></footer>
 <script type="module">
-import { fs, rt, ref, set, auth, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, getDocs, serverTimestamp, esc, safeUrl } from './js/fb.js';
+import { fs, rt, ref, set, remove, auth, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, getDocs, serverTimestamp, esc, safeUrl } from './js/fb.js';
 import { readXlsx, readCSV } from './js/xlsx.js';
-import { TRASH_DAYS, inTrash, daysLeft, trashTime, trashBoard, restoreBoard, purgeBoard, purgeExpired } from './js/trash.js';
+import { TRASH_DAYS, inTrash, daysLeft, trashTime, trashBoard, restoreBoard, purgeBoard, purgeExpired, trashClass, restoreClass, purgeClass, purgeExpiredClasses } from './js/trash.js';
+import { duplicateBoard, duplicateClass } from './js/padcopy.js';
 import { cleanFiles, okColor, copyFiles, purgeBoardSubs, layoutOf, FORMATS } from './js/padkit.js';
 import { classSections, sectionsHTML, groupBy, grpField, grpNames, cleanGrp, toggleFold } from './js/groups.js';
 {
 const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
 const SEC_COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
 const MAX_CLASSES = 20, PART_BYTES = 200000;
-const S = { db: null, mode: 'wait', classes: [], boards: [], parts: [], live: [], cmts: [], view: 'home', cid: null, bid: null, filter: '전체', q: '', msg: '', bad: false, saving: 0, saveErr: '', loaded: { classes: false, boards: false }, slow: false };
+const S = { db: null, mode: 'wait', classes: [], tclasses: [], boards: [], parts: [], live: [], cmts: [], view: 'home', cid: null, bid: null, filter: '전체', q: '', msg: '', bad: false, saving: 0, saveErr: '', loaded: { classes: false, boards: false }, slow: false };
 const $ = (id) => document.getElementById(id);
 const bytes = (o) => new TextEncoder().encode(JSON.stringify(o)).length;
 const uid = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -299,8 +301,8 @@ async function connect() {
   const db = FDB;
   S.db = db; S.mode = 'db';
   const timer = setTimeout(() => { S.slow = true; draw(); }, 10000);
-  const done = (k) => { S.loaded[k] = true; if (S.loaded.classes && S.loaded.boards) { clearTimeout(timer); S.slow = false; route(); if (!S.purged) { S.purged = true; purgeExpired(S.boards, { own: ownQ() }).then((n) => { if (n) toast('휴지통에서 ' + TRASH_DAYS + '일 지난 패들렛 ' + n + '개를 영구 삭제했어요.'); }); } } };
-  onSnapshot(query(collection(fs, 'classes'), ...ownQ()), { includeMetadataChanges: true }, (snap) => { S.classes = keepMine(docs(snap)); if (!snap.metadata.fromCache) done('classes'); draw(); }, (e) => { clearTimeout(timer); toast(errText(e), true); });
+  const done = (k) => { S.loaded[k] = true; if (S.loaded.classes && S.loaded.boards) { clearTimeout(timer); S.slow = false; route(); if (!S.purged) { S.purged = true; purgeExpired(S.boards, { own: ownQ() }).then((n) => { if (n) toast('휴지통에서 ' + TRASH_DAYS + '일 지난 패들렛 ' + n + '개를 영구 삭제했어요.'); }); purgeExpiredClasses(S.tclasses, { own: ownQ() }).catch(() => {}); } } };
+  onSnapshot(query(collection(fs, 'classes'), ...ownQ()), { includeMetadataChanges: true }, (snap) => { const all = keepMine(docs(snap)); S.classes = all.filter((c) => !inTrash(c)); S.tclasses = all.filter(inTrash); if (!snap.metadata.fromCache) done('classes'); draw(); }, (e) => { clearTimeout(timer); toast(errText(e), true); });
   onSnapshot(query(collection(fs, 'boards'), ...ownQ()), { includeMetadataChanges: true }, (snap) => { S.boards = keepMine(docs(snap)); if (!snap.metadata.fromCache) done('boards'); draw(); }, (e) => { clearTimeout(timer); toast(errText(e), true); });
 }
 
@@ -420,7 +422,7 @@ function draw() {
 }
 function drawHome(ready) {
   const cs = classes(), full = cs.length >= MAX_CLASSES;
-  const total = S.boards.filter((b) => !inTrash(b)).length, nTrash = trashed().length;
+  const total = S.boards.filter((b) => !inTrash(b)).length, nTrash = trashed().length + S.tclasses.length;
   $('hdr').innerHTML = logo + '<div class="htxt"><small>교실 ' + cs.length + ' / ' + MAX_CLASSES + ' · 저장된 패들렛 ' + total + '개</small><h1 class="hh1">내 패들렛</h1></div><div class="hright"><span class="save"></span><a class="hb" href="teacher.html#classes" title="교실(선생님 화면)로 가기">🏫 교실</a><button class="hb" data-act="trash">🗑 휴지통' + (nTrash ? ' ' + nTrash : '') + '</button><button class="hb go" data-act="newpad">＋ 패들렛 만들기</button></div>';
   let h = msgHTML();
   if (!ready) { $('main').className = ''; $('main').innerHTML = h + '<p class="note">저장된 패들렛을 불러오는 중…</p>'; return; }
@@ -438,18 +440,27 @@ function drawHome(ready) {
 const stamp = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
 function drawTrash(ready) {
   const list = trashed();
-  $('hdr').innerHTML = logo + '<button class="btn" data-act="home">◀ 내 패들렛</button><div class="htxt"><small>지운 패들렛은 ' + TRASH_DAYS + '일 동안 여기 있다가 저절로 영구 삭제돼요</small><h1>🗑 휴지통</h1></div><span class="save"></span><div class="hbtns">' + (list.length ? '<button class="btn red" data-act="emptytrash">휴지통 비우기</button>' : '') + '</div>';
+  const cl = S.tclasses.slice().sort((a, b) => trashTime(b) - trashTime(a));
+  $('hdr').innerHTML = logo + '<button class="btn" data-act="home">◀ 내 패들렛</button><div class="htxt"><small>지운 교실·패들렛은 ' + TRASH_DAYS + '일 동안 여기 있다가 저절로 영구 삭제돼요</small><h1>🗑 휴지통</h1></div><span class="save"></span><div class="hbtns"><a class="btn" href="teacher.html#classes">🏫 교실</a>' + (list.length || cl.length ? '<button class="btn red" data-act="emptytrash">휴지통 비우기</button>' : '') + '</div>';
   let h = '<div style="padding:12px max(3vw,16px) 0;display:flex;flex-direction:column;gap:8px">' + msgHTML() + '</div>';
   if (!ready) h += '<p class="note" style="margin:16px max(3vw,16px)">불러오는 중…</p>';
-  else if (!list.length) h += '<section class="nob pf"><h2>휴지통이 비어 있어요</h2><p>패들렛에서 \'🗑 이 패들렛 삭제\'를 누르면 여기로 와요. ' + TRASH_DAYS + '일 안에는 되살릴 수 있어요.</p><div class="row"><button class="btn" data-act="home">◀ 내 패들렛</button></div></section>';
-  else h += '<div class="trashlist">' + list.map((b) => {
+  else if (!list.length && !cl.length) h += '<section class="nob pf"><h2>휴지통이 비어 있어요</h2><p>교실이나 패들렛의 ⋮ 메뉴에서 🗑 버리기·삭제를 누르면 여기로 와요. ' + TRASH_DAYS + '일 안에는 되살릴 수 있어요.</p><div class="row"><button class="btn" data-act="home">◀ 내 패들렛</button></div></section>';
+  else h += (cl.length ? '<h2 class="trh">지운 교실 · ' + cl.length + '개</h2><div class="trashlist">' + cl.map((c) => {
+    const left = daysLeft(c), n = S.boards.filter((b) => b.cid === c.id && inTrash(b) && b.trashCls === c.id).length;
+    return '<article class="trow pf"><span class="tdot" aria-hidden="true" style="background:' + esc(c.color || '#C9C3B0') + '"></span>' +
+      '<div class="tinfo"><b>🏫 ' + esc(c.name) + '</b><small>' + esc(c.kind || '정규반') + (c.grp ? ' · 📁 ' + esc(c.grp) : '') + ' · 패들렛 ' + n + '개 같이 · ' + stamp(c.trash) + '에 버림</small></div>' +
+      '<span class="tleft' + (left <= 3 ? ' soon' : '') + '">' + (left <= 0 ? '곧 영구 삭제' : left + '일 뒤 영구 삭제') + '</span>' +
+      '<button class="btn sm" data-act="restorecls" data-id="' + esc(c.id) + '">되살리기</button>' +
+      '<button class="btn sm red" data-act="purgecls" data-id="' + esc(c.id) + '">영구 삭제</button></article>';
+  }).join('') + '</div>' : '') +
+    (list.length ? (cl.length ? '<h2 class="trh">지운 패들렛 · ' + list.length + '개</h2>' : '') + '<div class="trashlist">' + list.map((b) => {
     const c = S.classes.find((x) => x.id === b.cid), left = daysLeft(b);
     return '<article class="trow pf"><span class="tdot" aria-hidden="true" style="background:' + esc(c ? c.color : '#C9C3B0') + '"></span>' +
-      '<div class="tinfo"><b>' + esc(b.title) + '</b><small>' + esc(c ? c.name : '지운 교실') + ' · 글 ' + (b.postCount || 0) + '개 · ' + stamp(b.trash) + '에 지움</small></div>' +
+      '<div class="tinfo"><b>' + esc(b.title) + '</b><small>' + esc(c ? c.name : (S.tclasses.find((x) => x.id === b.cid) || {}).name ? (S.tclasses.find((x) => x.id === b.cid).name + ' (휴지통의 교실 — 교실을 되살리면 같이 돌아와요)') : '지운 교실') + ' · 글 ' + (b.postCount || 0) + '개 · ' + stamp(b.trash) + '에 지움</small></div>' +
       '<span class="tleft' + (left <= 3 ? ' soon' : '') + '">' + (left <= 0 ? '곧 영구 삭제' : left + '일 뒤 영구 삭제') + '</span>' +
       '<button class="btn sm" data-act="restore" data-id="' + esc(b.id) + '">되살리기</button>' +
       '<button class="btn sm red" data-act="purge" data-id="' + esc(b.id) + '">영구 삭제</button></article>';
-  }).join('') + '</div>';
+  }).join('') + '</div>' : '');
   $('main').className = ''; $('main').innerHTML = h;
 }
 async function doRestore(b, cid) {
@@ -472,7 +483,7 @@ function gridHTML(cs, full) {
     return '<article class="dk-card" style="--c:' + esc(c.color) + '"><button class="dk-th" type="button" data-act="open" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 패들렛 열기"><span class="dk-tag">' + esc(c.kind) + '</span>' + (bs.length ? pads(bs) : '<span class="dk-big em" aria-hidden="true">🗒️</span>') + '</button>' +
       '<div class="dk-row"><div class="dk-tx"><b>' + esc(c.name) + '</b><small>패들렛 ' + bs.length + '개 · 글 ' + posts + '개 · ' + (last ? '최근 ' + md(last.date) : '새로 만든 교실') + '</small></div>' +
       '<a class="dk-ic" href="teacher.html#live-' + encodeURIComponent(c.id) + '" title="' + esc(c.name) + ' 교실(진행판)로 가기" aria-label="' + esc(c.name) + ' 교실(진행판)로 가기">🏫</a>' +
-      menu('<button type="button" data-act="open" data-id="' + esc(c.id) + '">📂 패들렛 열기</button><button type="button" data-act="grpclass" data-id="' + esc(c.id) + '">📁 묶음 바꾸기</button><button type="button" data-act="editclass" data-id="' + esc(c.id) + '">✏️ 이름·색 고치기</button><button type="button" class="del" data-act="delclass" data-id="' + esc(c.id) + '">🗑 이 교실 지우기</button>') + '</div></article>';
+      menu('<button type="button" data-act="open" data-id="' + esc(c.id) + '">📂 패들렛 열기</button><button type="button" data-act="grpclass" data-id="' + esc(c.id) + '">📁 묶음 바꾸기</button><button type="button" data-act="editclass" data-id="' + esc(c.id) + '">✏️ 이름·색 고치기</button><button type="button" data-act="dupclass" data-id="' + esc(c.id) + '">📄 교실 복제</button><button type="button" class="del" data-act="delclass" data-id="' + esc(c.id) + '">🗑 이 교실 버리기</button>') + '</div></article>';
   };
   // 정규 교실 → 특강 교실, 그 안에서 묶음(📁)별로. 첫 칸에는 ＋ 만들기와 과제 보관함
   let h = sectionsHTML(classSections(list), card, first, 'p:');
@@ -484,7 +495,7 @@ function pickList(bs, b) {
   // 패들렛마다 오른쪽 ⋮ → 이름 바꾸기 · 묶음 바꾸기 · 삭제
   const item = (x) => '<div class="bpr"><button type="button" class="mi" role="menuitem" data-act="tab" data-id="' + esc(x.id) + '" aria-current="' + (b && x.id === b.id) + '">' + (b && x.id === b.id ? '✓ ' : '') + esc(x.title) + '</button>' +
     '<button type="button" class="bpd" data-act="pmenu" data-id="' + esc(x.id) + '" aria-expanded="' + (S.pmenu === x.id) + '" aria-label="' + esc(x.title) + ' 메뉴" title="메뉴">⋮</button></div>' +
-    (S.pmenu === x.id ? '<div class="bpa"><button type="button" data-act="renameboard" data-id="' + esc(x.id) + '">✏️ 이름</button><button type="button" data-act="grpboard" data-id="' + esc(x.id) + '">📁 묶음</button><button type="button" class="del" data-act="delboard" data-id="' + esc(x.id) + '">🗑 삭제</button></div>' : '');
+    (S.pmenu === x.id ? '<div class="bpa"><button type="button" data-act="renameboard" data-id="' + esc(x.id) + '">✏️ 이름</button><button type="button" data-act="grpboard" data-id="' + esc(x.id) + '">📁 묶음</button><button type="button" data-act="dupboard" data-id="' + esc(x.id) + '">📄 복제</button><button type="button" class="del" data-act="delboard" data-id="' + esc(x.id) + '">🗑 삭제</button></div>' : '');
   const gs = groupBy(bs, (x) => x.grp);
   if (gs.length < 2 && !(gs[0] && gs[0].name)) return bs.map(item).join('');
   return gs.map((g) => '<p class="bpmh" role="presentation">📁 ' + esc(g.name || '묶음 없음') + ' <small>' + g.list.length + '</small></p>' + g.list.map(item).join('')).join('');
@@ -514,7 +525,7 @@ function drawBoard() {
       (b ? '<div class="bmg"><b>보기</b><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '" target="_blank" rel="noopener" data-menu>↗ 새 창으로 크게 보기</a><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '&preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '') + '" target="_blank" rel="noopener" data-menu>👀 학생 화면으로 보기</a></div>' +
         '<div class="bmg"><b>학생</b><button class="mi" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김 (누르면 열기)' : '✎ 학생 글쓰기 열림 (누르면 잠그기)') + '</button></div>' +
         '<div class="bmg"><b>보내기</b><button class="mi" data-act="deploy">🚀 여러 반에 보내기</button><button class="mi" data-act="copyboard">📋 다른 패들렛으로 복사</button>' + (c.lib ? '' : '<button class="mi" data-act="pinhome">🏠 첫 화면 링크에 올리기</button>') + '</div>' +
-        '<div class="bmg"><b>관리</b><button class="mi" data-act="renameboard">✏️ 이름 바꾸기</button><button class="mi" data-act="grpboard">📁 묶음 바꾸기' + (b.grp ? ' (' + esc(b.grp) + ')' : '') + '</button><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button><button class="mi del" data-act="delboard">🗑 이 패들렛 삭제</button></div>'
+        '<div class="bmg"><b>관리</b><button class="mi" data-act="renameboard">✏️ 이름 바꾸기</button><button class="mi" data-act="grpboard">📁 묶음 바꾸기' + (b.grp ? ' (' + esc(b.grp) + ')' : '') + '</button><button class="mi" data-act="dupboard">📄 이 패들렛 복제</button><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button><button class="mi del" data-act="delboard">🗑 이 패들렛 삭제</button></div>'
         : '<div class="bmg"><b>관리</b><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button></div>') + '</div>';
   }
   right += '</div>' + (b ? '<button type="button" class="hb go" data-act="bwrite">＋ 글 쓰기</button>' : '');
@@ -560,12 +571,35 @@ function classDlg(c) {
     grpField('cgp', d.grp, grpNames(S.classes)) +
     '<label>색</label><div class="sw" role="group" aria-label="반 색">' + COLORS.map((col) => '<button type="button" data-act="color" data-v="' + col + '" style="background:' + col + '" aria-label="색 ' + col + '" aria-pressed="' + (d.color === col) + '"></button>').join('') + '</div>' +
     '<p>방번호 <b>' + esc(d.room) + '</b> (모아팡 반 입장 때 쓰는 5자리)</p>' +
-    '<div class="row"><button type="submit" class="btn blue" data-form="class">' + (isNew ? '만들기 ▶' : '저장하기 ▶') + '</button>' + (isNew ? '' : '<button type="button" class="btn red" data-act="delclass" data-id="' + esc(c.id) + '">이 교실 지우기</button>') + '</div>', '#cn');
+    '<div class="row"><button type="submit" class="btn blue" data-form="class">' + (isNew ? '만들기 ▶' : '저장하기 ▶') + '</button>' + (isNew ? '' : '<button type="button" class="btn red" data-act="delclass" data-id="' + esc(c.id) + '">🗑 이 교실 버리기</button>') + '</div>', '#cn');
 }
 // 📁 묶음 바꾸기 (클래스·패들렛 같이 씀). 비우면 '묶음 없음'
 function grpDlg(title, note, value, names, fn) {
   pending = fn;
   openDlg(dlgTop(esc(title)) + '<p>' + esc(note) + '</p>' + grpField('gv', value, names) + '<div class="row"><button type="submit" class="btn blue" data-form="grp">저장하기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#gv');
+}
+// 📄 교실 복제
+function dupClassDlg(c) {
+  if (S.classes.length >= MAX_CLASSES) { toast('교실은 20개까지 만들 수 있어요. 안 쓰는 교실을 버린 뒤 복제해 주세요.', true); return; }
+  const n = boardsOf(c.id).length; pending = c;
+  openDlg(dlgTop('📄 교실 복제 — ' + esc(c.name)) +
+    '<label for="dn">새 교실 이름</label><input id="dn" class="field" maxlength="24" autocomplete="off" value="' + esc((c.name + ' 사본').slice(0, 24)) + '">' +
+    '<label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="dB"' + (n ? ' checked' : ' disabled') + ' style="width:22px;height:22px"> 이 교실의 패들렛 ' + n + '개도 같이 복제 (선생님 글만, 학생 글은 빼고)</label>' +
+    '<p style="font-size:13px;color:#4B4F6B">종류·색·맵·묶음·퀴즈 세트·반 링크는 그대로 따라가요. 방번호는 새로 정해지고, 학생 기록은 복사하지 않아요.</p>' +
+    '<div class="row"><button type="submit" class="btn blue" data-form="dupclass">📄 복제하기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#dn');
+}
+// 📄 패들렛 복제
+function dupBoardDlg(b) {
+  const cur = b.cid; pending = b;
+  const opt = (c) => '<option value="' + esc(c.id) + '"' + (c.id === cur ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+  const groups = classSections(classes()).map((sec) => sec.groups.map((g) => '<optgroup label="' + esc(sec.label + (g.name ? ' · 📁 ' + g.name : '')) + '">' + g.list.map(opt).join('') + '</optgroup>').join('')).join('');
+  const mode = (v, t, on) => '<label style="display:flex;gap:8px;align-items:center"><input type="radio" name="dm" value="' + v + '"' + (on ? ' checked' : '') + ' style="width:20px;height:20px"> ' + t + '</label>';
+  openDlg(dlgTop('📄 패들렛 복제 — ' + esc(b.title)) +
+    '<label for="bn">새 패들렛 이름</label><input id="bn" class="field" maxlength="60" autocomplete="off" value="' + esc((b.title + ' 사본').slice(0, 60)) + '">' +
+    '<label for="bc">넣을 교실</label><select id="bc" class="field">' + groups + '<optgroup label="그 밖에"><option value="lib"' + (cur === 'lib' ? ' selected' : '') + '>📦 과제 보관함</option></optgroup></select>' +
+    '<label>복제할 글</label><div style="display:flex;flex-direction:column;gap:6px">' + mode('mine', '선생님 글만 (가져온 글 포함, 학생 글은 빼고)', true) + mode('all', '모든 글 (학생 글도)', false) + mode('none', '글 없이 칸·형식만', false) + '</div>' +
+    '<p style="font-size:13px;color:#4B4F6B">칸·형식·묶음·사진·파일·캔버스 자리는 따라가요. 댓글·이모티콘은 복사하지 않아요. 새 패들렛은 학생에게 아직 안 보여요(👀 학생에게 보이기로 켜요).</p>' +
+    '<div class="row"><button type="submit" class="btn blue" data-form="dupboard">📄 복제하기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#bn');
 }
 function textDlg(title, label, value, max, fn) {
   pending = fn;
@@ -796,7 +830,7 @@ document.addEventListener('click', (e) => {
   if (a === 'pick') { e.preventDefault(); S.pick = !S.pick; S.menu = false; S.pmenu = null; draw(); return; }
   if (a === 'pmenu') { e.preventDefault(); S.pmenu = S.pmenu === id ? null : id; draw(); const nb = document.querySelector('.bpd[data-id="' + CSS.escape(id) + '"]'); if (nb) nb.focus(); return; }
   if (a === 'bfmt' || a === 'bwrite') { frameAct(a === 'bfmt' ? 'fmtBtn' : 'writeBtn'); return; }
-  if (S.pick && t.closest('.bpm')) { S.pick = false; S.pmenu = null; }
+  if (S.pick && t.closest('.bpm')) { S.pick = false; S.pmenu = null; setTimeout(draw, 0); }
   if (S.menu && t.closest('.bmenu')) { S.menu = false; setTimeout(draw, 0); } // 설정에서 하나 고르면 접힘
   if (t.tagName === 'A' && a !== 'home') return;
   e.preventDefault();
@@ -812,11 +846,16 @@ document.addEventListener('click', (e) => {
   else if (a === 'grpboard') { const b = id ? S.boards.find((x) => x.id === id) : curBoard(), c = curClass(); if (b && c) grpDlg('📁 묶음 바꾸기 — ' + b.title, '이 반 패들렛 고르기(▾)에서 같은 묶음끼리 모아 보여요. 예: 1학기, 캔바 단원. 비워 두면 \'묶음 없음\'으로 가요.', b.grp, grpNames(boardsOf(c.id)), (v) => saveBoard(b, { grp: v })); }
   else if (a === 'kind' || a === 'color') { pending[a] = t.dataset.v; t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t))); }
   else if (a === 'delclass') {
-    const c = S.classes.find((x) => x.id === id), bs = boardsOf(id);
-    confirmDlg('교실 지우기', '\'' + c.name + '\' 교실을 지워요.' + (bs.length ? ' 그 안의 패들렛 ' + bs.length + '개는 휴지통으로 옮겨져서 ' + TRASH_DAYS + '일 안에는 다른 교실로 되살릴 수 있어요.' : '') + ' 교실은 되돌릴 수 없어요.', '교실 지우기', async () => {
-      try { for (const b of bs) await trashBoard(b, { own: ownQ(), homeRef: homeRefP() }); await del('classes/' + id); if (c.room) await deleteDoc(doc(fs, 'rooms', c.room)); toast('\'' + c.name + '\'을 지웠어요.' + (bs.length ? ' 패들렛은 휴지통에 있어요.' : '')); } catch (err) { toast(S.saveErr || errText(err), true); }
+    const c = S.classes.find((x) => x.id === id); if (!c) return; const n = boardsOf(id).length;
+    confirmDlg('교실 버리기', '\'' + c.name + '\' 교실을 휴지통으로 옮겨요. 학생은 바로 못 들어오고' + (n ? ', 그 안의 패들렛 ' + n + '개도 같이 휴지통으로 가요' : '') + '. ' + TRASH_DAYS + '일 안에는 🗑 휴지통에서 학생 기록·패들렛까지 그대로 되살릴 수 있어요.', '🗑 휴지통으로', async () => {
+      try { const k = await trashClass(c, { own: ownQ(), homeRef: homeRefP() }); remove(ref(rt, 'live/' + c.id)).catch(() => {}); if (S.cid === c.id) goHome(); toast('\'' + c.name + '\'을 휴지통으로 옮겼어요' + (k ? ' (패들렛 ' + k + '개도 같이)' : '') + '. 🗑 휴지통에서 되살릴 수 있어요.'); }
+      catch (err) { toast(S.saveErr || errText(err), true); }
     });
   }
+  else if (a === 'dupclass') { const c = S.classes.find((x) => x.id === id); if (c) dupClassDlg(c); }
+  else if (a === 'dupboard') { const b = id ? S.boards.find((x) => x.id === id) : curBoard(); if (b) dupBoardDlg(b); }
+  else if (a === 'restorecls') { const c = S.tclasses.find((x) => x.id === id); if (!c) return; if (S.classes.length >= MAX_CLASSES) { toast('교실이 20개라서 되살릴 수 없어요. 안 쓰는 교실을 먼저 버려 주세요.', true); return; } restoreClass(c, { own: ownQ(), homeRef: homeRefP(), owner: isMate() ? S.uid : null }).then((r) => toast('\'' + c.name + '\' 교실을 되살렸어요. 방번호 ' + r.room + (r.boards ? ' · 패들렛 ' + r.boards + '개도 같이' : '') + '.'), (err) => toast(errText(err), true)); }
+  else if (a === 'purgecls') { const c = S.tclasses.find((x) => x.id === id); if (!c) return; confirmDlg('교실 영구 삭제', '\'' + c.name + '\' 교실과 학생 기록, 같이 지운 패들렛을 완전히 지워요. 되돌릴 수 없어요.', '영구 삭제', async () => { try { await purgeClass(c, { own: ownQ() }); remove(ref(rt, 'owners/' + c.id)).catch(() => {}); toast('영구 삭제했어요.'); } catch (err) { toast(errText(err), true); } }); }
   else if (a === 'tab') { S.bid = id; S.msg = ''; S.menu = false; draw(); }
   else if (a === 'newboard') newBoard();
   else if (a === 'pubboard') { const b = curBoard(); if (b) setPublic(b, !b.public); }
@@ -835,7 +874,7 @@ document.addEventListener('click', (e) => {
     else { pending = b.id; openDlg(dlgTop('어느 교실로 되살릴까요?') + '<p>\'' + esc(b.title) + '\'이 있던 교실은 지워졌어요. 되살릴 교실을 골라 주세요.</p><label for="rc">교실</label><select id="rc" class="field">' + classes().map((x) => '<option value="' + esc(x.id) + '">' + esc(x.name) + ' · ' + esc(x.kind) + '</option>').join('') + '</select><div class="row"><button type="submit" class="btn blue" data-form="restore">되살리기 ▶</button></div>', '#rc'); }
   }
   else if (a === 'purge') { const b = S.boards.find((x) => x.id === id); if (!b) return; confirmDlg('영구 삭제', '\'' + b.title + '\'과 그 안의 글·사진·댓글을 완전히 지워요. 되돌릴 수 없어요.', '영구 삭제', async () => { try { await purgeBoard(b, { own: ownQ() }); toast('영구 삭제했어요.'); } catch (err) { toast(errText(err), true); } }); }
-  else if (a === 'emptytrash') { const list = trashed(); if (!list.length) return; confirmDlg('휴지통 비우기', '휴지통의 패들렛 ' + list.length + '개를 모두 완전히 지워요. 되돌릴 수 없어요.', '모두 영구 삭제', async () => { let n = 0; for (const b of list) { try { await purgeBoard(b, { own: ownQ() }); n++; } catch (err) { /* 다음 것 */ } } toast('패들렛 ' + n + '개를 영구 삭제했어요.', n < list.length); }); }
+  else if (a === 'emptytrash') { const list = trashed(), cl = S.tclasses.slice(); if (!list.length && !cl.length) return; confirmDlg('휴지통 비우기', '휴지통의 ' + (cl.length ? '교실 ' + cl.length + '개' + (list.length ? '와 ' : '') : '') + (list.length ? '패들렛 ' + list.length + '개' : '') + '를 모두 완전히 지워요. 되돌릴 수 없어요.', '모두 영구 삭제', async () => { let n = 0, m = 0; for (const c of cl) { try { await purgeClass(c, { own: ownQ() }); m++; } catch (err) { /* 다음 것 */ } } for (const b of trashed()) { try { await purgeBoard(b, { own: ownQ() }); n++; } catch (err) { /* 다음 것 */ } } toast((m ? '교실 ' + m + '개, ' : '') + '패들렛 ' + n + '개를 영구 삭제했어요.'); }); }
 });
 // 정규 교실·특강 교실·묶음 머리를 누르면 접고 펴기
 document.addEventListener('click', (e) => {
@@ -848,6 +887,21 @@ document.addEventListener('submit', async (e) => {
   const btn = (e.submitter && e.submitter.dataset.form) ? e.submitter : e.target.querySelector('[data-form]');
   const f = btn && btn.dataset.form;
   if (f === 'class') saveClass();
+  else if (f === 'dupclass') {
+    const c = pending, name = $('dn').value.trim(), withBoards = $('dB').checked; if (!name) { $('dn').focus(); return; }
+    closeDlg(); toast('복제하는 중… (패들렛이 많으면 조금 걸려요)');
+    try { const r = await duplicateClass(c, { name, withBoards, uid: S.uid, owner: isMate() ? S.uid : null, own: ownQ(), used: new Set(S.classes.map((x) => x.room)) }); toast('\'' + r.name + '\' 교실을 만들었어요. 방번호 ' + r.room + (withBoards ? ' · 패들렛 ' + r.boards + '개 복제' : '') + '.'); }
+    catch (err) { toast(S.saveErr || errText(err), true); }
+  }
+  else if (f === 'dupboard') {
+    const b = pending, title = $('bn').value.trim() || b.title + ' 사본', cid = $('bc').value, m = document.querySelector('[name=dm]:checked'), mode = m ? m.value : 'mine';
+    closeDlg(); toast('복제하는 중…');
+    try {
+      const nid = await duplicateBoard(b, { cid, title, mode, uid: S.uid, owner: isMate() ? S.uid : null, own: ownQ(), from: '복제함' });
+      S.wantBid = nid; S.view = 'board'; S.cid = cid; S.bid = nid; S.msg = ''; S.menu = false; S.pick = false; S.pmenu = null; S.lastCid = cid;
+      history.replaceState(null, '', '#class-' + cid); draw(); toast('\'' + title + '\'을 만들었어요.');
+    } catch (err) { toast(S.saveErr || errText(err), true); }
+  }
   else if (f === 'newpad') { const cid = $('pc').value, title = $('pn').value.trim(); closeDlg(); if (cid === '__new') classDlg(null); else createPad(cid, title); }
   else if (f === 'grp') { const v = cleanGrp($('gv').value), fn = pending; closeDlg(); try { await fn(v); toast(v ? '\'' + v + '\' 묶음으로 옮겼어요.' : '묶음에서 뺐어요.'); } catch (err) { toast(S.saveErr || '저장하지 못했어요.', true); } }
   else if (f === 'text') { const v = $('tv').value.trim(); if (!v) { $('tv').focus(); return; } const fn = pending; closeDlg(); try { await fn(v); toast('저장했어요.'); } catch (err) { toast(S.saveErr || '저장하지 못했어요.', true); } }

@@ -738,7 +738,7 @@ function frame(now) {
 
   // 반 정보 (기본 맵, 링크)
   onSnapshot(doc(fs, 'classes', ses.cid), (s) => {
-    if (!s.exists()) { toast('이 반이 없어졌어요. 첫 화면으로 가요.', true); if (!TEACH) clearSession(); setTimeout(() => { location.href = TEACH ? 'teacher.html' : './'; }, 1500); return; }
+    if (!s.exists() || s.data().trash) { toast(s.exists() ? '이 반은 선생님이 휴지통으로 옮겼어요. 첫 화면으로 가요.' : '이 반이 없어졌어요. 첫 화면으로 가요.', true); if (!TEACH) clearSession(); setTimeout(() => { location.href = TEACH ? 'teacher.html' : './'; }, 1500); return; }
     cls = s.data(); if (cls.name && cls.name !== ses.className) { ses.className = cls.name; keepSes(ses); $('clsT').textContent = cls.name; document.title = cls.name + ' · 모아팡'; }
     drawLinks();
   }, (err) => toast(errText(err), true));

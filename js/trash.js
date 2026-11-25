@@ -16,7 +16,7 @@ export const isExpired = (b) => inTrash(b) && Date.now() - trashTime(b) >= TRASH
 
 const partsOf = async (bid, own) => (await getDocs(query(collection(fs, 'parts'), where('bid', '==', bid), ...(own || [])))).docs;
 
-export async function trashBoard(b, { own = [], homeRef = null } = {}) {
+export async function trashBoard(b, { own = [], homeRef = null, extra = null } = {}) {
   let pinned = false;
   if (homeRef) {
     try {
@@ -24,13 +24,13 @@ export async function trashBoard(b, { own = [], homeRef = null } = {}) {
       if (links.some((l) => l.bid === b.id)) { pinned = true; await setDoc(homeRef, { links: links.filter((l) => l.bid !== b.id) }, { merge: true }); }
     } catch (e) { /* 링크 정리는 못 해도 휴지통으로는 옮김 */ }
   }
-  await updateDoc(doc(fs, 'boards', b.id), { trash: new Date().toISOString(), trashPub: !!b.public, trashPin: pinned, public: false });
+  await updateDoc(doc(fs, 'boards', b.id), Object.assign({ trash: new Date().toISOString(), trashPub: !!b.public, trashPin: pinned, public: false }, extra || {}));
   for (const p of await partsOf(b.id, own)) await updateDoc(p.ref, { pub: false });
 }
 
 export async function restoreBoard(b, { own = [], homeRef = null, cid = null, className = '' } = {}) {
   const pub = !!b.trashPub;
-  const patch = { trash: '', trashPub: false, trashPin: false, public: pub };
+  const patch = { trash: '', trashPub: false, trashPin: false, trashCls: '', public: pub };
   if (cid) patch.cid = cid;
   await updateDoc(doc(fs, 'boards', b.id), patch);
   for (const p of await partsOf(b.id, own)) await updateDoc(p.ref, { pub });
@@ -53,5 +53,44 @@ export async function purgeBoard(b, { own = [] } = {}) {
 export async function purgeExpired(boards, opts) {
   let n = 0;
   for (const b of boards.filter(isExpired)) { try { await purgeBoard(b, opts); n++; } catch (e) { /* 다음에 다시 */ } }
+  return n;
+}
+
+/* ---------- 교실 휴지통 ----------
+ *  교실을 지우면: 그 교실 패들렛을 휴지통으로(trashCls 표시) · 방번호 문서를 지워 학생이 못 들어오게 · 교실 문서에 trash(지운 때)
+ *  되살리기: 방번호를 다시 (그새 다른 반이 썼으면 새 번호) · 같이 지운 패들렛도 되살림
+ *  영구 삭제(30일 뒤 또는 직접): 같이 지운 패들렛·학생 기록·교실 문서를 모두 지움 */
+export async function trashClass(c, { own = [], homeRef = null } = {}) {
+  const bs = await getDocs(query(collection(fs, 'boards'), where('cid', '==', c.id), ...own));
+  for (const d of bs.docs) { const b = Object.assign({ id: d.id }, d.data()); if (!inTrash(b)) await trashBoard(b, { own, homeRef, extra: { trashCls: c.id } }); }
+  if (c.room) { try { await deleteDoc(doc(fs, 'rooms', c.room)); } catch (e) { /* 방번호는 되살릴 때 다시 */ } }
+  await updateDoc(doc(fs, 'classes', c.id), { trash: new Date().toISOString() });
+  return bs.docs.length;
+}
+export async function restoreClass(c, { own = [], homeRef = null, owner = null } = {}) {
+  let room = c.room;
+  if (!room || (await getDoc(doc(fs, 'rooms', room))).exists()) {
+    room = '';
+    for (let i = 0; i < 40 && !room; i++) { const r = String(Math.floor(10000 + Math.random() * 90000)); if (!(await getDoc(doc(fs, 'rooms', r))).exists()) room = r; }
+    if (!room) throw new Error('no room');
+  }
+  await setDoc(doc(fs, 'rooms', room), Object.assign({ cid: c.id, name: c.name || '', color: c.color || '#FFD23F' }, owner ? { owner } : {}));
+  await updateDoc(doc(fs, 'classes', c.id), { trash: '', room });
+  const bs = await getDocs(query(collection(fs, 'boards'), where('cid', '==', c.id), ...own));
+  let n = 0;
+  for (const d of bs.docs) { const b = Object.assign({ id: d.id }, d.data()); if (inTrash(b) && b.trashCls === c.id) { await restoreBoard(b, { own, homeRef, className: c.name }); n++; } }
+  return { room, boards: n };
+}
+export async function purgeClass(c, { own = [] } = {}) {
+  const bs = await getDocs(query(collection(fs, 'boards'), where('cid', '==', c.id), ...own));
+  for (const d of bs.docs) { const b = Object.assign({ id: d.id }, d.data()); if (inTrash(b) && b.trashCls === c.id) await purgeBoard(b, { own }); }
+  const ss = await getDocs(collection(fs, 'classes', c.id, 'students'));
+  for (const s of ss.docs) await deleteDoc(s.ref);
+  if (c.room) { try { const r = await getDoc(doc(fs, 'rooms', c.room)); if (r.exists() && r.data().cid === c.id) await deleteDoc(r.ref); } catch (e) { /* 무시 */ } }
+  await deleteDoc(doc(fs, 'classes', c.id));
+}
+export async function purgeExpiredClasses(classes, opts) {
+  let n = 0;
+  for (const c of classes.filter(isExpired)) { try { await purgeClass(c, opts); n++; } catch (e) { /* 다음에 다시 */ } }
   return n;
 }
