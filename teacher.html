@@ -36,7 +36,18 @@
 .seg{display:flex;flex-wrap:wrap;gap:6px}
 .list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto}
 .list li{display:flex;align-items:center;gap:8px;padding:6px 8px;background:#fff;border:1px solid #D5DAE3;border-radius:8px;font-size:15px;flex-wrap:wrap}
-.list li .sp{flex:1}
+.list li .sp{flex:1 1 200px;min-width:0;overflow-wrap:anywhere}
+/* 문제 한 개 보기 (넣은 뒤 확인 · 세트 목록) */
+.qcard{display:flex;flex-direction:column;gap:6px;padding:10px 12px;background:#fff;border:1px solid #D5DAE3;border-radius:12px}
+.qcard .qq{font:700 16px/1.45 'Noto Sans KR',sans-serif;overflow-wrap:anywhere}
+.qcard .qa{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:14px}
+.qcard .qa .ok{padding:2px 10px;border-radius:999px;background:#DDF7E3;font-weight:800;color:#146C2E}
+.qcard .qa .op{padding:2px 10px;border-radius:999px;background:#F2F4F7;color:#3B3F52}
+.qcard .qa .op.ok{background:#DDF7E3;color:#146C2E}
+.qcard .qw{margin:0;padding:6px 10px;border-radius:8px;background:#FFF6D6;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.qcard .qw.no{background:#F4F5F8;color:#6B7085}
+.qcard .qt{display:flex;gap:6px;justify-content:flex-end}
+.qlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto}
 .list li canvas{width:40px;height:40px;image-rendering:pixelated;background:var(--paper2)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips span{border:1px solid #D5DAE3;border-radius:8px;background:#fff;padding:2px 8px;font-size:14px}
@@ -682,13 +693,35 @@ const QFMT = {
     show: (x) => x.q + ' → ' + (x.o[x.a] || '') + (x.why ? ' (' + x.why + ')' : '')
   }
 };
+// 문제 한 개를 알아보기 쉽게: 문제 / 정답(객관식은 보기 모두, 정답에 ✓) / 💡 해설
+function qBodyHTML(k, x, n) {
+  const why = x.why || defWhy(x.q);
+  const ans = k === 'ox' ? '<span class="ok">정답 ' + esc(x.a === 'X' ? 'X' : 'O') + '</span>'
+    : (x.o || []).map((o, j) => '<span class="op' + (j === +x.a ? ' ok' : '') + '">' + (j + 1) + '. ' + esc(o) + (j === +x.a ? ' ✓' : '') + '</span>').join('');
+  return '<div class="qq">' + (n ? n + '. ' : '') + esc(x.q) + '</div><div class="qa">' + ans + '</div>' +
+    '<p class="qw' + (why ? '' : ' no') + '">' + (why ? '💡 ' + esc(why) : '해설 없음 — ✏️ 고치기로 써 넣을 수 있어요') + '</p>';
+}
+const qCardHTML = (k, x, n, tools) => '<li class="qcard">' + qBodyHTML(k, x, n) + (tools || '') + '</li>';
+// 넣은 뒤 바로 확인: 방금 들어간 문제를 정답·해설과 함께 보여 줌
+function quizAddedDlg(k, items, from, tg, total, replaced) {
+  const set = tg.set && tg.set();
+  openDlg(dlgTop('✅ 문제를 넣었어요') +
+    '<p class="note" style="color:var(--ink)">' + esc(from) + ' <b>' + items.length + '문제</b>를 ' + (tg.msg ? esc(tg.msg) : QFMT[k].name + ' 문제 상자에 ') + (replaced ? '넣었어요' : '더했어요') + '. 지금 모두 <b>' + total + '문제</b>예요. 아래에서 정답과 해설이 맞는지 확인해 주세요.</p>' +
+    '<ol class="qlist">' + items.map((x, i) => qCardHTML(k, x, total - items.length + i + 1)).join('') + '</ol>' +
+    '<div class="row"><button type="button" class="btn blue" id="qaAll">📚 세트 전체 보기·고치기</button>' + (set ? '<button type="button" class="btn grn" id="qaSend">🚀 반에 보내기</button>' : '') + '<button type="button" class="btn" data-x>닫기</button></div>', '#qaAll');
+  $('qaAll').addEventListener('click', () => tg.after());
+  if ($('qaSend')) $('qaSend').addEventListener('click', () => sendSetDlg(tg.set()));
+}
 // 새 문제를 문제 상자에 넣기: 더하기 또는 바꾸기 (기본 문제만 있을 때는 바로 바꾸기)
 function putQuizItems(k, items, from, tg) {
   const cur = tg.cur();
   const go = async (replace) => {
     closeDlg();
-    try { const list = (replace ? [] : cur).concat(items).slice(0, 300); await tg.save(list); tg.after(); if (tg.msg) { toast(from + ' ' + items.length + '문제를 ' + tg.msg + (replace || !cur.length ? '넣었어요.' : '더했어요.')); return; } toast(from + ' ' + items.length + '문제를 ' + QFMT[k].name + ' 문제 상자에 ' + (replace || !cur.length ? '넣었어요' : '더했어요') + '. 위 \'문제 상자에서 고르기\'에서 골라 내요.'); }
-    catch (err) { toast(errText(err), true); }
+    try {
+      const list = (replace ? [] : cur).concat(items).slice(0, 300); await tg.save(list);
+      toast(from + ' ' + items.length + '문제를 넣었어요.');
+      quizAddedDlg(k, items, from, tg, list.length, replace || !cur.length); // 넣은 문제를 바로 확인
+    } catch (err) { toast(errText(err), true); }
   };
   if (!cur.length) { go(true); return; }
   openDlg(dlgTop('문제 상자에 넣기') + '<p class="note" style="color:var(--ink)">' + esc(from) + ' ' + items.length + '문제를 어떻게 넣을까요? 지금 문제 상자에는 ' + cur.length + '문제가 있어요.</p><div class="row"><button type="button" class="btn blue" id="qAdd">뒤에 더하기</button><button type="button" class="btn red" id="qRep">이걸로 바꾸기</button><button type="button" class="btn" data-x>그만두기</button></div>', '#qAdd');
@@ -726,7 +759,7 @@ function aiQuizDlg(k, tg) {
     '<label class="lb">문제 수<select class="field" id="aiN">' + opt(['5', '10', '15', '20'], last.n || '10') + '</select></label></div>' +
     '<label class="lb">주제·차시 (없어도 돼요)<input class="field" id="aiTopic" maxlength="120" placeholder="예: 엔트리 반복 블록, 3학년 과학 자석" value="' + esc(last.topic || '') + '"></label>' +
     '<div class="row"><button type="button" class="btn yel" id="aiGo">AI에게 문제 받기</button></div>' +
-    '<p class="note" id="aiMsg" role="status"></p><ol class="aiout" id="aiOut"></ol>' +
+    '<p class="note" id="aiMsg" role="status"></p><ol class="qlist" id="aiOut"></ol>' +
     '<div class="row" id="aiAct" hidden><button type="button" class="btn blue" id="aiPut">고른 문제 넣기</button><button type="button" class="btn" id="aiAgain">다시 만들기</button></div>' +
     '<p class="note">AI가 만든 문제도 틀릴 수 있어요. 넣기 전에 한 번 읽어 봐요.</p>', '#aiCat');
   const make = async () => {
@@ -739,7 +772,7 @@ function aiQuizDlg(k, tg) {
       aiItems = await aiQuiz(p, { signal: aiAbort.signal });
       if (!$('aiOut')) return;
       if (!aiItems.length) { $('aiMsg').textContent = 'AI가 쓸 만한 문제를 못 만들었어요. 조건을 바꿔서 다시 해 봐요.'; return; }
-      $('aiOut').innerHTML = aiItems.map((x, i) => '<li><label><input type="checkbox" data-ai="' + i + '" checked> <span>' + esc(F.show(x)) + '</span></label></li>').join('');
+      $('aiOut').innerHTML = aiItems.map((x, i) => '<li class="qcard"><label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer"><input type="checkbox" data-ai="' + i + '" checked style="width:20px;height:20px;margin-top:3px;flex:none"><span style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0">' + qBodyHTML(k, x, i + 1) + '</span></label></li>').join('');
       $('aiAct').hidden = false; $('aiMsg').textContent = aiItems.length + '문제를 만들었어요. 마음에 드는 문제만 골라 넣어요.';
     } catch (err) {
       if (!$('aiMsg') || (err && err.name === 'AbortError')) return;
@@ -940,12 +973,12 @@ function newSetDlg(k) {
 function openSetDlg(set) {
   if (!set) return;
   const k = set.k, F = QFMT[k], cur = () => (LIB.sets.find((s) => s.id === set.id) || set);
-  const tg = { cur: () => cur().list || [], save: (list) => saveSet(Object.assign({}, cur(), { list })), after: () => setTimeout(() => openSetDlg(cur()), 50), msg: '\'' + set.name + '\' 세트에 ' };
+  const tg = { cur: () => cur().list || [], save: (list) => saveSet(Object.assign({}, cur(), { list })), after: () => setTimeout(() => openSetDlg(cur()), 50), msg: '\'' + set.name + '\' 세트에 ', set: cur };
   const list = cur().list || [];
   openDlg(dlgTop('📚 ' + cur().name + ' · ' + KN[k]) +
     '<div class="row qtools"><button type="button" class="btn sm blue" id="qzMan">✏️ 문제 직접 쓰기</button><button type="button" class="btn sm" id="qzXl">📥 엑셀로 문제 올리기</button><button type="button" class="btn sm" id="qzTpl">엑셀 양식 받기</button><button type="button" class="btn sm yel" id="qzAi">🤖 AI로 문제 만들기</button><button type="button" class="btn sm" id="qzRen">이름 바꾸기</button><input type="file" id="qzFile" accept=".xlsx,.csv" hidden></div>' +
     '<p class="note">' + list.length + '문제 · 받은 반: ' + esc(sentTo(cur()).map((c) => c.name).join(', ') || '없음') + '</p>' +
-    '<ol class="list" id="sItems" style="max-height:46vh;padding-left:0">' + (list.length ? list.map((x, i) => '<li><span class="sp">' + (i + 1) + '. ' + esc(F.show(Object.assign({}, x, { why: x.why || defWhy(x.q) }))) + (x.why || defWhy(x.q) ? '' : ' <small style="color:var(--sub)">· 해설 없음</small>') + '</span><button class="btn sm" type="button" data-qed="' + i + '" aria-label="' + (i + 1) + '번 문제 고치기">✏️ 고치기</button><button class="btn sm red" type="button" data-qdel="' + i + '" aria-label="' + (i + 1) + '번 문제 빼기">✕</button></li>').join('') : '<li>아직 문제가 없어요. 엑셀이나 AI로 넣어요.</li>') + '</ol>' +
+    '<ol class="qlist" id="sItems" style="max-height:46vh">' + (list.length ? list.map((x, i) => qCardHTML(k, x, i + 1, '<div class="qt"><button class="btn sm" type="button" data-qed="' + i + '" aria-label="' + (i + 1) + '번 문제 고치기">✏️ 고치기</button><button class="btn sm red" type="button" data-qdel="' + i + '" aria-label="' + (i + 1) + '번 문제 빼기">✕ 빼기</button></div>')).join('') : '<li class="qcard">아직 문제가 없어요. ✏️ 문제 직접 쓰기·엑셀·AI로 넣어요.</li>') + '</ol>' +
     '<div class="row"><button class="btn grn" type="button" id="sSend">🚀 반에 보내기</button><button class="btn" type="button" data-x>다 했어요</button></div>', '#qzXl');
   bindQuizTools(k, tg);
   $('qzRen').addEventListener('click', () => { const n = prompt('세트 이름', cur().name); if (n && n.trim()) saveSet(Object.assign({}, cur(), { name: n.trim().slice(0, 30) })).then(() => openSetDlg(cur())).catch((err) => toast(errText(err), true)); });
