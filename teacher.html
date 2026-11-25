@@ -41,6 +41,14 @@
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips span{border:1px solid #D5DAE3;border-radius:8px;background:#fff;padding:2px 8px;font-size:14px}
 .bars{display:flex;flex-direction:column;gap:6px}
+.qzopt{display:flex;flex-wrap:wrap;gap:10px 22px;padding:12px;border-radius:12px;background:#F4F6FA}
+.qzopt .lb{display:flex;flex-direction:column;gap:6px;font:700 14px 'Noto Sans KR',sans-serif}
+.qzopt .seg{display:flex;flex-wrap:wrap;gap:6px}
+.qzopt .note{flex-basis:100%;margin:0}
+.qclock{align-self:flex-start;padding:4px 14px;border-radius:999px;background:#1D2030;color:#fff;font:400 26px/1.3 Jua,sans-serif;font-variant-numeric:tabular-nums}
+.qclock.low{background:#E5484D}
+.qclock.go{background:#2F7BF6}
+.qclock:empty{display:none}
 .bars div{display:grid;grid-template-columns:120px 1fr 40px;gap:8px;align-items:center;font-size:15px}
 .bars i{display:block;height:20px;background:var(--blue);border:1px solid #D5DAE3;border-radius:8px;min-width:2px}
 .bars .ok i{background:#2fbf5b}
@@ -127,7 +135,7 @@ import {
   ref, set, update, remove, push, onValue, rquery, limitToLast, rnow, rget, MAPS, mapName, esc, safeUrl, hostOf, errText, toast, TEACHER_EM_KEY, endPreview, previewUrl, onLiveState
 } from './js/fb.js';
 import { emoHTML, emoRich, emoOnly } from './js/emo.js';
-import { DEF_OX, DEF_MC } from './js/questions.js';
+import { DEF_OX, DEF_MC, defWhy } from './js/questions.js';
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
 import { aiQuiz, AGES, CATS } from './js/ai.js';
 import { trashBoard, inTrash, TRASH_DAYS } from './js/trash.js';
@@ -569,23 +577,43 @@ function paintQuiz() {
   if (!L || !$('quizC')) return;
   const sets = classSets(L.cid);
   $('quizC').innerHTML = '<h2>퀴즈 <span class="badge" id="qzB"></span></h2><div id="qzLive"></div>' +
+    (sets.length ? qzOptHTML() : '') +
     (sets.length ? '<div class="stack" id="qzSets">' + sets.map((st) => '<div class="pf white pad stack" style="padding:12px;box-shadow:none"><div class="row"><span class="tag" style="background:' + (st.k === 'ox' ? '#FFD23F' : '#9DB8FF') + '">' + KN[st.k] + '</span><b style="flex:1">📚 ' + esc(st.name) + ' · ' + st.list.length + '문제</b></div>' +
       '<div class="mapsel"><select class="field" data-qsel="' + st.k + '" aria-label="' + esc(st.name) + ' 문제 고르기">' + st.list.map((x, i) => '<option value="' + i + '">' + (i + 1) + '. ' + esc(String(x.q).slice(0, 50)) + '</option>').join('') + '</select><button class="btn blue" type="button" data-qgo="' + st.k + '">이 문제 내기 ▶</button></div></div>').join('') + '</div>'
       : '<p class="note" style="color:var(--ink)">이 반에 보낸 퀴즈 세트가 없어요. <a href="#quiz">📚 퀴즈 보관함</a>에서 세트를 만들고 이 반으로 보내면 여기서 낼 수 있어요.</p>') +
     '<p class="note">문제 만들기·고치기는 <a href="#quiz">📚 퀴즈 보관함</a>에서 해요. 정답을 공개하면 학생 화면과 교실 스크린에 정답과 해설이 보여요.</p>';
   $('quizC').onclick = (e) => {
+    const o = e.target.closest('[data-qlim],[data-qauto]');
+    if (o) {
+      if (o.dataset.qlim !== undefined) QZO.lim = +o.dataset.qlim; else { QZO.auto = o.dataset.qauto === '1'; if (L.st.quiz) setSt({ 'quiz/auto': QZO.auto }); }
+      saveQZO(); const box = $('qzOpt'); if (box) box.outerHTML = qzOptHTML(); return;
+    }
     const b = e.target.closest('[data-qgo]'); if (!b) return;
     const st = classSets(L.cid).find((x) => x.k === b.dataset.qgo), sel = document.querySelector('[data-qsel="' + b.dataset.qgo + '"]');
     if (st) sendSetQ(st, +(sel ? sel.value : 0));
   };
   paintQuizLive();
 }
+/* ⏱ 퀴즈 진행 방법 (이 컴퓨터에 기억): 한 문제 시간(없음·10·20·30·60초), 다음 문제로 자동/선생님이 */
+const QZO = (() => { try { return Object.assign({ lim: 0, auto: false }, JSON.parse(localStorage.getItem('moa_qz_opt') || '{}')); } catch (e) { return { lim: 0, auto: false }; } })();
+const saveQZO = () => { try { localStorage.setItem('moa_qz_opt', JSON.stringify(QZO)); } catch (e) { /* 기억 못 해도 됨 */ } };
+const REV_MS = (q) => (q && q.why ? 8000 : 5000); // 정답·해설을 보여 주는 시간 (자동 넘기기)
+let tOff = 0; onValue(ref(rt, '.info/serverTimeOffset'), (s) => { tOff = +s.val() || 0; }); // 서버 시계와의 차이 (제한 시간을 모두 같게)
+function qzOptHTML() {
+  const lim = (v) => '<button type="button" class="btn sm" data-qlim="' + v + '" aria-pressed="' + (QZO.lim === v) + '">' + (v ? (v < 60 ? v + '초' : '1분') : '없음') + '</button>';
+  const note = (QZO.lim ? '한 문제에 ' + (QZO.lim < 60 ? QZO.lim + '초' : '1분') + '. 시간이 끝나거나 모두 답하면 정답과 해설이 나와요. ' : '시간 제한 없이 풀어요. 모두 답하면 정답과 해설이 나와요. ') +
+    (QZO.auto ? '정답·해설을 몇 초 보여 준 뒤 다음 문제로 저절로 넘어가고, 마지막 문제 뒤에는 순위를 발표해요. (진행판을 열어 두세요)' : '선생님이 \'다음 문제\'를 누르면 모두 같이 넘어가요.');
+  return '<div class="qzopt" id="qzOpt"><div class="lb" role="group" aria-label="한 문제 시간">⏱ 한 문제 시간<div class="seg">' + [0, 10, 20, 30, 60].map(lim).join('') + '</div></div>' +
+    '<div class="lb" role="group" aria-label="다음 문제로 넘어가기">다음 문제로<div class="seg"><button type="button" class="btn sm" data-qauto="1" aria-pressed="' + !!QZO.auto + '">🔁 자동으로 넘어가기</button><button type="button" class="btn sm" data-qauto="0" aria-pressed="' + !QZO.auto + '">👩‍🏫 선생님이 넘기기</button></div></div>' +
+    '<p class="note">' + note + '</p></div>';
+}
 async function sendSetQ(set, i) {
   const x = set.list[i]; if (!x) return;
   const qid = 'q' + Date.now().toString(36), k = set.k;
-  const quiz = { qid, k, q: String(x.q || ''), t: Date.now(), n: i, total: set.list.length, sid: set.sid || '', name: set.name || '' };
+  const quiz = { qid, k, q: String(x.q || ''), t: Date.now(), n: i, total: set.list.length, sid: set.sid || '', name: set.name || '', auto: !!QZO.auto };
+  if (QZO.lim) { quiz.lim = QZO.lim; quiz.end = Date.now() + tOff + QZO.lim * 1000 + 800; } // 서버 시각 기준 끝나는 때 (+0.8초 여유)
   if (k === 'mc') quiz.o = (x.o || []).slice(0, 4);
-  const key = { a: k === 'ox' ? (x.a === 'X' ? 'X' : 'O') : +x.a || 0, why: String(x.why || '') };
+  const key = { a: k === 'ox' ? (x.a === 'X' ? 'X' : 'O') : +x.a || 0, why: String(x.why || defWhy(x.q) || ''), end: quiz.end || 0 };
   // 한 판(qrun): 같은 세트를 이어서 내는 동안의 문제들 → 끝나면 이 문제들로 순위를 매김
   const old = L.st.qrun, qrun = old && old.sid === quiz.sid && old.k === k ? old : { id: 'r' + Date.now().toString(36), sid: quiz.sid, k, name: quiz.name };
   try {
@@ -710,7 +738,9 @@ async function announceRank() {
       const [ks, as] = await Promise.all([rget(ref(rt, base + '/key/' + qid)), rget(ref(rt, base + '/answers/' + qid))]);
       const key = ks.val(); if (!key) continue;
       for (const [u, v] of Object.entries(as.val() || {})) {
-        if (!v) continue; const o = sc[u] || (sc[u] = { n: String(v.n || '?').slice(0, 10), k: v.k || '', s: 0, tm: 0 });
+        if (!v) continue;
+        if (key.end && (+v.t || 0) > key.end + 1500) continue; // 시간이 끝난 뒤 낸 답은 세지 않음
+        const o = sc[u] || (sc[u] = { n: String(v.n || '?').slice(0, 10), k: v.k || '', s: 0, tm: 0 });
         if (String(v.a) === String(key.a)) { o.s++; o.tm += Math.max(0, (+v.t || 0) - (+qt || 0)); }
       }
     }
@@ -740,16 +770,18 @@ function paintQuizLive() {
   const set = classSets(L.cid).find((x) => x.k === q.k && (!q.sid || x.sid === q.sid)), hasNext = set && q.total && q.n + 1 < set.list.length;
   $('qzLive').innerHTML = '<div class="pf white pad stack" style="padding:12px;box-shadow:none;border-color:var(--blue)">' +
     (q.total ? '<small style="font-weight:700;color:var(--sub)">📚 ' + esc(q.name || '') + ' · ' + (q.n + 1) + ' / ' + q.total + '번</small>' : '') +
+    '<b class="qclock" id="qzClock" role="timer" aria-live="off"></b>' +
     '<p style="font:400 20px/1.4 Jua,sans-serif;margin:0">' + esc(q.q) + '</p><p class="note">' + ans.length + ' / ' + total + '명이 답했어요' + (key ? ' · 정답 ' + esc(q.k === 'ox' ? key.a : (key.a + 1) + '번') : '') + '</p>' +
     '<div class="bars">' + opts.map((o, i) => { const v = q.k === 'ox' ? o : i, n = ans.filter((x) => String(x.a) === String(v)).length, ok = key && String(key.a) === String(v); return '<div class="' + (ok ? 'ok' : '') + '"><span>' + (q.k === 'ox' ? '' : (i + 1) + '. ') + esc(o) + (ok ? ' ✓' : '') + '</span><i style="width:' + (ans.length ? Math.round(n / ans.length * 100) : 0) + '%"></i><b>' + n + '</b></div>'; }).join('') + '</div>' +
-    (rev ? '<p class="note" style="color:var(--ink)">💡 해설: ' + esc(q.why || '(해설 없음)') + '</p><p class="note">맞힌 학생: ' + esc(ans.filter((x) => String(x.a) === String(q.ans)).map((x) => x.n).join(', ') || '없음') + '</p>' : '') +
+    (rev ? '<p class="note" style="color:var(--ink);font-size:17px">✅ 정답 ' + esc(q.k === 'ox' ? q.ans : (+q.ans + 1) + '번 ' + (opts[q.ans] || '')) + '</p><p class="note" style="color:var(--ink);font-size:17px">💡 해설: ' + esc(q.why || '(해설 없음 — 📚 퀴즈 보관함에서 문제를 고쳐 해설을 써 넣을 수 있어요)') + '</p><p class="note">맞힌 학생: ' + esc(ans.filter((x) => String(x.a) === String(q.ans)).map((x) => x.n).join(', ') || '없음') + '</p>' : '') +
     (L.qwait === q.qid ? '<p class="note" style="color:var(--blue);font-weight:700" role="status">✅ 정답을 보여 주는 중… 잠시 뒤 ' + (hasNext ? '다음 문제로 넘어가요' : '순위를 발표해요') + '</p>' : '') +
     '<div class="row"><button class="btn yel" type="button" id="qzRev"' + (rev || !key ? ' disabled' : '') + '>✅ 정답·해설 공개</button>' +
     (hasNext ? '<button class="btn blue" type="button" id="qzNext"' + (L.qwait === q.qid ? ' disabled' : '') + '>다음 문제 ▶ (' + (q.n + 2) + '번)</button>'
       : '<button class="btn grn" type="button" id="qzRank"' + (L.qwait === q.qid ? ' disabled' : '') + '>🏆 순위 발표하고 끝내기</button>') +
     '<button class="btn" type="button" id="qzEnd">퀴즈 닫기</button></div>' +
-    '<p class="note">학생이 모두 답하면 정답이 저절로 보여요. 정답을 안 보여 주고 \'다음 문제\'를 눌러도 먼저 정답을 3초 보여 준 뒤 넘어가요.</p></div>';
-  const reveal = () => { if (key && !(L.st.quiz && L.st.quiz.ans !== undefined && L.st.quiz.ans !== null)) return setSt({ 'quiz/ans': key.a, 'quiz/why': key.why || '' }); return Promise.resolve(); };
+    (q.auto ? '<div class="row"><button class="btn sm" type="button" id="qzHold">⏸ 자동 넘기기 멈추기 (여기부터 선생님이 넘기기)</button></div>' : '') +
+    '<p class="note">' + (q.end ? '⏱ 한 문제 ' + (q.lim < 60 ? q.lim + '초' : '1분') + ' · ' : '') + '시간이 끝나거나 학생이 모두 답하면 정답과 해설이 저절로 보여요. ' + (q.auto ? '정답·해설을 보여 준 뒤 다음 문제로 저절로 넘어가요.' : '정답을 안 보여 주고 \'다음 문제\'를 눌러도 먼저 정답을 3초 보여 준 뒤 넘어가요.') + '</p></div>';
+  const reveal = quizReveal;
   // 다음 문제·순위 발표 전에 꼭 정답을 먼저 보여 줌 (안 보여 줬으면 보여 주고 3초 뒤에)
   const afterReveal = async (go) => {
     if (L.qwait) return;
@@ -762,9 +794,43 @@ function paintQuizLive() {
   if ($('qzNext')) $('qzNext').addEventListener('click', () => afterReveal(() => sendSetQ(set, q.n + 1)));
   if ($('qzRank')) $('qzRank').addEventListener('click', () => afterReveal(announceRank));
   $('qzEnd').addEventListener('click', () => setSt({ quiz: null }));
+  if ($('qzHold')) $('qzHold').addEventListener('click', () => { QZO.auto = false; saveQZO(); setSt({ 'quiz/auto': false }); const box = $('qzOpt'); if (box) box.outerHTML = qzOptHTML(); toast('자동 넘기기를 멈췄어요. \'다음 문제\'를 누르면 넘어가요.'); });
+  quizTick();
   // 들어온 학생이 모두 답하면 정답을 저절로 공개
   if (!rev && key && total > 0 && ans.length >= total && L.autoRev !== q.qid) { L.autoRev = q.qid; setTimeout(() => { if (L.st.quiz && L.st.quiz.qid === q.qid) reveal(); }, 1200); }
 }
+// 정답·해설 공개 (학생 화면·교실 스크린에 보임)
+function quizReveal() {
+  const q = L && L.st.quiz; if (!q) return Promise.resolve();
+  const key = L.key[q.qid];
+  if (key && (q.ans === undefined || q.ans === null)) return setSt({ 'quiz/ans': key.a, 'quiz/why': key.why || '' });
+  if (!key) return rget(ref(rt, 'live/' + L.cid + '/key/' + q.qid)).then((s) => { L.key[q.qid] = s.val(); if (s.val() && L.st.quiz && L.st.quiz.qid === q.qid) return quizReveal(); }).catch(() => {});
+  return Promise.resolve();
+}
+// 0.25초마다: 남은 시간 보이기 → 시간이 끝나면 정답 공개 → (자동이면) 몇 초 뒤 다음 문제·순위 발표
+function quizTick() {
+  const q = L && L.st && L.st.quiz, el = $('qzClock');
+  if (!q || !q.qid) return;
+  const rev = q.ans !== undefined && q.ans !== null;
+  if (!rev) {
+    if (q.end) {
+      const left = Math.max(0, Math.ceil((q.end - (Date.now() + tOff)) / 1000));
+      if (el) { el.textContent = left > 0 ? '⏱ ' + left + '초' : '⏰ 시간 끝!'; el.className = 'qclock' + (left <= 5 ? ' low' : ''); }
+      if (left <= 0 && L.timeRev !== q.qid) { L.timeRev = q.qid; quizReveal(); }
+    } else if (el) el.textContent = '';
+    return;
+  }
+  if (!q.auto) { if (el) { el.textContent = '✅ 정답 공개'; el.className = 'qclock go'; } return; }
+  const set = classSets(L.cid).find((x) => x.k === q.k && (!q.sid || x.sid === q.sid)), hasNext = set && q.total && q.n + 1 < set.list.length;
+  if (!L.adv || L.adv.qid !== q.qid) L.adv = { qid: q.qid, at: Date.now() + REV_MS(q) };
+  const left = Math.max(0, Math.ceil((L.adv.at - Date.now()) / 1000));
+  if (el) { el.textContent = '✅ ' + left + '초 뒤 ' + (hasNext ? '다음 문제' : '순위 발표'); el.className = 'qclock go'; }
+  if (Date.now() >= L.adv.at && !L.adv.done) {
+    L.adv.done = true;
+    if (hasNext) sendSetQ(set, q.n + 1); else if (L.st.qrun) announceRank(); else setSt({ quiz: null });
+  }
+}
+setInterval(quizTick, 250);
 
 /* 게임 결과 */
 function watchResults(run) {
@@ -839,14 +905,51 @@ function openSetDlg(set) {
   const tg = { cur: () => cur().list || [], save: (list) => saveSet(Object.assign({}, cur(), { list })), after: () => setTimeout(() => openSetDlg(cur()), 50), msg: '\'' + set.name + '\' 세트에 ' };
   const list = cur().list || [];
   openDlg(dlgTop('📚 ' + cur().name + ' · ' + KN[k]) +
-    '<div class="row qtools"><button type="button" class="btn sm" id="qzXl">📥 엑셀로 문제 올리기</button><button type="button" class="btn sm" id="qzTpl">엑셀 양식 받기</button><button type="button" class="btn sm yel" id="qzAi">🤖 AI로 문제 만들기</button><button type="button" class="btn sm" id="qzRen">이름 바꾸기</button><input type="file" id="qzFile" accept=".xlsx,.csv" hidden></div>' +
+    '<div class="row qtools"><button type="button" class="btn sm blue" id="qzMan">✏️ 문제 직접 쓰기</button><button type="button" class="btn sm" id="qzXl">📥 엑셀로 문제 올리기</button><button type="button" class="btn sm" id="qzTpl">엑셀 양식 받기</button><button type="button" class="btn sm yel" id="qzAi">🤖 AI로 문제 만들기</button><button type="button" class="btn sm" id="qzRen">이름 바꾸기</button><input type="file" id="qzFile" accept=".xlsx,.csv" hidden></div>' +
     '<p class="note">' + list.length + '문제 · 받은 반: ' + esc(sentTo(cur()).map((c) => c.name).join(', ') || '없음') + '</p>' +
-    '<ol class="list" id="sItems" style="max-height:46vh;padding-left:0">' + (list.length ? list.map((x, i) => '<li><span class="sp">' + (i + 1) + '. ' + esc(F.show(x)) + '</span><button class="btn sm red" type="button" data-qdel="' + i + '" aria-label="' + (i + 1) + '번 문제 빼기">✕</button></li>').join('') : '<li>아직 문제가 없어요. 엑셀이나 AI로 넣어요.</li>') + '</ol>' +
+    '<ol class="list" id="sItems" style="max-height:46vh;padding-left:0">' + (list.length ? list.map((x, i) => '<li><span class="sp">' + (i + 1) + '. ' + esc(F.show(Object.assign({}, x, { why: x.why || defWhy(x.q) }))) + (x.why || defWhy(x.q) ? '' : ' <small style="color:var(--sub)">· 해설 없음</small>') + '</span><button class="btn sm" type="button" data-qed="' + i + '" aria-label="' + (i + 1) + '번 문제 고치기">✏️ 고치기</button><button class="btn sm red" type="button" data-qdel="' + i + '" aria-label="' + (i + 1) + '번 문제 빼기">✕</button></li>').join('') : '<li>아직 문제가 없어요. 엑셀이나 AI로 넣어요.</li>') + '</ol>' +
     '<div class="row"><button class="btn grn" type="button" id="sSend">🚀 반에 보내기</button><button class="btn" type="button" data-x>다 했어요</button></div>', '#qzXl');
   bindQuizTools(k, tg);
   $('qzRen').addEventListener('click', () => { const n = prompt('세트 이름', cur().name); if (n && n.trim()) saveSet(Object.assign({}, cur(), { name: n.trim().slice(0, 30) })).then(() => openSetDlg(cur())).catch((err) => toast(errText(err), true)); });
-  $('sItems').addEventListener('click', (e) => { const b = e.target.closest('[data-qdel]'); if (!b) return; const l = (cur().list || []).slice(); l.splice(+b.dataset.qdel, 1); saveSet(Object.assign({}, cur(), { list: l })).then(() => openSetDlg(cur())).catch((err) => toast(errText(err), true)); });
+  $('qzMan').addEventListener('click', () => qItemDlg(cur(), -1));
+  $('sItems').addEventListener('click', (e) => { const ed = e.target.closest('[data-qed]'); if (ed) { qItemDlg(cur(), +ed.dataset.qed); return; } const b = e.target.closest('[data-qdel]'); if (!b) return; const l = (cur().list || []).slice(); l.splice(+b.dataset.qdel, 1); saveSet(Object.assign({}, cur(), { list: l })).then(() => openSetDlg(cur())).catch((err) => toast(errText(err), true)); });
   $('sSend').addEventListener('click', () => sendSetDlg(cur()));
+}
+// ✏️ 문제 하나 쓰기·고치기: 문제, 정답(OX 또는 보기 4개 중 하나), 💡 해설
+function qItemDlg(set, i) {
+  const k = set.k, list = (set.list || []).slice(), isNew = i < 0;
+  const x = isNew ? (k === 'ox' ? { q: '', a: 'O', why: '' } : { q: '', o: ['', '', '', ''], a: 0, why: '' }) : Object.assign({}, list[i]);
+  const why0 = x.why || defWhy(x.q);
+  let a = k === 'ox' ? (x.a === 'X' ? 'X' : 'O') : +x.a || 0;
+  openDlg(dlgTop((isNew ? '＋ 새 문제' : (i + 1) + '번 문제 고치기') + ' · ' + KN[k]) +
+    '<label class="lb">문제<textarea class="field" id="qiQ" maxlength="120" rows="2" placeholder="' + (k === 'ox' ? '예: 마우스는 입력 장치예요' : '예: 로봇이 주변을 느끼게 해 주는 부품은?') + '">' + esc(x.q || '') + '</textarea></label>' +
+    (k === 'ox'
+      ? '<div class="lb">정답<div class="seg" id="qiA">' + ['O', 'X'].map((v) => '<button type="button" class="btn" data-v="' + v + '" aria-pressed="' + (a === v) + '" style="min-width:72px;font-size:24px">' + v + '</button>').join('') + '</div></div>'
+      : '<div class="lb">보기 (정답 보기의 ○를 눌러요)<div class="stack" id="qiA" style="gap:6px">' + [0, 1, 2, 3].map((j) => '<div class="row" style="flex-wrap:nowrap"><button type="button" class="btn sm" data-v="' + j + '" aria-pressed="' + (a === j) + '" aria-label="' + (j + 1) + '번을 정답으로">' + (a === j ? '✓' : '○') + '</button><input class="field" data-o="' + j + '" maxlength="40" value="' + esc((x.o || [])[j] || '') + '" placeholder="보기 ' + (j + 1) + (j > 1 ? ' (없어도 돼요)' : '') + '" style="flex:1"></div>').join('') + '</div></div>') +
+    '<label class="lb">💡 해설 (정답을 공개할 때 학생 화면에 함께 나와요)<textarea class="field" id="qiW" maxlength="120" rows="2" placeholder="예: 마우스는 컴퓨터에 명령을 넣는 입력 장치예요">' + esc(why0) + '</textarea></label>' +
+    '<div class="row"><button type="button" class="btn blue" id="qiS">저장하기 ▶</button><button type="button" class="btn" id="qiB">◀ 세트로 돌아가기</button></div>', '#qiQ');
+  $('qiA').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-v]'); if (!b) return;
+    a = k === 'ox' ? b.dataset.v : +b.dataset.v;
+    $('qiA').querySelectorAll('[data-v]').forEach((y) => { const on = y === b; y.setAttribute('aria-pressed', String(on)); if (k !== 'ox') y.textContent = on ? '✓' : '○'; });
+  });
+  $('qiB').addEventListener('click', () => openSetDlg(LIB.sets.find((s) => s.id === set.id) || set));
+  $('qiS').addEventListener('click', async () => {
+    const q = qClean($('qiQ').value).slice(0, 120), why = qClean($('qiW').value).slice(0, 120);
+    if (!q) { $('qiQ').focus(); toast('문제를 써 주세요.', true); return; }
+    let item;
+    if (k === 'ox') item = { q, a, why };
+    else {
+      const raw = [0, 1, 2, 3].map((j) => qClean(document.querySelector('[data-o="' + j + '"]').value).slice(0, 40));
+      if (!raw[a]) { toast('정답으로 고른 보기에 글을 써 주세요.', true); return; }
+      const o = raw.filter(Boolean); if (o.length < 2) { toast('보기를 2개 이상 써 주세요.', true); return; }
+      item = { q, o, a: o.indexOf(raw[a]), why };
+    }
+    const cur = LIB.sets.find((s) => s.id === set.id) || set, l = (cur.list || []).slice();
+    if (isNew) l.push(item); else l[i] = item;
+    try { await saveSet(Object.assign({}, cur, { list: l.slice(0, 300) })); toast(isNew ? '문제를 더했어요.' : (i + 1) + '번 문제를 고쳤어요.'); openSetDlg(LIB.sets.find((s) => s.id === set.id) || Object.assign({}, cur, { list: l })); }
+    catch (err) { toast(errText(err), true); }
+  });
 }
 function sendSetDlg(set) {
   if (!set) return;

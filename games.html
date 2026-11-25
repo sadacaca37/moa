@@ -356,7 +356,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 <script type="module">
 import { fs, rt, whenAuth, ensureUser, isTeacher, teacherRole, bankId, doc, getDoc, setDoc, ref, set, update, rget, rnow, getSession, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, PREVIEW } from './js/fb.js';
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
-import { QUIZ, OXT as DEF_OX } from './js/questions.js'; // 기본 문제 (선생님 화면과 같은 것)
+import { QUIZ, OXT as DEF_OX, defWhy } from './js/questions.js'; // 기본 문제 (선생님 화면과 같은 것)
 import { aiJSON } from './js/ai.js';
 import { emoHTML, emoOnly, emoTok, emoImg, drawEmoBubble, openEmoPicker, EMO_N } from './js/emo.js';
 {
@@ -1681,7 +1681,7 @@ function OX() {
     settings: [['qn', '문제 수', [[8, '8문제'], [5, '5문제'], [12, '12문제'], [0, '모두']]], ['qt', '생각 시간', [[10, '10초'], [7, '7초'], [15, '15초']]], ['mode', '방식', [['score', '점수전 (모두 끝까지)'], ['surv', '서바이벌 (틀리면 관중석)']]], ['teams', '모둠 수', [[2, '2모둠'], [3, '3모둠'], [4, '4모둠']]]],
     settingsExtra: () => qbBtn('ox'),
     setup() {
-      qs = bank('ox').map(x => [x.q, x.a, x.why || '']); if (!qs.length) qs = parse(DEF_OX);
+      qs = bank('ox').map(x => [x.q, x.a, x.why || defWhy(x.q)]); if (!qs.length) qs = parse(DEF_OX).map(x => [x[0], x[1], defWhy(x[0])]);
       qs = shuffle(qs); if (+S.qn) qs = qs.slice(0, +S.qn);
       teams = TEAMS.slice(0, +S.teams).map(t => Object.assign({ pts: 0, alive: 0 }, t));
       shuffle(actors).forEach((a, i) => { a.team = i % teams.length; a.score = 0; a.out = false; a.outNow = false; a.mark = ''; a.want = ''; a.goal = null; a.alpha = 1; a.streak = 0; });
@@ -1777,7 +1777,7 @@ const QK = {
   ox: {
     name: 'OX 퀴즈', head: ['문제', '정답 (O 또는 X)', '해설 (없어도 돼요)'], widths: [52, 16, 44],
     sample: [['컴퓨터는 0과 1로 정보를 나타내요', 'O', '컴퓨터는 이진수로 정보를 저장해요'], ['마우스는 출력 장치예요', 'X', '마우스는 입력 장치예요']],
-    def: () => DEF_OX.split('\n').map(l => { const [q, a] = l.split('='); return { q, a, why: '' }; }),
+    def: () => DEF_OX.split('\n').map(l => { const [q, a] = l.split('='); return { q, a, why: defWhy(q) }; }),
     fromRow: r => { const q = clean(r[0]), a = toOX(r[1]); return q && a ? { q, a, why: clean(r[2]) } : null; },
     toRow: x => [x.q, x.a, x.why || ''],
     ok: x => !!(clean(x.q) && (x.a === 'O' || x.a === 'X')),
