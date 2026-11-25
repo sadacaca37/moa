@@ -523,13 +523,13 @@ function drawBoard() {
     right += '<div class="bmenu pf" id="bmenu">' + (b ? '<p class="bminfo">' + esc(b.from || '') + ' · ' + md(b.date) + ' · ' + F[2] + ' ' + F[1] + ' 형식 · 글 ' + ((b.postCount || 0) + S.live.length) + '개 · 댓글 ' + S.cmts.length + '개</p>' : '') +
       '<div class="bmg"><b>패들렛</b><button class="mi" data-act="pickfile">📥 패들렛에서 가져오기 (CSV·엑셀)</button><button class="mi" data-act="newboard">＋ 빈 패들렛 만들기</button></div>' +
       (b ? '<div class="bmg"><b>보기</b><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '" target="_blank" rel="noopener" data-menu>↗ 새 창으로 크게 보기</a><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '&preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '') + '" target="_blank" rel="noopener" data-menu>👀 학생 화면으로 보기</a></div>' +
-        '<div class="bmg"><b>학생</b><button class="mi" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김 (누르면 열기)' : '✎ 학생 글쓰기 열림 (누르면 잠그기)') + '</button></div>' +
+        '<div class="bmg"><b>학생</b><button class="mi" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김 (누르면 열기)' : '✎ 학생 글쓰기 열림 (누르면 잠그기)') + '</button><button class="mi" data-act="sharecls">🏫 같이 쓰는 교실 ' + (sharedTo(b).length ? sharedTo(b).length + '곳 (넣기·끊기)' : '(다른 교실에도 보이기)') + '</button></div>' +
         '<div class="bmg"><b>보내기</b><button class="mi" data-act="deploy">🚀 여러 반에 보내기</button><button class="mi" data-act="copyboard">📋 다른 패들렛으로 복사</button>' + (c.lib ? '' : '<button class="mi" data-act="pinhome">🏠 첫 화면 링크에 올리기</button>') + '</div>' +
         '<div class="bmg"><b>관리</b><button class="mi" data-act="renameboard">✏️ 이름 바꾸기</button><button class="mi" data-act="grpboard">📁 묶음 바꾸기' + (b.grp ? ' (' + esc(b.grp) + ')' : '') + '</button><button class="mi" data-act="dupboard">📄 이 패들렛 복제</button><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button><button class="mi del" data-act="delboard">🗑 이 패들렛 삭제</button></div>'
         : '<div class="bmg"><b>관리</b><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button></div>') + '</div>';
   }
   right += '</div>' + (b ? '<button type="button" class="hb go" data-act="bwrite">＋ 글 쓰기</button>' : '');
-  $('hdr').innerHTML = logo + '<button class="hb back" data-act="home" title="내 패들렛 목록으로" aria-label="내 패들렛 목록으로">◀</button><div class="htxt"><small><span class="dot" aria-hidden="true" style="background:' + esc(c.color) + '"></span>' + esc(c.name) + (c.lib ? ' · 반을 골라 보내는 과제방' : ' · ' + esc(c.kind) + ' · 방번호 ' + esc(c.room)) + '</small>' + pick + '</div><div class="hright">' + right + '</div>';
+  $('hdr').innerHTML = logo + '<button class="hb back" data-act="home" title="내 패들렛 목록으로" aria-label="내 패들렛 목록으로">◀</button><div class="htxt"><small><span class="dot" aria-hidden="true" style="background:' + esc(c.color) + '"></span>' + esc(c.name) + (c.lib ? ' · 반을 골라 보내는 과제방' : ' · ' + esc(c.kind) + ' · 방번호 ' + esc(c.room)) + (b && sharedTo(b).length ? ' · 🔗 ' + sharedTo(b).length + '개 교실에서 같이 써요' : '') + '</small>' + pick + '</div><div class="hright">' + right + '</div>';
   let h = '';
   const msgs = msgHTML(); if (msgs) h += '<div class="bmsg">' + msgs + '</div>';
   if (!b) {
@@ -577,6 +577,29 @@ function classDlg(c) {
 function grpDlg(title, note, value, names, fn) {
   pending = fn;
   openDlg(dlgTop(esc(title)) + '<p>' + esc(note) + '</p>' + grpField('gv', value, names) + '<div class="row"><button type="submit" class="btn blue" data-form="grp">저장하기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#gv');
+}
+// 🏫 같이 쓰는 교실: 이 패들렛 하나를 여러 교실 학생 📋 패들렛 탭에 같이 보이기 (classes.pads) — 여기서 넣고 끊기
+const sharedTo = (b) => S.classes.filter((c) => c.id !== b.cid && Array.isArray(c.pads) && c.pads.includes(b.id));
+function shareDlg(b) {
+  const own = S.classes.find((c) => c.id === b.cid), others = classes().filter((c) => c.id !== b.cid);
+  pending = b;
+  openDlg(dlgTop('🏫 같이 쓰는 교실 — ' + esc(b.title)) +
+    '<p>체크한 교실 학생 화면 📋 패들렛 탭에 이 패들렛이 같이 보여요. 체크를 빼면 그 교실과 연결이 끊겨요(패들렛과 글은 그대로). 학생 글은 이 패들렛 하나에 함께 쌓여요.</p>' +
+    (own ? '<p style="font-size:14px;padding:8px 12px;background:#F4F6FA;border-radius:10px">원래 교실 <b>' + esc(own.name) + '</b> · ' + (b.public ? '✓ 학생에게 보여요' : '학생에게 안 보여요') + ' <small style="color:#6B7085">(위 \'학생에게 보이기\' 단추로 켜고 꺼요)</small></p>' : '') +
+    (others.length ? '<div class="row"><button type="button" class="mini" data-act="shall">모두 고르기</button><button type="button" class="mini" data-act="shnone">모두 빼기</button></div>' +
+      '<div id="shL" style="display:flex;flex-direction:column;gap:6px;max-height:44vh;overflow:auto">' + others.map((x) => { const on = Array.isArray(x.pads) && x.pads.includes(b.id); return '<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border:1px solid #D0D5DD;border-radius:10px;cursor:pointer"><input type="checkbox" value="' + esc(x.id) + '"' + (on ? ' checked' : '') + ' style="width:20px;height:20px"><span aria-hidden="true" style="width:12px;height:12px;border-radius:50%;background:' + esc(x.color) + '"></span><b style="flex:1">' + esc(x.name) + '</b><small style="color:#6B7085">' + esc(x.kind || '') + (x.grp ? ' · 📁 ' + esc(x.grp) : '') + (on ? ' · 연결됨' : '') + '</small></label>'; }).join('') + '</div>'
+      : '<p>다른 교실이 없어요.</p>') +
+    '<div class="row"><button type="submit" class="btn blue" data-form="sharecls">저장하기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#shL input');
+}
+async function saveShare(b, want) {
+  let add = 0, cut = 0;
+  for (const c of classes().filter((x) => x.id !== b.cid)) {
+    const cur = Array.isArray(c.pads) ? c.pads : [], has = cur.includes(b.id), on = want.has(c.id);
+    if (on && !has) { await put('classes/' + c.id, { pads: cur.concat(b.id).slice(-8) }); add++; }
+    else if (!on && has) { await put('classes/' + c.id, { pads: cur.filter((id) => id !== b.id) }); cut++; }
+  }
+  if (want.size && !b.public) await setPublic(b, true); // 학생이 보려면 '학생에게 보이기'가 켜져 있어야 함
+  return { add, cut };
 }
 // 📄 교실 복제
 function dupClassDlg(c) {
@@ -852,6 +875,8 @@ document.addEventListener('click', (e) => {
       catch (err) { toast(S.saveErr || errText(err), true); }
     });
   }
+  else if (a === 'sharecls') { const b = curBoard(); if (b) shareDlg(b); }
+  else if (a === 'shall' || a === 'shnone') document.querySelectorAll('#shL input').forEach((x) => { x.checked = a === 'shall'; });
   else if (a === 'dupclass') { const c = S.classes.find((x) => x.id === id); if (c) dupClassDlg(c); }
   else if (a === 'dupboard') { const b = id ? S.boards.find((x) => x.id === id) : curBoard(); if (b) dupBoardDlg(b); }
   else if (a === 'restorecls') { const c = S.tclasses.find((x) => x.id === id); if (!c) return; if (S.classes.length >= MAX_CLASSES) { toast('교실이 20개라서 되살릴 수 없어요. 안 쓰는 교실을 먼저 버려 주세요.', true); return; } restoreClass(c, { own: ownQ(), homeRef: homeRefP(), owner: isMate() ? S.uid : null }).then((r) => toast('\'' + c.name + '\' 교실을 되살렸어요. 방번호 ' + r.room + (r.boards ? ' · 패들렛 ' + r.boards + '개도 같이' : '') + '.'), (err) => toast(errText(err), true)); }
@@ -887,6 +912,11 @@ document.addEventListener('submit', async (e) => {
   const btn = (e.submitter && e.submitter.dataset.form) ? e.submitter : e.target.querySelector('[data-form]');
   const f = btn && btn.dataset.form;
   if (f === 'class') saveClass();
+  else if (f === 'sharecls') {
+    const b = pending, want = new Set([...document.querySelectorAll('#shL input')].filter((x) => x.checked).map((x) => x.value)); closeDlg();
+    try { const r = await saveShare(b, want); toast(r.add || r.cut ? (r.add ? r.add + '개 교실에 넣었어요' : '') + (r.add && r.cut ? ', ' : '') + (r.cut ? r.cut + '개 교실과 연결을 끊었어요' : '') + '.' : '바뀐 게 없어요.'); }
+    catch (err) { toast(S.saveErr || errText(err), true); }
+  }
   else if (f === 'dupclass') {
     const c = pending, name = $('dn').value.trim(), withBoards = $('dB').checked; if (!name) { $('dn').focus(); return; }
     closeDlg(); toast('복제하는 중… (패들렛이 많으면 조금 걸려요)');
