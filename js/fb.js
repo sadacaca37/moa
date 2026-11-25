@@ -13,6 +13,11 @@ const app = initializeApp({
   appId: '1:986530203160:web:b48121b7113f38a49c656d',
   databaseURL: 'https://moaboard-943a3-default-rtdb.asia-southeast1.firebasedatabase.app'
 });
+/* 🔒 도용 방지 (App Check): 다른 주소에 베낀 사이트가 모아팡 저장소(Firestore·실시간 DB)를 못 쓰게.
+ * reCAPTCHA v3 '사이트 키'(공개해도 되는 키)를 아래에 넣으면 켜짐. 비밀 키는 Firebase 콘솔 App Check에만 넣음.
+ * 콘솔에서 '시행(Enforce)'은 모든 화면(타자팡 포함)이 키를 보내는 걸 확인한 뒤에 켤 것 — 먼저 켜면 사이트가 멈춤 */
+export const APPCHECK_KEY = '';
+if (APPCHECK_KEY) import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js').then((m) => m.initializeAppCheck(app, { provider: new m.ReCaptchaV3Provider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true })).catch(() => { /* 키가 틀려도 사이트는 그대로 */ });
 export const auth = getAuth(app);
 export const fs = getFirestore(app);
 export const rt = getDatabase(app);

@@ -10,7 +10,7 @@
   if (!document.querySelector('.walkers')) add('<div class="walkers" aria-hidden="true"></div>');
   if (!document.querySelector('.ground')) add('<div class="ground" aria-hidden="true"></div>');
   let ft = document.querySelector('body > footer');
-  if (!ft) { add('<footer><span class="studio">© 2026 MOAPANG STUDIO</span><span>Created by Eunkyung Kim</span><a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a></footer>'); ft = document.querySelector('body > footer'); }
+  if (!ft) { add('<footer><span class="studio">© 2026 MOAPANG STUDIO · All rights reserved</span><span>Created by Eunkyung Kim</span><a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a></footer>'); ft = document.querySelector('body > footer'); }
   ft.classList.add('mfoot');
 
   // 걷는 친구들 (걷는 그림 30장)
