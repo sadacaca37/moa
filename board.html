@@ -242,6 +242,7 @@ body.colsfit::after{display:none}
 <div class="head">
   <div class="brands sm"><a class="brand" href="taja/" title="타자팡으로 가기"><img src="assets/brand/tajapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/tajapang_word.webp" alt="타자팡" class="brand-word" draggable="false"></a><span class="brand-sep" aria-hidden="true">✦</span><a class="brand" href="./" title="모아팡 첫 화면"><img src="assets/brand/moapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/moapang_word.webp" alt="모아팡" class="brand-word" draggable="false"></a></div>
   <button class="btn sm" type="button" id="back">◀ 돌아가기</button>
+  <a class="btn sm" id="toClass" href="./" hidden>🏫 내 교실</a>
   <span class="bav" aria-hidden="true"><span class="msc moa"></span></span>
   <div class="ttl"><small id="sub">패들렛</small><h1 id="title">불러오는 중…</h1></div>
   <div class="acts">
@@ -365,6 +366,16 @@ function balanceWall(all, ctx) {
   const H = Array.from(cols, () => 0), g = Array.from(cols, () => []);
   all.forEach((p) => { const k = H.indexOf(Math.min(...H)); g[k].push(p); H[k] += (hs[p.id] || 200) + 16; });
   box.innerHTML = wallHTML(g, ctx);
+}
+// '🏫 내 교실': 선생님은 이 패들렛 반의 진행판, 학생은 들어와 있는 자기 반 교실(없으면 이 반 방번호로 첫 화면)
+async function classLink() {
+  const a = $('toClass'); if (!a || EMBED || PREVIEW) return;
+  const cid = S.board && S.board.cid && S.board.cid !== 'lib' ? S.board.cid : '';
+  if (S.teacher) { a.href = 'teacher.html#' + (cid ? 'live-' + encodeURIComponent(cid) : 'classes'); a.textContent = '🏫 교실'; a.title = '이 반 교실(진행판)로 가기'; a.hidden = false; return; }
+  const ses = getSession();
+  if (ses && ses.cid) { a.href = 'class.html'; a.title = (ses.className || '내 반') + ' 교실로 가기'; a.hidden = false; return; }
+  if (!cid) return;
+  try { const c = await getDoc(doc(fs, 'classes', cid)); const room = c.exists() && c.data().room; if (room) { a.href = './?r=' + encodeURIComponent(room); a.title = '이 반 교실에 들어가기 (이름 쓰기)'; a.hidden = false; } } catch (e) { /* 못 읽으면 단추를 숨긴 채로 */ }
 }
 // 칸 형식: 판 높이를 화면 아래까지 맞추고(땅 띠 위까지), 칸 안에서만 스크롤
 function fitCols() {
@@ -864,6 +875,7 @@ installPadkit({
     // 선생님 모드는 이 패들렛의 주인 선생님만 (함께 쓰는 선생님 패들렛은 owner, 주 선생님 패들렛은 owner 없음)
     if (S.teacher) { const r = await teacherRole(S.user); S.teacher = S.board.owner ? S.board.owner === S.user.uid : r === 'admin'; }
     draw();
+    classLink();
     onSnapshot(doc(fs, 'boards', bid), (s) => { if (s.exists()) { S.board = s.data(); draw(); } else fail('지워진 패들렛이에요.'); }, () => {});
     const pq = S.teacher ? query(collection(fs, 'parts'), where('bid', '==', bid), ...(S.board.owner ? [where('owner', '==', S.board.owner)] : [])) : query(collection(fs, 'parts'), where('bid', '==', bid), where('pub', '==', true));
     onSnapshot(pq, (snap) => { S.parts = snap.docs.map((d) => Object.assign({ id: d.id }, d.data())); draw(); }, () => {});

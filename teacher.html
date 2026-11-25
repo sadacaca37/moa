@@ -289,6 +289,8 @@ async function classDlg(c) {
       const mine = isAdmin() ? {} : { owner: user.uid };
       await setDoc(doc(fs, 'classes', id), Object.assign({ name, kind: d.kind, color: d.color, room: d.room, map, created: c ? (c.created || new Date().toISOString()) : new Date().toISOString() }, mine), { merge: true });
       if (!isAdmin()) await set(ref(rt, 'owners/' + id), user.uid); // 실시간 교실(진행판)을 이 선생님만 다루게
+      // 고치기에서 맵을 바꾸면 지금 열려 있는 교실(진행판)의 맵도 같이 바꿈 (예전에는 진행판에 옛 맵이 남았음)
+      if (c && c.map !== map) { try { const sv = await rget(ref(rt, 'live/' + id + '/state')); if (sv.exists()) await update(ref(rt, 'live/' + id + '/state'), { map }); } catch (e) { /* 진행판을 아직 안 열었으면 넘어감 */ } }
       await setDoc(doc(fs, 'rooms', d.room), Object.assign({ cid: id, name, color: d.color }, mine));
       if (c && c.room && c.room !== d.room) await deleteDoc(doc(fs, 'rooms', c.room));
       closeDlg(); toast(isNew ? '\'' + name + '\' 반을 만들었어요. 방번호 ' + d.room : '저장했어요.');
@@ -443,7 +445,11 @@ function bindLive(c) {
   $('phGo').addEventListener('click', () => { const on = L.st.phase === 'class'; setSt({ phase: on ? 'wait' : 'class', map: L.st.map || c.map || 'classroom' }); toast(on ? '대기실로 모았어요.' : '수업을 시작했어요!'); });
   $('callB').addEventListener('click', () => { setSt({ call: Date.now() }); toast('모두 불렀어요.'); });
   $('frzB').addEventListener('click', () => setSt({ freeze: !L.st.freeze }));
-  $('mapB').addEventListener('click', async () => { const m = $('mapS').value; setSt({ map: m }); try { await setDoc(doc(fs, 'classes', c.id), { map: m }, { merge: true }); } catch (e) { /* 무시 */ } toast(mapName(m) + '(으)로 바꿨어요.'); });
+  $('mapB').addEventListener('click', async () => {
+    const m = $('mapS').value; setSt({ map: m }); try { await setDoc(doc(fs, 'classes', c.id), { map: m }, { merge: true }); } catch (e) { /* 무시 */ }
+    // 대기실(놀이터)일 때는 '수업 시작'을 눌러야 그 맵으로 감 — 헷갈리지 않게 알려 줌
+    toast(L.st.phase === 'class' ? mapName(m) + '(으)로 바꿨어요.' : mapName(m) + '(으)로 정했어요. 지금은 대기실(놀이터)이라 \'수업 시작 ▶\'을 누르면 모두 ' + mapName(m) + '(으)로 가요.');
+  });
   $('ntB').addEventListener('click', () => { const m = $('ntI').value.trim(); if (!m) { $('ntI').focus(); return; } setSt({ notice: { m, t: Date.now() } }); $('ntI').value = ''; });
   $('ntX').addEventListener('click', () => setSt({ notice: null }));
   $('ntP').addEventListener('click', (e) => { const b = e.target.closest('[data-nt]'); if (b) setSt({ notice: { m: b.dataset.nt, t: Date.now() } }); });
