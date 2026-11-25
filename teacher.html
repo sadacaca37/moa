@@ -247,7 +247,8 @@ $('logout').addEventListener('click', async () => { await logout(); location.hre
 
 /* ---------- 반 목록 ---------- */
 function watchCounts() {
-  for (const c of classes) if (!countOffs[c.id]) countOffs[c.id] = onValue(ref(rt, 'live/' + c.id + '/players'), (s) => { counts[c.id] = s.size || 0; if (view === 'classes') drawClasses(); }, () => {});
+  // 접속 수: 학생이 움직일 때마다 목록을 다시 그리지 않고, 사람 수가 바뀔 때만
+  for (const c of classes) if (!countOffs[c.id]) countOffs[c.id] = onValue(ref(rt, 'live/' + c.id + '/players'), (s) => { const n = s.size || 0; if (counts[c.id] === n) return; counts[c.id] = n; if (view === 'classes') drawClasses(); }, () => {});
 }
 function drawClasses() {
   const cs = classes, full = cs.length >= MAX;
@@ -410,7 +411,14 @@ function drawLive(cid) {
     // 진행 상태 (미니 게임 화면 자료 gm 은 빼고)
     liveOffs.push(onLiveState(base, (v) => { L.st = v || {}; if (L.st.quiz && L.st.quiz.qid !== L.ansFor) watchAnswers(L.st.quiz.qid); if (L.st.game && L.st.game.run !== L.resFor) watchResults(L.st.game.run); paintLive(); }));
     let plPend = false; // 학생들이 게임 중에는 1초에 여러 번 바뀌어요 → 화면에 보일 때 한 번에 그리기
-    liveOffs.push(onValue(ref(rt, base + '/players'), (s) => { L.players = s.val() || {}; if (!plPend) { plPend = true; requestAnimationFrame(() => { plPend = false; paintLive(); }); } }));
+    // 들어온 학생 목록: 자리(x·y)만 바뀐 것은 무시하고, 들어오고 나가거나 이름·맵이 바뀔 때만 다시 그림 (렉 줄이기)
+    let plSig = '';
+    liveOffs.push(onValue(ref(rt, base + '/players'), (s) => {
+      L.players = s.val() || {};
+      const sig = Object.entries(L.players).map(([u, p]) => u + ':' + (p && p.n) + ':' + (p && p.mp) + ':' + (p && p.tc ? 1 : 0)).sort().join('|');
+      if (sig === plSig) return; plSig = sig;
+      if (!plPend) { plPend = true; requestAnimationFrame(() => { plPend = false; paintLive(); }); }
+    }));
     liveOffs.push(onValue(rquery(ref(rt, base + '/chat'), limitToLast(40)), (s) => { L.chat = []; s.forEach((x) => { L.chat.push(x.val()); }); paintChat(); }));
     liveOffs.push(onValue(ref(rt, base + '/lastRun'), (s) => { const r = s.val(); if (r && r !== L.resFor && !(L.st.game && L.st.game.run)) watchResults(r); }));
     liveOffs.push(onSnapshot(collection(fs, 'classes', cid, 'students'), (s) => { L.students = s.docs.map((d) => Object.assign({ id: d.id }, d.data())); paintStudents(); }, () => {}));
@@ -663,7 +671,8 @@ async function announceRank() {
       }
     }
     const list = Object.values(sc).sort((a, b) => b.s - a.s || a.tm - b.tm || a.n.localeCompare(b.n));
-    const rk = { id: run.id, name: run.name || '', total: Object.keys(qs).length, top: list.slice(0, 5).map((o) => ({ n: o.n, s: o.s })), list: list.map((o) => ({ n: o.n, k: o.k, s: o.s })), t: Date.now() };
+    // t는 서버 시각 기준 (학생 컴퓨터 시계가 틀려도 순위 창이 뜨게)
+    const rk = { id: run.id, name: run.name || '', total: Object.keys(qs).length, top: list.slice(0, 5).map((o) => ({ n: o.n, s: o.s })), list: list.map((o) => ({ n: o.n, k: o.k, s: o.s })), t: rnow() };
     await setSt({ quiz: null, qrun: null, qrank: rk });
     remove(ref(rt, base + '/qruns/' + run.id)).catch(() => {});
     toast('🏆 순위를 발표했어요! 학생 화면에 5등까지 떠요.');
@@ -690,14 +699,27 @@ function paintQuizLive() {
     '<p style="font:400 20px/1.4 Jua,sans-serif;margin:0">' + esc(q.q) + '</p><p class="note">' + ans.length + ' / ' + total + '명이 답했어요' + (key ? ' · 정답 ' + esc(q.k === 'ox' ? key.a : (key.a + 1) + '번') : '') + '</p>' +
     '<div class="bars">' + opts.map((o, i) => { const v = q.k === 'ox' ? o : i, n = ans.filter((x) => String(x.a) === String(v)).length, ok = key && String(key.a) === String(v); return '<div class="' + (ok ? 'ok' : '') + '"><span>' + (q.k === 'ox' ? '' : (i + 1) + '. ') + esc(o) + (ok ? ' ✓' : '') + '</span><i style="width:' + (ans.length ? Math.round(n / ans.length * 100) : 0) + '%"></i><b>' + n + '</b></div>'; }).join('') + '</div>' +
     (rev ? '<p class="note" style="color:var(--ink)">💡 해설: ' + esc(q.why || '(해설 없음)') + '</p><p class="note">맞힌 학생: ' + esc(ans.filter((x) => String(x.a) === String(q.ans)).map((x) => x.n).join(', ') || '없음') + '</p>' : '') +
-    '<div class="row"><button class="btn yel" type="button" id="qzRev"' + (rev || !key ? ' disabled' : '') + '>정답·해설 공개</button>' +
-    (hasNext ? '<button class="btn blue" type="button" id="qzNext">다음 문제 ▶ (' + (q.n + 2) + '번)</button>' : '') +
-    (!hasNext && rev ? '<button class="btn grn" type="button" id="qzRank">🏆 순위 발표하고 끝내기</button>' : '') +
-    '<button class="btn" type="button" id="qzEnd">퀴즈 닫기</button></div></div>';
-  $('qzRev').addEventListener('click', () => { if (key) setSt({ 'quiz/ans': key.a, 'quiz/why': key.why || '' }); });
-  if ($('qzNext')) $('qzNext').addEventListener('click', () => sendSetQ(set, q.n + 1));
+    (L.qwait === q.qid ? '<p class="note" style="color:var(--blue);font-weight:700" role="status">✅ 정답을 보여 주는 중… 잠시 뒤 ' + (hasNext ? '다음 문제로 넘어가요' : '순위를 발표해요') + '</p>' : '') +
+    '<div class="row"><button class="btn yel" type="button" id="qzRev"' + (rev || !key ? ' disabled' : '') + '>✅ 정답·해설 공개</button>' +
+    (hasNext ? '<button class="btn blue" type="button" id="qzNext"' + (L.qwait === q.qid ? ' disabled' : '') + '>다음 문제 ▶ (' + (q.n + 2) + '번)</button>'
+      : '<button class="btn grn" type="button" id="qzRank"' + (L.qwait === q.qid ? ' disabled' : '') + '>🏆 순위 발표하고 끝내기</button>') +
+    '<button class="btn" type="button" id="qzEnd">퀴즈 닫기</button></div>' +
+    '<p class="note">학생이 모두 답하면 정답이 저절로 보여요. 정답을 안 보여 주고 \'다음 문제\'를 눌러도 먼저 정답을 3초 보여 준 뒤 넘어가요.</p></div>';
+  const reveal = () => { if (key && !(L.st.quiz && L.st.quiz.ans !== undefined && L.st.quiz.ans !== null)) return setSt({ 'quiz/ans': key.a, 'quiz/why': key.why || '' }); return Promise.resolve(); };
+  // 다음 문제·순위 발표 전에 꼭 정답을 먼저 보여 줌 (안 보여 줬으면 보여 주고 3초 뒤에)
+  const afterReveal = async (go) => {
+    if (L.qwait) return;
+    if (rev || !key) { go(); return; }
+    L.qwait = q.qid; paintQuizLive();
+    await reveal();
+    setTimeout(() => { L.qwait = null; if (L.st.quiz && L.st.quiz.qid === q.qid) go(); else paintQuizLive(); }, 3200);
+  };
+  $('qzRev').addEventListener('click', reveal);
+  if ($('qzNext')) $('qzNext').addEventListener('click', () => afterReveal(() => sendSetQ(set, q.n + 1)));
+  if ($('qzRank')) $('qzRank').addEventListener('click', () => afterReveal(announceRank));
   $('qzEnd').addEventListener('click', () => setSt({ quiz: null }));
-  if ($('qzRank')) $('qzRank').addEventListener('click', announceRank);
+  // 들어온 학생이 모두 답하면 정답을 저절로 공개
+  if (!rev && key && total > 0 && ans.length >= total && L.autoRev !== q.qid) { L.autoRev = q.qid; setTimeout(() => { if (L.st.quiz && L.st.quiz.qid === q.qid) reveal(); }, 1200); }
 }
 
 /* 게임 결과 */

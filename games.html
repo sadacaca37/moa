@@ -1498,7 +1498,7 @@ function Bomb() {
     const c = ts.filter(t => t.n > 0).sort((p, q) => (p.has - q.has) || (q.n - p.n) || Math.random() - 0.5)[0];
     if (!c) return;
     const a = pick(actors.filter(o => o.team === c.k && !o.out && !o.bomb));
-    const f = rand(9, 14) * +S.fuse * (1 + (k - 1) * 0.25); a.bomb = { t: f, max: f }; // 넓은 놀이터는 심지를 조금 길게 a.freeze = 0.5;
+    const f = rand(9, 14) * +S.fuse * (1 + (k - 1) * 0.25); a.bomb = { t: f, max: f }; a.freeze = 0.5; // 넓은 놀이터는 심지를 조금 길게
     addFx(a.x, a.y - 112, { img: 'bomb', life: 1, w: 40 }); say(a, pick(['앗, 폭탄!', '내가 폭탄이야?!', '으앗!']), '#ffd0d1', 1.4);
     sfx('quiz_start', a.isMe ? 0.9 : 0.4); if (a.isMe) toast('폭탄이 나에게 왔어요! 다른 모둠 친구에게 닿아서 넘겨요');
   }
