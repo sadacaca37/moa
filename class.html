@@ -118,7 +118,7 @@ html.embed .mapbox{border:0;box-shadow:none}
 <main class="wrap">
   <div class="tabs" role="tablist" aria-label="반 화면">
     <button class="btn" type="button" role="tab" id="tabRoom" aria-selected="true" aria-controls="roomTab">가상 교실</button>
-    <button class="btn" type="button" role="tab" id="tabPad" aria-selected="false" aria-controls="padTab">📋 패들렛</button>
+    <button class="btn" type="button" role="tab" id="tabPad" aria-selected="false" aria-controls="padTab">📋 모아보드</button>
     <button class="btn" type="button" role="tab" id="tabBoard" aria-selected="false" aria-controls="boardTab">게시판</button>
   </div>
   <div class="pf notice" id="notice" role="status" hidden><span class="msc moa" aria-hidden="true"></span><span id="noticeT"></span></div>
@@ -157,7 +157,7 @@ html.embed .mapbox{border:0;box-shadow:none}
 
   <!-- 패들렛: 선생님이 '학생에게 보이기'로 이 반에 공유한 패들렛을 이 화면 안에서 바로 씀 (여러 개면 위에서 고름) -->
   <section id="padTab" class="padTab" role="tabpanel" aria-labelledby="tabPad" hidden>
-    <div class="padbar" id="padBar" role="group" aria-label="공유된 패들렛 고르기"></div>
+    <div class="padbar" id="padBar" role="group" aria-label="공유된 모아보드 고르기"></div>
     <div id="padSlot"><p class="dk-note">불러오는 중…</p></div>
   </section>
   <section id="boardTab" class="boardTab stack" role="tabpanel" aria-labelledby="tabBoard" hidden>
@@ -243,7 +243,7 @@ let PADS = [], padSel = '', OWN_PADS = [], EXTRA_PADS = [], extraFor = '';
 function mixPads() {
   const seen = new Set(OWN_PADS.map((b) => b.id));
   PADS = OWN_PADS.concat(EXTRA_PADS.filter((b) => !seen.has(b.id)));
-  $('tabPad').textContent = '📋 패들렛' + (PADS.length > 1 ? ' ' + PADS.length : ''); if (!$('padTab').hidden) drawPad();
+  $('tabPad').textContent = '📋 모아보드' + (PADS.length > 1 ? ' ' + PADS.length : ''); if (!$('padTab').hidden) drawPad();
 }
 async function loadExtraPads(ids) {
   const key = (ids || []).join(','); if (key === extraFor) return; extraFor = key;
@@ -256,14 +256,14 @@ function drawPad() {
   // 선생님이 패들렛에 묶음(📁)을 정해 두었으면 묶음 이름을 앞에 달아 같이 모아 보여 줌
   const chip = (b) => '<button type="button" class="padpick" data-pad="' + esc(b.id) + '" aria-pressed="' + (b.id === padSel) + '">' + esc(b.title) + '</button>';
   const gs = groupBy(PADS, (b) => b.grp), named = gs.some((g) => g.name);
-  $('padBar').innerHTML = PADS.length > 1 ? (named ? gs.map((g) => '<span class="padgh">📁 ' + esc(g.name || '그 밖의 패들렛') + '</span>' + g.list.map(chip).join('')).join('') : PADS.map(chip).join('')) : '';
+  $('padBar').innerHTML = PADS.length > 1 ? (named ? gs.map((g) => '<span class="padgh">📁 ' + esc(g.name || '그 밖의 모아보드') + '</span>' + g.list.map(chip).join('')).join('') : PADS.map(chip).join('')) : '';
   $('padBar').hidden = PADS.length < 2;
   const slot = $('padSlot');
-  if (!padSel) { slot.dataset.bid = ''; slot.innerHTML = '<div class="dk-wrap"><p class="dk-note">아직 선생님이 공유한 패들렛이 없어요.' + (PV || TEACH ? '<br>진행판의 📋 학생 패들렛 탭에서 패들렛을 여러 개 넣을 수 있어요.</p><p><a class="btn blue" href="teacher.html#live-' + encodeURIComponent(ses.cid) + '">＋ 진행판에서 패들렛 넣기</a>' : '<br>선생님이 패들렛을 넣으면 여기에 바로 나와요.') + '</p></div>'; return; }
+  if (!padSel) { slot.dataset.bid = ''; slot.innerHTML = '<div class="dk-wrap"><p class="dk-note">아직 선생님이 공유한 모아보드가 없어요.' + (PV || TEACH ? '<br>진행판의 📋 학생 모아보드 탭에서 모아보드를 여러 개 넣을 수 있어요.</p><p><a class="btn blue" href="teacher.html#live-' + encodeURIComponent(ses.cid) + '">＋ 진행판에서 모아보드 넣기</a>' : '<br>선생님이 모아보드를 넣으면 여기에 바로 나와요.') + '</p></div>'; return; }
   if (slot.dataset.bid === padSel) return;
   slot.dataset.bid = padSel;
   const b = PADS.find((x) => x.id === padSel);
-  slot.innerHTML = '<iframe class="padframe" title="' + esc(b.title) + ' 패들렛" src="board.html?b=' + encodeURIComponent(padSel) + '&embed=1"></iframe>';
+  slot.innerHTML = '<iframe class="padframe" title="' + esc(b.title) + ' 모아보드" src="board.html?b=' + encodeURIComponent(padSel) + '&embed=1"></iframe>';
 }
 $('padBar').addEventListener('click', (e) => { const t = e.target.closest('[data-pad]'); if (t) { padSel = t.dataset.pad; drawPad(); } });
 $('out').addEventListener('click', () => { if (myRef) set(myRef, null).catch(() => {}); if (TEACH) { location.href = 'teacher.html#live-' + encodeURIComponent(TEACH); return; } clearSession(); location.href = './'; });

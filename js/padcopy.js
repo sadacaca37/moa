@@ -30,7 +30,7 @@ export async function freeRoomNo(used) {
 
 /** 패들렛 하나 복제 → 새 패들렛 번호. mode: 'mine'(선생님 글만) | 'all'(모든 글) | 'none'(칸만) */
 export async function duplicateBoard(src, { cid, title, mode = 'mine', uid, owner = null, own = [], from = '복제함', pub = false } = {}) {
-  const meta = { cid: cid || src.cid, title: String(title || src.title || '패들렛').slice(0, 60), from, date: todayISO(), created: new Date().toISOString(), sections: (src.sections || ['글 모음']).slice(), layout: layoutOf(src), groups: src.groups !== false, src: src.src || src.id, public: !!pub, lock: !!src.lock };
+  const meta = { cid: cid || src.cid, title: String(title || src.title || '모아보드').slice(0, 60), from, date: todayISO(), created: new Date().toISOString(), sections: (src.sections || ['글 모음']).slice(), layout: layoutOf(src), groups: src.groups !== false, src: src.src || src.id, public: !!pub, lock: !!src.lock };
   if (src.grp) meta.grp = src.grp;
   const id = newId('b');
   // 1) 패들렛 문서 먼저 (파일을 올릴 자리)

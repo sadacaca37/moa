@@ -1,6 +1,6 @@
 /* 모아팡 공통 장면 — 첫 화면과 같게: 하늘·풀밭 배경, 땅 위를 걷는 친구들(공룡 옷 아이 · 분홍 머리 아이 · 갈색 옷 아이),
    땅 띠, 오른쪽 아래 만든 사람. <script src="js/scene.js" defer></script> 한 줄로 붙인다.
-   패들렛을 다른 화면 안에 넣어 보일 때(?embed=1)는 붙이지 않는다(바깥 화면 배경이 비쳐 보임). */
+   모아보드를 다른 화면 안에 넣어 보일 때(?embed=1)는 붙이지 않는다(바깥 화면 배경이 비쳐 보임). */
 (() => {
   const b = document.body;
   if (!b || b.classList.contains('embed') || new URLSearchParams(location.search).get('embed') === '1') return;

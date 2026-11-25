@@ -128,7 +128,7 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
     <a class="btn sm" href="#home" data-nav="home" id="navHome">첫 화면 꾸미기</a>
     <a class="btn sm" href="#team" data-nav="team" id="navTeam" hidden>선생님 관리</a>
     <a class="btn sm" href="#quiz" data-nav="quiz">📚 퀴즈 보관함</a>
-    <a class="btn sm" href="padlet.html">📋 내 패들렛</a>
+    <a class="btn sm" href="padlet.html">📋 내 모아보드</a>
     <a class="btn sm" href="padlet.html#class-lib" title="반을 골라 보내는 과제방을 미리 만들어 두는 곳">📦 과제 보관함</a>
     <a class="btn sm" href="games.html">미니 게임</a>
     <button class="btn sm" type="button" id="logout">로그아웃</button>
@@ -278,17 +278,17 @@ function drawClasses() {
   // 패들렛 대시보드처럼: 첫 카드 '＋ 새 교실', 반 카드는 그림 칸(방번호·접속·진행판) + 이름 + ⋮ 메뉴(복제·버리기 등)
   const card = (c) => '<article class="dk-card" style="--c:' + esc(c.color || '#FFD23F') + '"><a class="dk-th" href="#live-' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 진행판 열기"><span class="dk-tag">' + esc(c.kind || '정규반') + '</span><span class="dk-tag r"><i aria-hidden="true"></i>접속 ' + (counts[c.id] || 0) + '명</span><span class="dk-big" aria-label="방번호 ' + esc(c.room || '-') + '">' + esc(c.room || '-') + '</span><span class="dk-go">진행판 ▶</span></a>' +
     '<div class="dk-row"><div class="dk-tx"><b>' + esc(c.name) + '</b><small>방번호 ' + esc(c.room || '-') + ' · 맵 ' + esc(mapName(c.map || 'classroom')) + (c.qz && (c.qz.ox || c.qz.mc) ? ' · 📚 ' + esc([c.qz.ox, c.qz.mc].filter(Boolean).map((q) => q.name).join(', ')) : '') + '</small></div>' +
-    '<a class="dk-ic" href="padlet.html#class-' + encodeURIComponent(c.id) + '" title="' + esc(c.name) + ' 패들렛으로 가기" aria-label="' + esc(c.name) + ' 패들렛으로 가기">📋</a>' +
+    '<a class="dk-ic" href="padlet.html#class-' + encodeURIComponent(c.id) + '" title="' + esc(c.name) + ' 모아보드로 가기" aria-label="' + esc(c.name) + ' 모아보드로 가기">📋</a>' +
     '<span class="dk-mw"><button type="button" class="dk-dots" aria-expanded="false" aria-label="' + esc(c.name) + ' 메뉴" title="메뉴">⋮</button><span class="dk-menu" hidden>' +
       '<a href="#live-' + esc(c.id) + '">▶ 진행판 열기</a><button type="button" data-qr="' + esc(c.id) + '">📺 QR·주소 크게</button><a href="' + esc(previewUrl(c)) + '">👀 학생 화면으로 보기</a><button type="button" data-grp="' + esc(c.id) + '">📁 묶음 바꾸기</button><button type="button" data-edit="' + esc(c.id) + '">✏️ 고치기</button><button type="button" data-cdup="' + esc(c.id) + '">📄 교실 복제</button><button type="button" class="del" data-cdel="' + esc(c.id) + '">🗑 이 교실 버리기</button></span></span></div></article>';
   const nT = tclasses.length;
   // 휴지통은 ⚙ 설정 안에만 (화면에 휴지통 그림을 늘어놓지 않음)
   const tools = '<div class="dk-tools"><span class="dk-mw"><button type="button" class="dk-dots dk-set" aria-expanded="false" aria-haspopup="true" title="설정">⚙ 설정</button><span class="dk-menu" hidden>' +
-    '<button type="button" id="newC2"' + (full ? ' disabled' : '') + '>＋ 새 교실 만들기</button><a href="padlet.html">📋 내 패들렛</a><a href="padlet.html#trash" title="지운 교실·패들렛 (' + TRASH_DAYS + '일 안에 되살리기)">🗑 휴지통' + (nT ? '<b class="dk-n">' + nT + '</b>' : '') + '</a></span></span></div>';
+    '<button type="button" id="newC2"' + (full ? ' disabled' : '') + '>＋ 새 교실 만들기</button><a href="padlet.html">📋 내 모아보드</a><a href="padlet.html#trash" title="지운 교실·모아보드 (' + TRASH_DAYS + '일 안에 되살리기)">🗑 휴지통' + (nT ? '<b class="dk-n">' + nT + '</b>' : '') + '</a></span></span></div>';
   $('view').innerHTML = '<section class="dk-wrap"><div class="dk-h"><h1>교실<small>' + cs.length + ' / ' + MAX + '</small></h1>' + tools + '</div>' +
     // 정규 교실 → 특강 교실, 그 안에서 선생님이 정한 묶음(📁)으로 한 번 더 나눔. 머리를 누르면 접고 펴기
     '<div id="cGrid" class="dk-secs">' + sectionsHTML(classSections(cs), card, '<article class="dk-card dk-add"><button class="dk-th" type="button" id="newC"' + (full ? ' disabled' : '') + ' aria-label="새 교실 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>새 교실 만들기</b><small>' + (full ? '20개가 다 찼어요' : cs.length + ' / ' + MAX + '개') + '</small></div></div></article>', 't:') + '</div>' +
-    '<p class="dk-note">학생은 첫 화면에서 방번호 5자리를 누르거나, QR·링크로 바로 들어와요. 카드를 누르면 진행판이 열려요. ⋮ 메뉴에서 📁 묶음 바꾸기 · 📄 교실 복제 · 🗑 버리기를 할 수 있어요. 버린 교실은 ⚙ 설정 → 휴지통에서 ' + TRASH_DAYS + '일 안에 되살릴 수 있어요. 교실은 내 패들렛과 같은 목록이에요.</p></section>';
+    '<p class="dk-note">학생은 첫 화면에서 방번호 5자리를 누르거나, QR·링크로 바로 들어와요. 카드를 누르면 진행판이 열려요. ⋮ 메뉴에서 📁 묶음 바꾸기 · 📄 교실 복제 · 🗑 버리기를 할 수 있어요. 버린 교실은 ⚙ 설정 → 휴지통에서 ' + TRASH_DAYS + '일 안에 되살릴 수 있어요. 교실은 내 모아보드와 같은 목록이에요.</p></section>';
   $('cGrid').onclick = (e) => {
     const f = e.target.closest('[data-fold]'); if (!f) return;
     toggleFold(f.dataset.fold); drawClasses(); const nf = document.querySelector('[data-fold="' + CSS.escape(f.dataset.fold) + '"]'); if (nf) nf.focus();
@@ -350,18 +350,18 @@ async function deleteClass(c) {
     const own = isAdmin() ? [] : [where('owner', '==', user.uid)];
     const n = await trashClass(c, { own, homeRef: homeRef() });
     await remove(ref(rt, 'live/' + c.id)).catch(() => {}); // 실시간 교실(접속·채팅)은 비움
-    toast('\'' + c.name + '\'을 휴지통으로 옮겼어요' + (n ? ' (패들렛 ' + n + '개도 같이)' : '') + '. ⚙ 설정 → 휴지통에서 ' + TRASH_DAYS + '일 안에 되살릴 수 있어요.');
+    toast('\'' + c.name + '\'을 휴지통으로 옮겼어요' + (n ? ' (모아보드 ' + n + '개도 같이)' : '') + '. ⚙ 설정 → 휴지통에서 ' + TRASH_DAYS + '일 안에 되살릴 수 있어요.');
     if (location.hash !== '#classes') location.hash = '#classes';
     return true;
   } catch (err) { toast(errText(err), true); return false; }
 }
-const TRASH_NOTE = (c) => '\'' + c.name + '\' 교실을 휴지통으로 옮겨요. 학생은 바로 못 들어오고, 그 교실 패들렛도 같이 휴지통으로 가요. ' + TRASH_DAYS + '일 안에는 ⚙ 설정 → 휴지통에서 학생 기록·패들렛까지 그대로 되살릴 수 있어요. ' + TRASH_DAYS + '일이 지나면 영구 삭제돼요.';
+const TRASH_NOTE = (c) => '\'' + c.name + '\' 교실을 휴지통으로 옮겨요. 학생은 바로 못 들어오고, 그 교실 모아보드도 같이 휴지통으로 가요. ' + TRASH_DAYS + '일 안에는 ⚙ 설정 → 휴지통에서 학생 기록·모아보드까지 그대로 되살릴 수 있어요. ' + TRASH_DAYS + '일이 지나면 영구 삭제돼요.';
 // 📄 교실 복제: 이름·종류·색·맵·묶음·퀴즈 세트·반 링크는 그대로, 방번호는 새로. 고르면 패들렛도 (선생님 글만)
 function dupDlg(c) {
   if (classes.length >= MAX) { toast('교실은 20개까지 만들 수 있어요. 안 쓰는 교실을 버린 뒤 복제해 주세요.', true); return; }
   openDlg(dlgTop('📄 교실 복제 — ' + c.name) +
     '<label class="lb">새 교실 이름<input class="field" id="dn" maxlength="24" value="' + esc((c.name + ' 사본').slice(0, 24)) + '"></label>' +
-    '<label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="dB" checked style="width:22px;height:22px"> 이 교실의 패들렛도 같이 복제 (선생님 글만, 학생 글은 빼고)</label>' +
+    '<label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="dB" checked style="width:22px;height:22px"> 이 교실의 모아보드도 같이 복제 (선생님 글만, 학생 글은 빼고)</label>' +
     '<p class="note">종류·색·맵·묶음·퀴즈 세트·반 링크는 그대로 따라가요. 방번호는 새로 정해지고, 학생 기록은 복사하지 않아요.</p>' +
     '<div class="row"><button type="button" class="btn blue" id="dGo">📄 복제하기 ▶</button><button type="button" class="btn" data-x>그만두기</button></div>', '#dn');
   $('dGo').addEventListener('click', async () => {
@@ -369,7 +369,7 @@ function dupDlg(c) {
     const withBoards = $('dB').checked; $('dGo').disabled = true; $('dGo').textContent = '복제하는 중…';
     try {
       const r = await duplicateClass(c, { name, withBoards, uid: user.uid, owner: isAdmin() ? null : user.uid, own: isAdmin() ? [] : [where('owner', '==', user.uid)], used: new Set(classes.map((x) => x.room)) });
-      closeDlg(); toast('\'' + r.name + '\' 교실을 만들었어요. 방번호 ' + r.room + (withBoards ? ' · 패들렛 ' + r.boards + '개 복제' : '') + '.');
+      closeDlg(); toast('\'' + r.name + '\' 교실을 만들었어요. 방번호 ' + r.room + (withBoards ? ' · 모아보드 ' + r.boards + '개 복제' : '') + '.');
     } catch (err) { $('dGo').disabled = false; $('dGo').textContent = '📄 복제하기 ▶'; toast(errText(err), true); }
   });
 }
@@ -447,10 +447,10 @@ function bindForm(id, getList, saveList) {
 /* ---------- 첫 화면 꾸미기 ---------- */
 function drawHome() {
   $('view').innerHTML = '<div class="stack"><h1 class="ttl">첫 화면 꾸미기</h1>' +
-    '<div class="pf card"><h2>우리 첫 화면 주소</h2><p class="note">학생이 이 주소로 들어오면 아래 링크 게시판과 내 패들렛(학생에게 보이기로 한 것)이 보여요. 반 QR·링크로 들어온 학생과, 우리 반에 한 번 들어온 학생도 이 첫 화면을 봐요.' + (isAdmin() ? ' 주소 없이 moapang.kr 로 처음 들어온 사람도 이 첫 화면을 봐요.' : ' 다른 선생님의 첫 화면과는 따로예요.') + '</p>' +
+    '<div class="pf card"><h2>우리 첫 화면 주소</h2><p class="note">학생이 이 주소로 들어오면 아래 링크 게시판과 내 모아보드(학생에게 보이기로 한 것)이 보여요. 반 QR·링크로 들어온 학생과, 우리 반에 한 번 들어온 학생도 이 첫 화면을 봐요.' + (isAdmin() ? ' 주소 없이 moapang.kr 로 처음 들어온 사람도 이 첫 화면을 봐요.' : ' 다른 선생님의 첫 화면과는 따로예요.') + '</p>' +
       '<p style="margin:0;font-weight:700;word-break:break-all"><a href="' + esc(homeUrl()) + '" target="_blank" rel="noopener">' + esc(homeUrl()) + '</a></p><div class="row"><button class="btn blue sm" type="button" id="homeQr">QR·링크 복사</button></div></div>' +
     '<div class="pf card"><h2>타자팡</h2><p class="note">타자팡은 이제 모아팡 안에 있어요. 학생은 첫 화면 START를 누르면 같은 방번호·이름으로 저절로 들어가고, 기록은 모아팡과 같은 곳에 저장돼요.</p><div><a class="btn blue" href="taja/" target="_blank" rel="noopener">타자팡 열기 ▶</a></div></div>' +
-    '<div class="pf card"><h2>첫 화면 링크 게시판</h2><p class="note">누구나 보는 링크예요. 수업 보드는 내 패들렛에서 \'첫 화면 링크에 올리기\'를 누르면 여기에 생겨요.</p>' + linksHTML(home.links || [], 'homeL') + '</div></div>';
+    '<div class="pf card"><h2>첫 화면 링크 게시판</h2><p class="note">누구나 보는 링크예요. 수업 보드는 내 모아보드에서 \'첫 화면 링크에 올리기\'를 누르면 여기에 생겨요.</p>' + linksHTML(home.links || [], 'homeL') + '</div></div>';
   bindLinks('homeL', () => home.links || [], (list) => setDoc(homeRef(), { links: list }, { merge: true }));
   $('homeQr').addEventListener('click', () => homeQrDlg());
 }
@@ -483,7 +483,7 @@ function drawLive(cid) {
     const bq = isAdmin() ? collection(fs, 'boards') : query(collection(fs, 'boards'), where('owner', '==', user.uid));
     liveOffs.push(onSnapshot(bq, (s) => { L.boards = s.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter((b) => (isAdmin() ? !b.owner : b.owner === user.uid) && !inTrash(b)).sort((a, b) => String(a.created || '').localeCompare(String(b.created || ''))); paintPads(); }, () => {}));
   }
-  $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 class="ttl">' + esc(c.name) + ' 진행판</h1><div class="row"><button class="btn sm yel" type="button" data-qr="' + esc(c.id) + '" title="주소창 글자·방번호·QR을 크게 띄워요">📺 방번호 ' + esc(c.room) + ' · 주소 크게</button><a class="btn sm grn" href="' + esc(previewUrl(c)) + '" title="학생에게 보이는 첫 화면·교실·패들렛·게임을 그대로 봐요 (기록은 남지 않아요)">👀 학생 화면으로 보기</a><a class="btn sm" href="padlet.html#class-' + encodeURIComponent(c.id) + '" title="이 반 패들렛으로 바로 가기">📋 패들렛</a><a class="btn sm" href="#classes">◀ 교실</a></div></div>' +
+  $('view').innerHTML = '<div class="stack"><div class="row" style="justify-content:space-between"><h1 class="ttl">' + esc(c.name) + ' 진행판</h1><div class="row"><button class="btn sm yel" type="button" data-qr="' + esc(c.id) + '" title="주소창 글자·방번호·QR을 크게 띄워요">📺 방번호 ' + esc(c.room) + ' · 주소 크게</button><a class="btn sm grn" href="' + esc(previewUrl(c)) + '" title="학생에게 보이는 첫 화면·교실·모아보드·게임을 그대로 봐요 (기록은 남지 않아요)">👀 학생 화면으로 보기</a><a class="btn sm" href="padlet.html#class-' + encodeURIComponent(c.id) + '" title="이 반 모아보드로 바로 가기">📋 모아보드</a><a class="btn sm" href="#classes">◀ 교실</a></div></div>' +
     // 교실 화면: 선생님도 캐릭터(👑)로 들어가서 학생들과 같이 보임
     '<section class="pf card"><div class="row" style="justify-content:space-between;align-items:center"><h2>🏫 교실 화면 <small style="font:700 13px \'Noto Sans KR\',sans-serif;color:var(--sub)">👑 선생님도 캐릭터로 들어가 있어요 · 화면을 누르고 방향키로 움직여요</small></h2><button class="btn sm" type="button" id="roomFull">크게 보기 ⛶</button></div>' +
       '<div class="roomv"><iframe id="roomF" src="class.html?teach=' + encodeURIComponent(c.id) + '&embed=1" title="' + esc(c.name) + ' 교실 화면" allow="fullscreen"></iframe></div></section>' +
@@ -499,7 +499,7 @@ function drawLive(cid) {
       '<section class="pf card"><h2 id="plH">들어온 학생</h2><div class="chips" id="plL"></div></section>' +
       '<section class="pf card"><h2>채팅</h2><div class="row"><button class="btn sm" type="button" id="chOff"></button><button class="btn sm red" type="button" id="chClr">채팅 지우기</button></div><div id="chatLog" aria-live="polite"></div><form class="row" id="tChatF" autocomplete="off" style="flex-wrap:nowrap;margin-top:8px"><button class="btn sm" type="button" id="tChatE" aria-label="이모티콘" title="이모티콘" style="padding:0 6px">' + emoHTML(0, '30px') + '</button><input class="field" id="tChatI" maxlength="40" placeholder="학생들에게 한마디 (40자까지)" style="flex:1;min-width:0"><button class="btn sm blue" type="submit">보내기</button></form></section>' +
       '<section class="pf card" id="padC"></section>' +
-      '<section class="pf card"><h2>반 링크</h2><p class="note">반 화면 게시판 탭에 보여요. 패들렛은 위 📋 학생 패들렛 탭에서 넣어요.</p>' + linksHTML(c.links || [], 'clsL') + '</section>' +
+      '<section class="pf card"><h2>반 링크</h2><p class="note">반 화면 게시판 탭에 보여요. 모아보드는 위 📋 학생 모아보드 탭에서 넣어요.</p>' + linksHTML(c.links || [], 'clsL') + '</section>' +
       '<section class="pf card"><h2 id="stH">학생 기록</h2><div class="row" id="stBar" style="align-items:center"></div><ul class="list" id="stL"></ul></section>' +
     '</div></div></div>';
   bindLive(c);
@@ -528,17 +528,17 @@ function paintPads() {
   const rest = bs.filter((b) => !list.includes(b));
   const order = [L.cid].concat(classes.map((x) => x.id).filter((id) => id !== L.cid), ['lib']);
   const groups = order.map((cid) => { const g = rest.filter((b) => b.cid === cid); return g.length ? '<optgroup label="' + esc(cid === L.cid ? '이 교실' : cname(cid)) + '">' + g.map((b) => '<option value="' + esc(b.id) + '">' + esc(b.title) + '</option>').join('') + '</optgroup>' : ''; }).join('');
-  $('padC').innerHTML = '<h2>📋 학생 패들렛 탭 <span class="badge">' + list.length + '개</span></h2><p class="note">학생 화면 📋 패들렛 탭에 보이는 패들렛이에요. 여러 개 넣으면 학생이 위쪽 단추로 골라 봐요.</p>' +
-    '<ul class="list" id="padL" style="max-height:none">' + (list.length ? list.map((b, i) => '<li><b style="width:22px">' + (i + 1) + '</b><span class="sp"><b>' + esc(b.title) + '</b>' + (b.cid !== L.cid ? ' <small style="color:var(--sub)">· ' + esc(cname(b.cid)) + '에서</small>' : '') + '</span><a class="btn sm" href="padlet.html#class-' + encodeURIComponent(b.cid) + '" title="내 패들렛에서 열기">열기</a><button class="btn sm red" type="button" data-pdel="' + esc(b.id) + '" aria-label="' + esc(b.title) + ' 빼기">빼기</button></li>').join('') : '<li>아직 없어요. 아래에서 패들렛을 골라 넣어 주세요.</li>') + '</ul>' +
-    (rest.length ? '<div class="mapsel"><select class="field" id="padS" aria-label="넣을 패들렛 고르기">' + groups + '</select><button class="btn blue" type="button" id="padA">＋ 패들렛 넣기</button></div>' : '<p class="note">넣을 수 있는 패들렛이 더 없어요. <a href="padlet.html#class-' + encodeURIComponent(L.cid) + '">내 패들렛</a>에서 새로 만들어요.</p>') +
-    '<p class="note">다른 교실 패들렛을 넣으면 그 패들렛의 \'학생에게 보이기\'도 켜져요(그 교실 학생도 볼 수 있어요). 학생 글은 패들렛 하나에 같이 쌓여요.</p>';
+  $('padC').innerHTML = '<h2>📋 학생 모아보드 탭 <span class="badge">' + list.length + '개</span></h2><p class="note">학생 화면 📋 모아보드 탭에 보이는 모아보드예요. 여러 개 넣으면 학생이 위쪽 단추로 골라 봐요.</p>' +
+    '<ul class="list" id="padL" style="max-height:none">' + (list.length ? list.map((b, i) => '<li><b style="width:22px">' + (i + 1) + '</b><span class="sp"><b>' + esc(b.title) + '</b>' + (b.cid !== L.cid ? ' <small style="color:var(--sub)">· ' + esc(cname(b.cid)) + '에서</small>' : '') + '</span><a class="btn sm" href="padlet.html#class-' + encodeURIComponent(b.cid) + '" title="내 모아보드에서 열기">열기</a><button class="btn sm red" type="button" data-pdel="' + esc(b.id) + '" aria-label="' + esc(b.title) + ' 빼기">빼기</button></li>').join('') : '<li>아직 없어요. 아래에서 모아보드를 골라 넣어 주세요.</li>') + '</ul>' +
+    (rest.length ? '<div class="mapsel"><select class="field" id="padS" aria-label="넣을 모아보드 고르기">' + groups + '</select><button class="btn blue" type="button" id="padA">＋ 모아보드 넣기</button></div>' : '<p class="note">넣을 수 있는 모아보드가 더 없어요. <a href="padlet.html#class-' + encodeURIComponent(L.cid) + '">내 모아보드</a>에서 새로 만들어요.</p>') +
+    '<p class="note">다른 교실 모아보드를 넣으면 그 모아보드의 \'학생에게 보이기\'도 켜져요(그 교실 학생도 볼 수 있어요). 학생 글은 모아보드 하나에 같이 쌓여요.</p>';
   if ($('padA')) $('padA').onclick = async () => {
     const b = (L.boards || []).find((x) => x.id === $('padS').value); if (!b) return;
     const { c, extra } = padsShown();
     try {
       if (!b.public) await setBoardPub(b, true);
       if (b.cid !== L.cid && !extra.includes(b.id)) await setDoc(doc(fs, 'classes', c.id), { pads: extra.concat(b.id).slice(-8) }, { merge: true });
-      toast('\'' + b.title + '\'을 학생 📋 패들렛 탭에 넣었어요.');
+      toast('\'' + b.title + '\'을 학생 📋 모아보드 탭에 넣었어요.');
     } catch (err) { toast(errText(err), true); }
   };
   $('padL').onclick = async (e) => {
@@ -1138,11 +1138,11 @@ async function loadUsage() {
     const tot = rows.reduce((o, r) => ({ cls: o.cls + r.cls, pads: o.pads + r.pads, st: o.st + r.st, on: o.on + r.on, sets: o.sets + r.sets, tj: o.tj + r.tj, rpw: o.rpw + r.rpw, rp: o.rp + r.rp }), { cls: 0, pads: 0, st: 0, on: 0, sets: 0, tj: 0, rpw: 0, rp: 0 });
     const td = (v) => '<td style="text-align:right;padding:6px 8px">' + v + '</td>';
     usageHTML = '<p class="note" style="color:var(--ink);font-weight:700">지금 실시간 교실 접속: ' + tot.on + ' / 100명 (모든 선생님 합쳐서) · ⌨️ 타자팡 이번 달 랭킹에 오른 사람: ' + lbN + '명</p>' +
-      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:820px"><thead><tr style="background:#F4F6FA">' + ['선생님', '교실', '패들렛', '학생', '퀴즈 세트', '지금 접속', '⌨️ 타자팡 학생', '⌨️ 연습 보고 (이번 주 / 모두)', '학생 최근 접속', '선생님 마지막 접속'].map((h, i) => '<th style="padding:8px;text-align:' + (i ? 'right' : 'left') + '">' + h + '</th>').join('') + '</tr></thead><tbody>' +
+      '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:820px"><thead><tr style="background:#F4F6FA">' + ['선생님', '교실', '모아보드', '학생', '퀴즈 세트', '지금 접속', '⌨️ 타자팡 학생', '⌨️ 연습 보고 (이번 주 / 모두)', '학생 최근 접속', '선생님 마지막 접속'].map((h, i) => '<th style="padding:8px;text-align:' + (i ? 'right' : 'left') + '">' + h + '</th>').join('') + '</tr></thead><tbody>' +
       rows.map((r) => '<tr style="border-top:1px solid #E5E8EF"><td style="padding:6px 8px"><b>' + esc(r.name) + '</b>' + (r.em && r.name !== r.em ? '<br><small style="color:var(--sub)">' + esc(r.em) + '</small>' : '') + '</td>' + td(r.cls) + td(r.pads) + td(r.st) + td(r.sets) + td(r.on ? '<b style="color:#1E9E4A">' + r.on + '명</b>' : '0') + td(r.tj ? r.tj + '명' : '0') + td(r.rpw + ' / ' + r.rp) + td(esc(r.stLast)) + td(esc(r.seen)) + '</tr>').join('') +
       '<tr style="border-top:2px solid #1D2030;font-weight:800"><td style="padding:6px 8px">모두</td>' + td(tot.cls) + td(tot.pads) + td(tot.st) + td(tot.sets) + td(tot.on + '명') + td(tot.tj + '명') + td(tot.rpw + ' / ' + tot.rp) + td('') + td('') + '</tr></tbody></table></div>' +
       '<p class="note">⌨️ 타자팡 학생 = 타자팡 기록이 있는 학생 수. 연습 보고 = 학생이 타자팡에서 선생님께 보낸 \'오늘의 연습 보고\' 수(지금은 주 선생님 반 학생만 보낼 수 있어요). 학생 최근 접속 = 모아팡·연습 보고 중 가장 최근.</p>' +
-      '<p class="note">이름 모르는 선생님은 다음에 선생님 화면에 들어오면 이름이 붙어요. 휴지통에 있는 교실·패들렛은 세지 않아요. ' + new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ' 기준</p>';
+      '<p class="note">이름 모르는 선생님은 다음에 선생님 화면에 들어오면 이름이 붙어요. 휴지통에 있는 교실·모아보드는 세지 않아요. ' + new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + ' 기준</p>';
     if ($('useT')) $('useT').innerHTML = usageHTML;
   } catch (err) { toast(errText(err), true); }
   if ($('useGo')) { $('useGo').disabled = false; $('useGo').textContent = '📊 새로 보기'; }
@@ -1151,10 +1151,10 @@ function drawTeam() {
   if (!teamOff) teamOff = onSnapshot(collection(fs, 'teachers'), (s) => { team = s.docs.map((d) => Object.assign({ id: d.id }, d.data())).sort((a, b) => (a.at || 0) - (b.at || 0)); if (view === 'team') drawTeam(); }, (err) => toast(errText(err), true));
   $('view').innerHTML = '<div class="stack"><h1 class="ttl">선생님 관리</h1>' +
     '<div class="pf card"><h2>함께 쓰는 선생님 · ' + team.length + '명</h2>' +
-    '<p class="note">여기에 이메일을 올리면, 그 선생님이 선생님 로그인 화면의 \'처음이에요 · 함께 쓰는 선생님 가입\'으로 직접 가입하고 메일 인증을 해요. 그 뒤로는 <b>자기가 만든 반과 그 반 학생·패들렛·문제만</b> 보여요. 서로의 반은 보이지 않아요.</p>' +
+    '<p class="note">여기에 이메일을 올리면, 그 선생님이 선생님 로그인 화면의 \'처음이에요 · 함께 쓰는 선생님 가입\'으로 직접 가입하고 메일 인증을 해요. 그 뒤로는 <b>자기가 만든 반과 그 반 학생·모아보드·문제만</b> 보여요. 서로의 반은 보이지 않아요.</p>' +
     '<ul class="list" id="tmL">' + (team.length ? team.map((t) => '<li><b class="sp">' + esc(t.name || '') + '</b><span>' + esc(t.email || t.id) + '</span><button class="btn sm red" type="button" data-tdel="' + esc(t.id) + '">빼기</button></li>').join('') : '<li>아직 없어요.</li>') + '</ul>' +
     '<form class="lform" id="tmF"><label class="lb">선생님 이름<input class="field" name="n" maxlength="20" placeholder="예: 박선생님"></label><label class="lb">이메일<input class="field" name="e" type="email" placeholder="가입할 때 쓸 이메일"></label><div class="wide"><button class="btn blue" type="submit">올리기 ▶</button></div></form></div>' +
-    '<div class="pf card" id="useC"><h2>📊 선생님별 사용 현황</h2><p class="note">선생님마다 교실·패들렛·학생·퀴즈 세트 수와 지금 접속한 학생 수, 마지막 접속을 보여요. 주 선생님만 볼 수 있어요.</p><div class="row"><button class="btn blue" type="button" id="useGo">📊 사용 현황 보기</button></div><div id="useT"></div></div>' +
+    '<div class="pf card" id="useC"><h2>📊 선생님별 사용 현황</h2><p class="note">선생님마다 교실·모아보드·학생·퀴즈 세트 수와 지금 접속한 학생 수, 마지막 접속을 보여요. 주 선생님만 볼 수 있어요.</p><div class="row"><button class="btn blue" type="button" id="useGo">📊 사용 현황 보기</button></div><div id="useT"></div></div>' +
     '<p class="note pf pad" style="color:var(--ink)">무료 요금제라서 실시간 교실(가상 교실·진행판) 동시 접속 100명을 모든 선생님이 함께 써요. 두 선생님이 같은 시간에 수업하면 합쳐서 100명까지예요. 첫 화면은 선생님마다 따로예요. 함께 쓰는 선생님은 자기 첫 화면 주소(moapang.kr/?t=…)를 학생에게 알려 주면 되고, 그 선생님 반 QR로 들어온 학생도 그 선생님 첫 화면을 봐요.</p></div>';
   $('useGo').addEventListener('click', loadUsage);
   if (usageHTML) $('useT').innerHTML = usageHTML;

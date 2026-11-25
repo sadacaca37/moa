@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="copyright" content="© 2026 MOAPANG STUDIO (김은경). All rights reserved. 무단 복제·배포·변경 금지">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>패들렛 · 모아팡</title>
+<title>모아보드 · 모아팡</title>
 <link rel="icon" href="assets/moa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -271,7 +271,7 @@ body.colsfit::after{display:none}
   <button class="btn sm" type="button" id="back">◀ 돌아가기</button>
   <a class="btn sm" id="toClass" href="./" hidden>🏫 내 교실</a>
   <span class="bav" aria-hidden="true"><span class="msc moa"></span></span>
-  <div class="ttl"><small id="sub">패들렛</small><h1 id="title">불러오는 중…</h1></div>
+  <div class="ttl"><small id="sub">모아보드</small><h1 id="title">불러오는 중…</h1></div>
   <div class="acts">
     <button class="btn sm" type="button" id="fmtBtn" hidden></button>
     <button class="btn sm" type="button" id="lockBtn" hidden></button>
@@ -299,7 +299,7 @@ if (EMBED) document.body.classList.add('embed');
 const CW = 3200, CH = 2400; // 캔버스 크기
 $('back').addEventListener('click', () => { if (history.length > 1 && document.referrer) history.back(); else location.href = getSession() ? 'class.html' : './'; });
 const S = { user: null, teacher: false, board: null, parts: [], live: [], cmts: [], reacts: [], pos: {}, links: [], liveErr: false, open: new Set(), pic: '', sec: 0, busy: false, edit: null, newFiles: [], keepFiles: [], color: '', at: null, linkFrom: null, drag: null, dirty: false, noClick: 0, fmt: 'columns' };
-function fail(m) { $('title').textContent = '패들렛을 열 수 없어요'; $('cols').innerHTML = '<p class="empty pf" style="max-width:520px;padding:18px">' + esc(m) + '</p>'; }
+function fail(m) { $('title').textContent = '모아보드를 열 수 없어요'; $('cols').innerHTML = '<p class="empty pf" style="max-width:520px;padding:18px">' + esc(m) + '</p>'; }
 
 /* ---------- 이름 ---------- */
 function myName() {
@@ -344,7 +344,7 @@ function draw() {
   const b = S.board; if (!b) return;
   if (S.drag) { S.dirty = true; return; } // 메모를 옮기는 동안은 다시 그리지 않음
   const L = layoutOf(b);
-  $('title').textContent = b.title || '패들렛'; document.title = (b.title || '패들렛') + ' · 모아팡';
+  $('title').textContent = b.title || '모아보드'; document.title = (b.title || '모아보드') + ' · 모아팡';
   const all = allPosts();
   $('sub').textContent = (b.date ? b.date + ' · ' : '') + formatName(b) + ' · 글 ' + all.length + '개 · 댓글 ' + S.cmts.length + '개';
   const w = canWrite();
@@ -357,7 +357,7 @@ function draw() {
   $('lockBtn').textContent = b.lock ? '🔒 잠김' : '🔓 잠그기';
   $('lockBtn').setAttribute('aria-label', b.lock ? '학생 글쓰기 잠김, 누르면 열기' : '학생 글쓰기 잠그기');
   $('lockbar').hidden = w && !S.liveErr;
-  $('lockbar').textContent = b.trash ? '🗑 휴지통에 있는 패들렛이에요' : S.liveErr ? '친구들 글을 아직 불러올 수 없어요' : !b.public ? '👀 학생에게 아직 안 보여요' : '🔒 글쓰기가 잠겨 있어요 (읽기만)';
+  $('lockbar').textContent = b.trash ? '🗑 휴지통에 있는 모아보드예요' : S.liveErr ? '친구들 글을 아직 불러올 수 없어요' : !b.public ? '👀 학생에게 아직 안 보여요' : '🔒 글쓰기가 잠겨 있어요 (읽기만)';
   if (S.teacher && !b.public) $('lockbar').hidden = false;
   drawLinkBar();
   const byPid = new Map(); S.cmts.slice().sort((a, c) => ms(a.at) - ms(c.at)).forEach((c) => { if (!byPid.has(c.pid)) byPid.set(c.pid, []); byPid.get(c.pid).push(c); });
@@ -494,7 +494,7 @@ function postHTML(p, ctx, memo) {
   const T = S.teacher && !PREVIEW, ed = canEdit(p) && !PREVIEW, pid = esc(p.id), cur = okColor(p.color) || '';
   const acts = (ed ? '<div class="pcs" role="group" aria-label="카드 색">' + PCOLORS.map(([v, nm, hex]) => '<button type="button" data-act="setcolor" data-id="' + pid + '" data-v="' + v + '" style="background:' + hex + '" aria-label="' + nm + '" aria-pressed="' + (cur === v) + '" title="' + nm + '"></button>').join('') + '</div>' : '') +
     (ed ? '<button type="button" data-act="editpost" data-id="' + pid + '">✏️ 고치기</button>' : '') +
-    (T ? '<hr><button type="button" data-act="pinpost" data-id="' + pid + '">' + (p.pin ? '📌 고정 풀기' : '📌 맨 위에 고정') + '</button><button type="button" data-act="duppost" data-id="' + pid + '">📄 이 패들렛에 복제</button><button type="button" data-act="copypost" data-id="' + pid + '">📋 다른 패들렛으로 복사</button><button type="button" data-act="movepost" data-id="' + pid + '">➡️ 다른 패들렛으로 옮기기</button>' : '') +
+    (T ? '<hr><button type="button" data-act="pinpost" data-id="' + pid + '">' + (p.pin ? '📌 고정 풀기' : '📌 맨 위에 고정') + '</button><button type="button" data-act="duppost" data-id="' + pid + '">📄 이 모아보드에 복제</button><button type="button" data-act="copypost" data-id="' + pid + '">📋 다른 모아보드로 복사</button><button type="button" data-act="movepost" data-id="' + pid + '">➡️ 다른 모아보드로 옮기기</button>' : '') +
     (memo && w ? '<hr><button type="button" data-act="linkfrom" data-id="' + pid + '" aria-label="이 메모에서 다른 메모로 선 잇기">🔗 선 잇기</button>' : '') +
     (canDel(p) ? (ed || T ? '<hr>' : '') + '<button type="button" data-act="delpost" data-id="' + pid + '">🗑 지우기</button>' : '');
   const menu = acts ? '<span class="pmw"><button type="button" class="dots" data-act="menu" aria-expanded="false" aria-label="글 메뉴" title="글 메뉴">⋮</button><span class="pmn" hidden>' + acts + '</span></span>' : '';
@@ -739,7 +739,7 @@ function drawAtt(wait) {
 }
 function fmtDlg() {
   const L = layoutOf(S.board); S.fmt = L;
-  openDlg('<form class="dlg" id="ff" novalidate><div class="tp"><h2 id="dlgt">패들렛 형식</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div>' +
+  openDlg('<form class="dlg" id="ff" novalidate><div class="tp"><h2 id="dlgt">모아보드 형식</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div>' +
     '<div class="fmts" role="radiogroup" aria-label="형식 고르기">' + FORMATS.map(([id, nm, ic, ds]) => '<button type="button" class="fmt" role="radio" data-act="pickfmt" data-v="' + id + '" aria-checked="' + (id === L) + '"><span class="fi" aria-hidden="true">' + ic + '</span><b>' + nm + '</b><small>' + ds + '</small></button>').join('') + '</div>' +
     '<label class="ck" id="grpL"' + (/^(grid|stream|timeline)$/.test(L) ? '' : ' hidden') + '><input type="checkbox" id="grp"' + (S.board.groups !== false ? ' checked' : '') + '> 칸으로 묶기</label>' +
     '<p class="msg" id="fm" role="alert"></p><div class="row"><button type="submit" class="btn blue" id="fgo">바꾸기</button></div></form>', 'dlgbox', '[aria-checked=true]');
@@ -860,15 +860,15 @@ async function copyPostDlg(p, moveMode) {
     cls = a.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter(keep);
     bs = b.docs.map((d) => Object.assign({ id: d.id }, d.data())).filter(keep).filter((x) => x.id !== bid).sort((x, y) => String(x.created || '').localeCompare(String(y.created || '')));
   } catch (err) { toast(errText(err), true); return; }
-  if (!bs.length) { toast('복사해 넣을 다른 패들렛이 없어요. 내 패들렛에서 먼저 만들어 주세요.', true); return; }
+  if (!bs.length) { toast('복사해 넣을 다른 모아보드가 없어요. 내 모아보드에서 먼저 만들어 주세요.', true); return; }
   const srcSec = secsOf()[p.sec || 0] || '글 모음';
   CP = { p, bs, srcSec };
   const order = [S.board.cid].concat(cls.map((c) => c.id).filter((id) => id !== S.board.cid), ['lib']);
   const cname = (id) => id === 'lib' ? '📦 과제 보관함' : (cls.find((c) => c.id === id) || {}).name || '다른 교실';
   const groups = order.map((cid) => { const g = bs.filter((x) => x.cid === cid); return g.length ? '<optgroup label="' + esc(cid === S.board.cid ? '이 교실 · ' + cname(cid) : cname(cid)) + '">' + g.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.title) + '</option>').join('') + '</optgroup>' : ''; }).join('');
-  openDlg('<form class="dlg" id="cpf" novalidate><div class="tp"><h2 id="dlgt">' + (moveMode ? '➡️ 다른 패들렛으로 옮기기' : '📋 다른 패들렛으로 복사') + '</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div>' +
-    '<p class="note">\'' + esc(p.title || (p.body || '').slice(0, 30) || '이 글') + '\'을 다른 패들렛에 새 글로 ' + (moveMode ? '옮겨요. 여기 글은 지워져요.' : '넣어요.') + ' 사진·파일·카드 색도 같이 가요. 댓글·이모티콘은 따라가지 않아요.</p>' +
-    '<label class="lb">넣을 패들렛<select id="cpB" class="field">' + groups + '</select></label>' +
+  openDlg('<form class="dlg" id="cpf" novalidate><div class="tp"><h2 id="dlgt">' + (moveMode ? '➡️ 다른 모아보드로 옮기기' : '📋 다른 모아보드로 복사') + '</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div>' +
+    '<p class="note">\'' + esc(p.title || (p.body || '').slice(0, 30) || '이 글') + '\'을 다른 모아보드에 새 글로 ' + (moveMode ? '옮겨요. 여기 글은 지워져요.' : '넣어요.') + ' 사진·파일·카드 색도 같이 가요. 댓글·이모티콘은 따라가지 않아요.</p>' +
+    '<label class="lb">넣을 모아보드<select id="cpB" class="field">' + groups + '</select></label>' +
     '<label class="lb">넣을 칸<select id="cpS" class="field"></select></label>' +
     '<label class="ck"><input type="checkbox" id="cpMv"' + (moveMode ? ' checked' : '') + '> 옮기기 (넣은 뒤 여기 글은 지우기)</label>' +
     '<p class="msg" id="cpM" role="status"></p><div class="row"><button type="submit" class="btn blue" id="cpGo">' + (moveMode ? '옮기기 ▶' : '복사하기 ▶') + '</button></div></form>', 'dlgbox', '#cpB');
@@ -1079,14 +1079,14 @@ installPadkit({
   try {
     S.user = await ensureUser(); S.teacher = !PREVIEW && isTeacher(S.user); // 미리보기: 학생처럼
     const first = await getDoc(doc(fs, 'boards', bid));
-    if (!first.exists()) return fail('지워진 패들렛이에요.');
+    if (!first.exists()) return fail('지워진 모아보드예요.');
     S.board = first.data();
-    if (PREVIEW && (!S.board.public || S.board.trash)) return fail('아직 선생님이 학생에게 보여 주지 않은 패들렛이에요. (미리보기: 내 패들렛에서 \'학생에게 보이기\'를 켜면 학생에게 보여요)');
+    if (PREVIEW && (!S.board.public || S.board.trash)) return fail('아직 선생님이 학생에게 보여 주지 않은 모아보드예요. (미리보기: 내 모아보드에서 \'학생에게 보이기\'를 켜면 학생에게 보여요)');
     // 선생님 모드는 이 패들렛의 주인 선생님만 (함께 쓰는 선생님 패들렛은 owner, 주 선생님 패들렛은 owner 없음)
     if (S.teacher) { const r = await teacherRole(S.user); S.teacher = S.board.owner ? S.board.owner === S.user.uid : r === 'admin'; }
     draw();
     classLink();
-    onSnapshot(doc(fs, 'boards', bid), (s) => { if (s.exists()) { S.board = s.data(); draw(); } else fail('지워진 패들렛이에요.'); }, () => {});
+    onSnapshot(doc(fs, 'boards', bid), (s) => { if (s.exists()) { S.board = s.data(); draw(); } else fail('지워진 모아보드예요.'); }, () => {});
     const pq = S.teacher ? query(collection(fs, 'parts'), where('bid', '==', bid), ...(S.board.owner ? [where('owner', '==', S.board.owner)] : [])) : query(collection(fs, 'parts'), where('bid', '==', bid), where('pub', '==', true));
     onSnapshot(pq, (snap) => { S.parts = snap.docs.map((d) => Object.assign({ id: d.id }, d.data())); draw(); }, () => {});
     const rows = (snap) => snap.docs.map((d) => Object.assign({ id: d.id }, d.data({ serverTimestamps: 'estimate' })));
@@ -1095,7 +1095,7 @@ installPadkit({
     onSnapshot(collection(fs, 'boards', bid, 'reacts'), (snap) => { S.reacts = rows(snap); draw(); }, () => {});
     onSnapshot(collection(fs, 'boards', bid, 'pos'), (snap) => { const m = {}; snap.docs.forEach((d) => { m[d.id] = d.data(); }); S.pos = m; draw(); }, () => {});
     onSnapshot(collection(fs, 'boards', bid, 'links'), (snap) => { S.links = rows(snap); draw(); }, () => {});
-  } catch (err) { fail(/permission/i.test(err.code || '') ? '아직 선생님이 학생에게 보여 주지 않은 패들렛이에요.' : errText(err)); }
+  } catch (err) { fail(/permission/i.test(err.code || '') ? '아직 선생님이 학생에게 보여 주지 않은 모아보드예요.' : errText(err)); }
 })();
 </script>
 </body>
