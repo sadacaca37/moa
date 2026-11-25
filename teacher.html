@@ -267,8 +267,8 @@ function drawClasses() {
     : (cs.length ? '<div class="dk-tools"><button type="button" class="btn sm" id="selOn">☑ 골라서 버리기</button></div>' : '');
   $('view').innerHTML = '<section class="dk-wrap"><div class="dk-h"><h1>교실<small>' + cs.length + ' / ' + MAX + '</small></h1>' + tools + '</div>' +
     // 정규 교실 → 특강 교실, 그 안에서 선생님이 정한 묶음(📁)으로 한 번 더 나눔. 머리를 누르면 접고 펴기
-    '<div id="cGrid" class="dk-secs">' + sectionsHTML(classSections(cs), card, selMode ? '' : '<article class="dk-card dk-add"><button class="dk-th" type="button" id="newC"' + (full ? ' disabled' : '') + ' aria-label="새 클래스 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>새 클래스 만들기</b><small>' + (full ? '20개가 다 찼어요' : cs.length + ' / ' + MAX + '개') + '</small></div></div></article>', 't:') + '</div>' +
-    '<p class="dk-note">학생은 첫 화면에서 방번호 5자리를 누르거나, QR·링크로 바로 들어와요. 카드를 누르면 진행판이 열려요. 반 종류(정규반·특강반)로 나뉘고, ⋮ → 📁 묶음 바꾸기로 그 안에서 한 번 더 나눌 수 있어요. 클래스는 내 패들렛과 같은 목록이에요.</p></section>';
+    '<div id="cGrid" class="dk-secs">' + sectionsHTML(classSections(cs), card, selMode ? '' : '<article class="dk-card dk-add"><button class="dk-th" type="button" id="newC"' + (full ? ' disabled' : '') + ' aria-label="새 교실 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>새 교실 만들기</b><small>' + (full ? '20개가 다 찼어요' : cs.length + ' / ' + MAX + '개') + '</small></div></div></article>', 't:') + '</div>' +
+    '<p class="dk-note">학생은 첫 화면에서 방번호 5자리를 누르거나, QR·링크로 바로 들어와요. 카드를 누르면 진행판이 열려요. 반 종류(정규반·특강반)로 나뉘고, ⋮ → 📁 묶음 바꾸기로 그 안에서 한 번 더 나눌 수 있어요. 교실은 내 패들렛과 같은 목록이에요.</p></section>';
   if ($('selOn')) $('selOn').onclick = () => { selMode = true; sel.clear(); drawClasses(); };
   if ($('selX')) $('selX').onclick = () => { selMode = false; sel.clear(); drawClasses(); };
   if ($('selAll')) $('selAll').onclick = () => { if (sel.size === cs.length) sel.clear(); else cs.forEach((c) => sel.add(c.id)); drawClasses(); };
@@ -295,20 +295,20 @@ async function freeRoom() {
 async function classDlg(c) {
   const isNew = !c;
   const d = c ? Object.assign({}, c) : { name: '', kind: '정규반', color: COLORS[classes.length % COLORS.length], map: 'classroom', room: await freeRoom() };
-  openDlg(dlgTop(isNew ? '새 클래스' : '클래스 고치기') +
+  openDlg(dlgTop(isNew ? '새 교실' : '교실 고치기') +
     '<label class="lb">반 이름<input class="field" id="cn" maxlength="24" value="' + esc(d.name) + '" placeholder="예: 4학년 캔바반"></label>' +
     '<div class="lb">반 종류<div class="seg" id="ck">' + ['정규반', '특강반'].map((k) => '<button type="button" class="btn sm" data-v="' + k + '" aria-pressed="' + (d.kind === k) + '">' + k + '</button>').join('') + '</div></div>' +
     '<div class="lb">색<div class="seg" id="cc">' + COLORS.map((x) => '<button type="button" class="btn sm" data-v="' + x + '" aria-pressed="' + (d.color === x) + '" style="background:' + x + ';width:44px" aria-label="색 ' + x + '"></button>').join('') + '</div></div>' +
     grpField('cg', d.grp, grpNames(classes)) +
     '<label class="lb">처음 들어갈 맵<select class="field" id="cm">' + MAPS.map(([id, n]) => '<option value="' + id + '"' + (d.map === id ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>' +
     '<p class="note" style="color:var(--ink)">방번호 <b id="crT">' + esc(d.room) + '</b> <button type="button" class="btn sm" id="newRoom">새 번호로 바꾸기</button></p>' +
-    '<div class="row"><button type="button" class="btn blue" id="cSave">' + (isNew ? '만들기 ▶' : '저장하기 ▶') + '</button>' + (isNew ? '' : '<button type="button" class="btn red" id="cDel">이 클래스 지우기</button>') + '</div>', '#cn');
+    '<div class="row"><button type="button" class="btn blue" id="cSave">' + (isNew ? '만들기 ▶' : '저장하기 ▶') + '</button>' + (isNew ? '' : '<button type="button" class="btn red" id="cDel">이 교실 지우기</button>') + '</div>', '#cn');
   const pick = (box, key) => $(box).addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (!b) return; d[key] = b.dataset.v; $(box).querySelectorAll('[data-v]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); });
   pick('ck', 'kind'); pick('cc', 'color');
   $('newRoom').addEventListener('click', async () => { d.room = await freeRoom(); $('crT').textContent = d.room; });
   $('cSave').addEventListener('click', async () => {
     const name = $('cn').value.trim(); if (!name) { $('cn').focus(); return; }
-    if (isNew && classes.length >= MAX) { toast('클래스는 20개까지 만들 수 있어요.', true); return; }
+    if (isNew && classes.length >= MAX) { toast('교실은 20개까지 만들 수 있어요.', true); return; }
     const id = c ? c.id : uid('c'), map = $('cm').value, grp = cleanGrp($('cg').value);
     try {
       // 함께 쓰는 선생님의 반에는 주인(owner)을 적는다 (주 선생님 반은 예전 그대로 owner 없음)
@@ -322,7 +322,7 @@ async function classDlg(c) {
       closeDlg(); toast(isNew ? '\'' + name + '\' 반을 만들었어요. 방번호 ' + d.room : '저장했어요.');
     } catch (err) { toast(errText(err), true); }
   });
-  if (!isNew) $('cDel').addEventListener('click', () => confirmDlg('클래스 지우기', '\'' + c.name + '\' 반과 그 반의 학생 기록·실시간 기록을 모두 지워요. 되돌릴 수 없어요. (그 반의 패들렛은 휴지통으로 옮겨져서 ' + TRASH_DAYS + '일 안에는 내 패들렛 → 휴지통에서 되살릴 수 있어요)', '모두 지우기', () => deleteClass(c)));
+  if (!isNew) $('cDel').addEventListener('click', () => confirmDlg('교실 지우기', '\'' + c.name + '\' 반과 그 반의 학생 기록·실시간 기록을 모두 지워요. 되돌릴 수 없어요. (그 반의 패들렛은 휴지통으로 옮겨져서 ' + TRASH_DAYS + '일 안에는 내 패들렛 → 휴지통에서 되살릴 수 있어요)', '모두 지우기', () => deleteClass(c)));
 }
 // 📁 묶음 바꾸기: 같은 종류(정규·특강) 안에서 한 번 더 나눠 보기 (예: 월요일반, 동광초)
 function grpDlg(c) {

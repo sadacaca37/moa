@@ -219,3 +219,9 @@ body.scene .ttl{color:#fff;text-shadow:0 2px 0 rgba(27,31,59,.5),0 4px 14px rgba
 .dk-secs>.dk-grid+.dk-sec{border-top:1px solid #EEF0F4;padding-top:14px}
 .dk-menu .del{color:#D92D20;border-top:1px solid #EEF0F4;border-radius:0 0 8px 8px;margin-top:4px}
 .dk-menu .del:hover,.dk-menu .del:focus-visible{background:#FEF3F2}
+/* 휴대폰: ＋ 만들기 카드를 한 줄로 작게 (화면을 덜 차지) */
+@media (max-width:600px){
+  .dk-add{flex-direction:row;align-items:center;gap:12px}
+  .dk-add .dk-th{width:64px;height:64px;aspect-ratio:auto;flex:none;font-size:34px}
+  .dk-add .dk-row{flex:1}
+}
