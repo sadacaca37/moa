@@ -194,3 +194,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .who canvas{border:0;border-radius:12px;background:#F4F5F8}
 .who b{font:800 18px/1.2 'Noto Sans KR',sans-serif}
 body.scene .ttl{color:#fff;text-shadow:0 2px 0 rgba(27,31,59,.5),0 4px 14px rgba(0,0,0,.25)}
+/* 골라서 버리기 (교실 목록) */
+.dk-selbar{padding:6px 8px 6px 14px;border-radius:12px;background:#FFF4F2;border:1px solid #F5C9C2}
+.dk-selbar b{font:700 14px 'Noto Sans KR',sans-serif;color:#B42318;margin-right:4px}
+.dk-chk{position:absolute;left:10px;top:10px;z-index:1;display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.95);border:2px solid #B9BFCC;font:900 17px/1 'Noto Sans KR',sans-serif;color:#fff}
+.dk-card.pickable.picked .dk-chk{background:#E5484D;border-color:#E5484D}
+.dk-card.pickable.picked .dk-th{outline:3px solid #E5484D;outline-offset:2px}
+.dk-card.pickable .dk-th:hover{transform:none}
