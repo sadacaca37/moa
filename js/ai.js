@@ -14,12 +14,13 @@ const CFG = {
   appId: '1:986530203160:web:b48121b7113f38a49c656d'
 };
 // 빠른 모델부터 (2026-11 Firebase AI Logic 문서: 세 모델 모두 무료 등급에서 결제 없이 씀). 하나가 막히면 다음 모델로
-const MODELS = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-4-hydrogen', 'gemini-3.6-flash'];
-const TIMEOUT = 40000; // 모델 하나를 이만큼 기다려도 답이 없으면 다음 모델로
+// 2026-11-26 실제 시험: 3.8-flash는 15문제에 40초 넘게 걸리고 '사용자가 많아요'(500)도 나옴 → 빠른 flash-lite부터
+const MODELS = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-4-hydrogen', 'gemini-3.6-flash'];
+const TIMEOUT = 45000; // 모델 하나를 이만큼 기다려도 답이 없으면 다음 모델로
 // 실패 이유를 선생님이 알아볼 수 있는 말로 (화면에 작게 보여 줌)
 export function aiReason(e) {
   const m = String((e && (e.detail || e.message)) || e || '');
-  if (/timeout|시간 초과/i.test(m)) return 'AI 답이 너무 늦어요(40초 넘게)';
+  if (/timeout|시간 초과/i.test(m)) return 'AI 답이 너무 늦어요(45초 넘게)';
   if (/Failed to fetch|NetworkError|network|ERR_|Load failed|dynamically imported/i.test(m)) return '인터넷이나 학교 방화벽이 AI 연결(googleapis.com)을 막고 있어요';
   if (/has not been used|SERVICE_DISABLED|is disabled|not enabled/i.test(m)) return 'Firebase 콘솔에서 AI Logic(Gemini Developer API)이 꺼져 있어요';
   if (/API_KEY_SERVICE_BLOCKED|API key not valid|referer|referrer|blocked/i.test(m)) return 'API 키 설정이 AI 서비스나 이 주소를 막고 있어요';

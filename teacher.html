@@ -788,7 +788,7 @@ function aiQuizDlg(k, tg) {
     try { localStorage.setItem('moaAiQuiz', JSON.stringify({ cat: p.cat, age: p.age, lv: p.level, n: String(p.n), topic: p.topic })); } catch (e) { /* 무시 */ }
     p.have = tg.cur().map((x) => x.q);
     if (aiAbort) aiAbort.abort(); aiAbort = new AbortController();
-    $('aiGo').disabled = true; $('aiAct').hidden = true; $('aiOut').innerHTML = ''; $('aiMsg').textContent = 'AI가 ' + p.cat + ' 문제 ' + p.n + '개를 만드는 중이에요… (10초쯤 걸려요)';
+    $('aiGo').disabled = true; $('aiAct').hidden = true; $('aiOut').innerHTML = ''; $('aiMsg').textContent = 'AI가 ' + p.cat + ' 문제 ' + p.n + '개를 만드는 중이에요… (10~20초쯤 걸려요)';
     try {
       aiItems = await aiQuiz(p, { signal: aiAbort.signal });
       if (!$('aiOut')) return;
