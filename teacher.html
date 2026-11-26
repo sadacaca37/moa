@@ -270,10 +270,19 @@ async function afterLogin(u) {
 $('logout').addEventListener('click', async () => { await logout(); location.href = './'; });
 
 /* ---------- 반 목록 ---------- */
-function watchCounts() {
-  // 접속 수: 학생이 움직일 때마다 목록을 다시 그리지 않고, 사람 수가 바뀔 때만
-  for (const c of classes) if (!countOffs[c.id]) countOffs[c.id] = onValue(ref(rt, 'live/' + c.id + '/players'), (s) => { const n = s.size || 0; if (counts[c.id] === n) return; counts[c.id] = n; if (view === 'classes') drawClasses(); }, () => {});
+// 교실 목록의 '접속 n명': 모든 반의 움직임을 계속 받지 않고, 목록을 보고 있을 때 30초마다 한 번만 셈 (데이터 아끼기)
+let countTimer = 0, countBusy = false;
+async function pollCounts() {
+  if (countBusy || view !== 'classes' || document.visibilityState === 'hidden' || !classes.length) return;
+  countBusy = true;
+  try {
+    const res = await Promise.all(classes.map((c) => rget(ref(rt, 'live/' + c.id + '/players')).then((s) => [c.id, s.size || 0], () => [c.id, counts[c.id] || 0])));
+    let ch = false; for (const [id, n] of res) if (counts[id] !== n) { counts[id] = n; ch = true; }
+    if (ch && view === 'classes') drawClasses();
+  } finally { countBusy = false; }
 }
+function watchCounts() { pollCounts(); if (!countTimer) countTimer = setInterval(pollCounts, 30000); }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pollCounts(); });
 function drawClasses() {
   const cs = classes, full = cs.length >= MAX;
   // 패들렛 대시보드처럼: 첫 카드 '＋ 새 교실', 반 카드는 그림 칸(방번호·접속·진행판) + 이름 + ⋮ 메뉴(복제·버리기 등)
@@ -1094,7 +1103,7 @@ function route() {
   const h = location.hash.slice(1) || 'classes';
   document.querySelectorAll('[data-nav]').forEach((a) => a.setAttribute('aria-pressed', String(h.startsWith(a.dataset.nav))));
   if (h.startsWith('live-')) { view = 'live'; drawLive(h.slice(5)); }
-  else { stopLive(); if (h === 'home') { view = 'home'; drawHome(); } else if (h === 'quiz') { view = 'quiz'; drawQuizLib(); } else if (h === 'team' && isAdmin()) { view = 'team'; drawTeam(); } else { view = 'classes'; drawClasses(); } }
+  else { stopLive(); if (h === 'home') { view = 'home'; drawHome(); } else if (h === 'quiz') { view = 'quiz'; drawQuizLib(); } else if (h === 'team' && isAdmin()) { view = 'team'; drawTeam(); } else { view = 'classes'; drawClasses(); pollCounts(); } }
 }
 
 /* ---------- 선생님 관리 (주 선생님만) ---------- */

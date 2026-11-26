@@ -201,7 +201,7 @@ html.embed .mapbox{border:0;box-shadow:none}
 import {
   fs, rt, ensureUser, whenAuth, isTeacher, teacherRole, doc, getDoc, onSnapshot, setDoc, updateDoc, increment, serverTimestamp, collection, query, where,
   ref, set, update, push, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, rquery, limitToLast, rnow, rget,
-  getSession, setSession, clearSession, mapName, WAIT_MAP, esc, safeUrl, hostOf, errText, toast, PREVIEW, onLiveState, goOffline
+  getSession, setSession, clearSession, mapName, WAIT_MAP, esc, safeUrl, hostOf, errText, toast, PREVIEW, onLiveState, goOffline, goOnline
 } from './js/fb.js';
 import { emoHTML, emoRich, emoOnly, emoTok, emoImg, drawEmoBubble, openEmoPicker } from './js/emo.js';
 import { groupBy } from './js/groups.js';
@@ -311,6 +311,15 @@ function byeOut() {
   setTimeout(() => { try { goOffline(rt); } catch (e) { /* 무시 */ } }, 1200); // 실시간 연결을 끊어 데이터가 더 안 나가게
 }
 $('byeAgain').addEventListener('click', () => location.reload());
+// 📉 안 보는 탭 아끼기 (학생): 다른 탭·프로그램을 1분 넘게 보고 있으면 실시간 연결을 잠시 끊고, 돌아오면 바로 다시 이음
+//    (그동안 데이터·접속 자리를 쓰지 않음. 선생님 화면·미리보기는 그대로)
+let napT = 0, napping = false;
+document.addEventListener('visibilitychange', () => {
+  if (TEACH || PV || byeDone) return;
+  clearTimeout(napT);
+  if (document.visibilityState === 'hidden') napT = setTimeout(() => { if (document.visibilityState === 'hidden' && !byeDone) { napping = true; try { goOffline(rt); } catch (e) { /* 무시 */ } } }, 60000);
+  else if (napping) { napping = false; try { goOnline(rt); } catch (e) { /* 무시 */ } } // 다시 이어지면 내 자리를 다시 올리고, 반 상황도 저절로 맞춰짐
+});
 function rec() { const r = { n: me.name, k: me.key, o: me.o, x: Math.round(me.x), y: Math.round(me.y), d: me.dir, m: 0, mp: mapId || '', s: me.seat || '', t: rnow() }; if (TEACH) r.tc = 1; return r; }
 // 선생님이 게임에 같이 들어가 있는 동안(같은 브라우저)에는 교실 화면이 선생님 자리를 덮어쓰지 않음
 const tInGame = () => { if (!TEACH) return false; try { return Date.now() - (+localStorage.getItem('moaTeacherGame') || 0) < 8000; } catch (e) { return false; } };
@@ -809,9 +818,11 @@ function frame(now) {
     else if (st.bye && st.bye !== byeSeen && !TEACH && !PV) { byeSeen = st.bye; byeOut(); }
   }, (err) => { toast(errText(err), true); if (!stReady) { st = { phase: 'wait' }; applyState(); } });
   let joined = false; setTimeout(() => { joined = true; }, 2500);
-  onChildAdded(ref(rt, base + '/players'), (s) => { const had = actors.has(s.key); upsert(s.key, s.val()); if (joined && !had && s.key !== user.uid) logLine(esc((s.val() || {}).n || '친구') + ' 님이 들어왔어요', 'sys'); });
+  // 다른 탭에 갔다가 돌아온 친구(10분 안)는 '들어왔어요'를 다시 띄우지 않음
+  const leftAt = new Map();
+  onChildAdded(ref(rt, base + '/players'), (s) => { const had = actors.has(s.key), back = Date.now() - (leftAt.get(s.key) || 0) < 600000; upsert(s.key, s.val()); if (joined && !had && !back && s.key !== user.uid) logLine(esc((s.val() || {}).n || '친구') + ' 님이 들어왔어요', 'sys'); });
   onChildChanged(ref(rt, base + '/players'), (s) => upsert(s.key, s.val()));
-  onChildRemoved(ref(rt, base + '/players'), (s) => { actors.delete(s.key); people(); });
+  onChildRemoved(ref(rt, base + '/players'), (s) => { leftAt.set(s.key, Date.now()); actors.delete(s.key); people(); });
   onChildAdded(rquery(ref(rt, base + '/chat'), limitToLast(30)), (s) => {
     const v = s.val() || {}; const mine = v.u === user.uid;
     logLine(chatHTML(v.n, v.m), mine ? 'mine' : '');
