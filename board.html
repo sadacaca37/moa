@@ -252,6 +252,7 @@
 
 /* 칸 형식: 칸마다 따로 스크롤 (2026-11-25) — 칸 머리는 그대로, 아래 글만 위아래로 */
 body.colsfit::after{display:none}
+body.colsfit .ground,body.colsfit .walkers,body.colsfit footer.mfoot{display:none} /* 칸 형식: 좌우 스크롤바를 화면 맨 아래에 붙임 (땅 띠·걷는 친구·꼬리말이 가리지 않게) */
 .cols.L-columns{padding-bottom:0;overflow-y:hidden}
 .L-columns .crow{height:100%;align-items:stretch}
 .L-columns .sec{height:100%;min-height:0}
@@ -408,7 +409,7 @@ async function classLink() {
 // 칸 형식: 판 높이를 화면 아래까지 맞추고(땅 띠 위까지), 칸 안에서만 스크롤
 function fitCols() {
   const box = $('cols'); if (!box || !box.classList.contains('L-columns')) return;
-  const top = box.getBoundingClientRect().top + scrollY, bottom = EMBED ? 6 : 44;
+  const top = box.getBoundingClientRect().top + scrollY, bottom = 0; // 좌우 스크롤바가 화면 맨 아래에 붙게
   box.style.height = Math.max(320, innerHeight - top - bottom) + 'px';
 }
 addEventListener('resize', fitCols);

@@ -111,7 +111,11 @@ main.wide{max-width:none;padding-inline:0}
 .mi{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:0 10px;border:1px solid #D5DAE3;border-radius:8px;background:#fff;color:var(--ink);font:700 14px 'Noto Sans KR',sans-serif;text-decoration:none;text-align:left;cursor:pointer}
 .mi:hover{background:#FFF1B8}
 .mi.del{background:#FFE4DE}.mi.del:hover{background:#FFC9BE}
-.bframe{display:block;width:100%;height:calc(100vh - 66px);min-height:520px;border:0;background:transparent}
+.bframe{display:block;width:100%;height:calc(100vh - 66px);min-height:420px;border:0;background:transparent}
+/* 모아보드 화면: 틀을 화면 맨 아래까지 맞추고(fitFrame) 아래 여백·꼬리말을 없애 좌우 스크롤바가 맨 아래에 붙게 */
+body.bview main.wide{padding-bottom:0;gap:0}
+body.bview footer,body.bview .ground,body.bview .walkers{display:none}
+body.bview::after{display:none}
 /* 패들렛 판 머리 띠: 패들렛처럼 얇은 한 줄, 버튼은 오른쪽 한곳에 */
 header.compact{padding:6px max(2vw,12px);gap:6px 10px;background:rgba(255,255,255,.94);border-bottom:1px solid rgba(16,24,40,.12);box-shadow:0 1px 6px rgba(16,24,40,.08)}
 header.compact .brands{gap:4px}
@@ -417,6 +421,7 @@ function draw() {
   const ready = (S.loaded.classes && S.loaded.boards) || S.slow;
   if (S.view === 'board' && !curClass() && ready) { S.view = 'home'; S.cid = null; S.bid = null; }
   $('hdr').classList.add('compact');
+  document.body.classList.toggle('bview', S.view === 'board');
   if (S.view === 'board') drawBoard(); else if (S.view === 'trash') drawTrash(ready); else drawHome(ready);
   drawStatus();
   if (keep && $('q')) { $('q').focus(); try { $('q').setSelectionRange(keep[0], keep[1]); } catch (e) {} }
@@ -501,6 +506,12 @@ function pickList(bs, b) {
   if (gs.length < 2 && !(gs[0] && gs[0].name)) return bs.map(item).join('');
   return gs.map((g) => '<p class="bpmh" role="presentation">📁 ' + esc(g.name || '묶음 없음') + ' <small>' + g.list.length + '</small></p>' + g.list.map(item).join('')).join('');
 }
+// 모아보드 틀(iframe)을 화면 맨 아래까지
+function fitFrame() {
+  const f = document.querySelector('.bframe'); if (!f || S.view !== 'board') return;
+  f.style.height = Math.max(420, innerHeight - (f.getBoundingClientRect().top + scrollY)) + 'px';
+}
+addEventListener('resize', () => requestAnimationFrame(fitFrame));
 function drawBoard() {
   const c = curClass(); if (!c) return;
   const bs = boardsOf(c.id);
@@ -541,6 +552,7 @@ function drawBoard() {
   if (!top || !slot) { $('main').innerHTML = '<div id="btop"></div><div id="bslot"></div>'; top = $('btop'); slot = $('bslot'); }
   $('main').className = 'wide';
   top.innerHTML = h;
+  requestAnimationFrame(fitFrame);
   const want = b ? b.id : '';
   if (slot.dataset.bid !== want) {
     slot.dataset.bid = want;
