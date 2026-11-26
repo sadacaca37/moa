@@ -2,8 +2,10 @@
 //  - 콘솔: AI 서비스 > AI Logic 에서 Gemini Developer API를 켜 둠 (2026-11-23)
 //  - 키를 코드에 넣지 않아도 됨 (Firebase 프로젝트로 부름)
 //  - 모델이 없어지면 다음 모델로 넘어감
-import { APPCHECK_KEY } from './fb.js';
 const V = '12.19.0';
+// App Check 사이트 키 (Google Cloud Fraud Defense = 예전 reCAPTCHA Enterprise, 'moapang.kr App Check', 2026-11-26 만듦).
+// 공개해도 되는 키. Firebase 콘솔 App Check에 모아팡 웹 앱으로 등록되어 있음. AI 요청에만 붙여서 무료 확인 횟수(월 1만)를 아낌
+const AI_APPCHECK_SITE_KEY = '6LeyrzIuAAAAAH6wwuR5HOCkXVVf011Lxsz6YYJ3';
 const CFG = {
   apiKey: 'AIzaSyBlA9TN1BKvnsKrzuq2fMalCrATTeFgkUo',
   authDomain: 'moaboard-943a3.firebaseapp.com',
@@ -38,10 +40,10 @@ function load() {
       const old = A.getApps().find((x) => x.name === 'moa-ai');
       const app = old || A.initializeApp(CFG, 'moa-ai');
       // App Check: Firebase가 AI Logic에는 App Check를 꼭 켜 둠(2026-07부터 설정할 때 자동).
-      // js/fb.js의 APPCHECK_KEY(reCAPTCHA v3 사이트 키)가 있으면 AI 요청에 '모아팡에서 온 요청' 표시를 붙인다
-      if (APPCHECK_KEY && !old) {
+      // AI 요청에 '모아팡(moapang.kr)에서 온 요청' 표시(App Check 토큰)를 붙인다
+      if (AI_APPCHECK_SITE_KEY && !old) {
         const AC = await import('https://www.gstatic.com/firebasejs/' + V + '/firebase-app-check.js');
-        AC.initializeAppCheck(app, { provider: new AC.ReCaptchaV3Provider(APPCHECK_KEY), isTokenAutoRefreshEnabled: true });
+        AC.initializeAppCheck(app, { provider: new AC.ReCaptchaEnterpriseProvider(AI_APPCHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
       }
       return { AI, ai: AI.getAI(app, { backend: new AI.GoogleAIBackend() }) };
     });
