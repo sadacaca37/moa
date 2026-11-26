@@ -100,6 +100,26 @@ service cloud.firestore {
         && owner(request.resource.data.cid, request.resource.data.key)
         && classOwner(request.resource.data.cid) == '';
     }
+    // 타자팡 출석: 학생이 [출석하기]를 누르면 하루에 한 번 남김 (문서 이름 = 학생 id + '_' + 한국 날짜 번호)
+    //  - dn = 한국 시간으로 1970-01-01부터 센 날 수 → 서버 시각으로 맞는지 확인 (다른 날 출석을 미리 못 남김)
+    //  - 한 번 남기면 학생은 고치거나 지울 수 없음. 부모님 문자 보냄(sms) 표시는 선생님만 (위 teacher() 규칙)
+    //  - 지금은 주 선생님 반(owner 없는 반)·타자팡 회원만
+    match /attend/{aid} {
+      allow get: if signedIn() && (resource == null || owner(resource.data.cid, resource.data.key));
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['id', 'userId', 'cid', 'key', 'name', 'grade', 'dn', 'at'])
+        && request.resource.data.userId == 'm_' + request.resource.data.cid + '_' + request.resource.data.key
+        && request.resource.data.dn == math.floor((request.time.toMillis() + 32400000) / 86400000)
+        && aid == request.resource.data.userId + '_' + string(request.resource.data.dn)
+        && request.resource.data.id == aid
+        && request.resource.data.at == request.time
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 10
+        && request.resource.data.grade is int && request.resource.data.grade >= 0 && request.resource.data.grade <= 6
+        && owner(request.resource.data.cid, request.resource.data.key)
+        && classOwner(request.resource.data.cid) == '';
+    }
+    // 안내장 링크(moapang.kr/n/?번호): 번호를 아는 사람(문자를 받은 부모님)만 한 장씩 읽기. 쓰기는 선생님만
+    match /notices/{nid} { allow get: if true; }
     // 수업 보드(패들렛): 선생님이 '학생에게 보이기'로 연 것만 학생이 본다
     function boardPub(bid) {
       return get(/databases/$(database)/documents/boards/$(bid)).data.get('public', false) == true;

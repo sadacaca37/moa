@@ -131,6 +131,7 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
     <a class="btn sm" href="padlet.html">📋 내 모아보드</a>
     <a class="btn sm" href="padlet.html#class-lib" title="반을 골라 보내는 과제방을 미리 만들어 두는 곳">📦 과제 보관함</a>
     <a class="btn sm" href="games.html">미니 게임</a>
+    <a class="btn sm" href="sms.html" id="navSms" hidden title="타자팡 출석부 · 부모님 출석 문자 · 안내장">📱 출석·문자</a>
     <button class="btn sm" type="button" id="logout">로그아웃</button>
   </nav>
 </header>
@@ -1196,6 +1197,7 @@ function start(u) {
   if (next && /^[a-z]+\.html$/.test(next)) { location.href = next; return; }
   $('menu').hidden = false;
   $('navTeam').hidden = !isAdmin();
+  $('navSms').hidden = !isAdmin(); // 타자팡 회원·부모님 번호는 주 선생님만
   // 사용 현황(주 선생님만 봄)에 이름을 붙일 수 있게: 함께 쓰는 선생님은 자기 자리표에 이메일·마지막 접속을 적음
   if (!isAdmin()) setDoc(doc(fs, 'config', 'sess_' + u.uid), { em: String(u.email || '').toLowerCase(), seen: Date.now() }, { merge: true }).catch(() => {});
   // 주 선생님: owner 없는 반(예전 반들) · 함께 쓰는 선생님: 자기 반만
