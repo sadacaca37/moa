@@ -62,7 +62,7 @@
     { id: 'suit', name: '동물 슈트', colors: CLOTH, items: [['suit_bear', '곰'], ['suit_bunny', '토끼'], ['suit_dino', '공룡'], ['suit_cat', '고양이'], ['suit_puppy', '강아지'], ['suit_panda', '판다'], ['suit_fox', '여우'], ['suit_lion', '사자'], ['suit_penguin', '펭귄'], ['suit_unicorn', '유니콘']] },
     { id: 'shoes', name: '신발', colors: CLOTH, all: true, items: [['shoes_sneakers', '운동화'], ['shoes_boots', '장화'], ['shoes_loafers', '구두'], ['shoes_maryjane', '메리제인'], ['shoes_slippers', '실내화']] },
     { id: 'hat', name: '모자·머리띠', colors: CLOTH, items: [['hat_cap', '야구모자'], ['hat_halo', '천사 링'], ['hat_crown', '왕관'], ['hat_beanie', '방울 비니'], ['hat_straw', '밀짚모자'], ['hat_wizard', '마법사 모자'], ['hat_catears', '고양이 귀'], ['hat_bunny', '토끼 귀'], ['hat_devil', '악마 뿔'], ['hat_ribbon', '큰 리본'], ['hat_sprout', '새싹 핀'], ['hat_santa', '산타 모자'], ['hat_antler', '루돌프 뿔'], ['hat_beret', '베레모'], ['hat_bucket', '벙거지'], ['hat_party', '파티 고깔'], ['hat_flower', '꽃 화관'], ['hat_pirate', '해적 모자'], ['hat_tiara', '티아라'], ['hat_chef', '요리사 모자'], ['hat_headphones', '헤드폰'], ['hat_helmet', '안전모'], ['hat_cowboy', '카우보이 모자']] },
-    { id: 'face', name: '안경·얼굴', colors: CLOTH, items: [['acc_glasses', '둥근 안경'], ['face_sunglasses', '선글라스'], ['face_heart', '하트 안경'], ['face_mask', '마스크'], ['face_bandage', '반창고와 볼터치'], ['face_goggles', '고글'], ['face_star', '별 안경'], ['face_square', '네모 뿔테'], ['face_cateye', '고양이 눈 안경'], ['face_3d', '3D 안경'], ['face_aviator', '보잉 선글라스'], ['face_shutter', '셔터 선글라스'], ['face_flower', '꽃 안경'], ['face_rainbow', '무지개 안경'], ['face_hero', '영웅 눈가면'], ['face_redround', '빨간 선글라스']] },
+    { id: 'face', name: '안경·얼굴', colors: CLOTH, items: [['acc_glasses', '둥근 안경'], ['face_sunglasses', '선글라스'], ['face_heart', '하트 안경'], ['face_mask', '마스크'], ['face_bandage', '볼터치'], ['face_goggles', '고글'], ['face_star', '별 안경'], ['face_square', '네모 뿔테'], ['face_cateye', '고양이 눈 안경'], ['face_3d', '3D 안경'], ['face_aviator', '보잉 선글라스'], ['face_shutter', '셔터 선글라스'], ['face_flower', '꽃 안경'], ['face_rainbow', '무지개 안경'], ['face_hero', '영웅 눈가면'], ['face_redround', '빨간 선글라스']] },
     { id: 'back', name: '등·목', colors: CLOTH, items: [['back_angel', '천사 날개'], ['back_bat', '박쥐 날개'], ['back_fairy', '요정 날개'], ['back_schoolbag', '책가방'], ['back_bunnybag', '토끼 배낭'], ['back_scarf', '목도리']] },
     { id: 'hand', name: '손에 들기', colors: CLOTH, items: [['hand_balloon', '풍선'], ['hand_wand', '별 지팡이'], ['hand_umbrella', '우산'], ['hand_icecream', '아이스크림'], ['hand_teddy', '곰 인형'], ['hand_pencil', '큰 연필'], ['hand_book', '책']] }
   ];
@@ -138,7 +138,7 @@
   const c01 = v => Math.max(0, Math.min(1, v));
   const tinted = new Map();
   // 몸: 피부 픽셀이 고른 피부색을 따른다(h가 있으면 색상도). 옷: 알파 254 = 옷 안에 그린 피부(손, 이마), 알파 253 = 바꾸지 않는 색,
-  // 알파 252 = 눈 안쪽(눈동자 색, 위는 어둡게·아래는 밝게. 테두리와 흰 반짝임은 그대로), 알파 251 = 볼터치(반투명으로 얹어 어떤 피부에도 맞음), 나머지 = 고른 색.
+  // 알파 252 = 눈 안쪽(눈동자 색, 위는 어둡게·아래는 밝게. 테두리와 흰 반짝임은 그대로), 알파 251·250 = 볼터치 가운데·가장자리(반투명으로 얹어 어떤 피부에도 맞음), 나머지 = 고른 색.
   function eyeFix(d, w, eye) {
     const h = d.length / 4 / w;
     for (let x = 0; x < w; x++) for (let y = 0; y < h;) {
@@ -166,7 +166,7 @@
     } else {
       const isSkin = new Uint8Array(d.length / 4);
       // alpha 253: the item's own fixed colours (a face inside a hood, a bandage): never recoloured
-      for (let i = 0, p = 0; i < d.length; i += 4, p++) { if (d[i + 3] === 254) { isSkin[p] = 1; d[i + 3] = 255; tintSkin(i); } else if (d[i + 3] === 253) { isSkin[p] = 2; d[i + 3] = 255; } else if (d[i + 3] === 252) isSkin[p] = 2; else if (d[i + 3] === 251) { isSkin[p] = 2; d[i + 3] = 140; } }
+      for (let i = 0, p = 0; i < d.length; i += 4, p++) { if (d[i + 3] === 254) { isSkin[p] = 1; d[i + 3] = 255; tintSkin(i); } else if (d[i + 3] === 253) { isSkin[p] = 2; d[i + 3] = 255; } else if (d[i + 3] === 252) isSkin[p] = 2; else if (d[i + 3] === 251 || d[i + 3] === 250) { isSkin[p] = 2; d[i + 3] = d[i + 3] === 251 ? 92 : 40; } }
       if (col && col.h !== undefined) {
         const hs = new Float32Array(d.length / 4 * 3), ch = new Float32Array(d.length / 4);
         let n = 0, nAll = 0;
@@ -198,7 +198,7 @@
     }
     if (!isBody) eyeFix(d, src.width, eye);
     c.getContext('2d').putImageData(out, 0, 0);
-    if (!isBody) { const sk = new Uint8Array(d.length / 4); for (let i = 0, p = 0; i < d.length; i += 4, p++) { const al = src.data[i + 3]; if (al === 254) sk[p] = 1; else if (al === 253 || al === 252 || al === 251) sk[p] = 2; } c.skin = sk; }
+    if (!isBody) { const sk = new Uint8Array(d.length / 4); for (let i = 0, p = 0; i < d.length; i += 4, p++) { const al = src.data[i + 3]; if (al === 254) sk[p] = 1; else if (al >= 250 && al <= 253) sk[p] = 2; } c.skin = sk; }
     if (tinted.size > 400) tinted.clear();
     tinted.set(key, c); return c;
   }
