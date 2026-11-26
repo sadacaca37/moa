@@ -1093,6 +1093,7 @@ installPadkit({
     const first = await getDoc(doc(fs, 'boards', bid));
     if (!first.exists()) return fail('지워진 모아보드예요.');
     S.board = first.data();
+    if (S.board.kind === 'sandbox') { location.replace('sandbox.html' + location.search); return; } // 🧩 샌드박스는 따로 그리는 화면
     if (PREVIEW && (!S.board.public || S.board.trash)) return fail('아직 선생님이 학생에게 보여 주지 않은 모아보드예요. (미리보기: 내 모아보드에서 \'학생에게 보이기\'를 켜면 학생에게 보여요)');
     // 선생님 모드는 이 패들렛의 주인 선생님만 (함께 쓰는 선생님 패들렛은 owner, 주 선생님 패들렛은 owner 없음)
     if (S.teacher) { const r = await teacherRole(S.user); S.teacher = S.board.owner ? S.board.owner === S.user.uid : r === 'admin'; }

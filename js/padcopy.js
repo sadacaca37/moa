@@ -6,6 +6,7 @@
 import { fs, rt, ref, set, doc, getDoc, setDoc, collection, getDocs, query, where, serverTimestamp } from './fb.js';
 import { cleanFiles, okColor, copyFiles, layoutOf } from './padkit.js';
 import { inTrash } from './trash.js';
+import { isSandbox, copySandbox } from './sbkit.js';
 
 const PART_BYTES = 200000;
 const bytes = (o) => new TextEncoder().encode(JSON.stringify(o)).length;
@@ -30,6 +31,13 @@ export async function freeRoomNo(used) {
 
 /** 패들렛 하나 복제 → 새 패들렛 번호. mode: 'mine'(선생님 글만) | 'all'(모든 글) | 'none'(칸만) */
 export async function duplicateBoard(src, { cid, title, mode = 'mine', uid, owner = null, own = [], from = '복제함', pub = false } = {}) {
+  if (isSandbox(src)) { // 🧩 샌드박스: 카드·모둠 카드는 그대로, 올린 것은 mode대로 (모둠 배정은 복사하지 않음)
+    const id = newId('b');
+    const meta = { id, cid: cid || src.cid, title: String(title || src.title || '샌드박스').slice(0, 60), from, public: !!pub, lock: !!src.lock, src: src.src || src.id };
+    if (src.grp) meta.grp = src.grp;
+    await copySandbox(src, meta, { uid, owner, mode });
+    return id;
+  }
   const meta = { cid: cid || src.cid, title: String(title || src.title || '모아보드').slice(0, 60), from, date: todayISO(), created: new Date().toISOString(), sections: (src.sections || ['글 모음']).slice(), layout: layoutOf(src), groups: src.groups !== false, src: src.src || src.id, public: !!pub, lock: !!src.lock };
   if (src.grp) meta.grp = src.grp;
   const id = newId('b');

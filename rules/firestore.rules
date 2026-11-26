@@ -188,6 +188,47 @@ service cloud.firestore {
         && d.b is string && d.b.size() > 0 && d.b.size() <= 60 && d.a != d.b
         && d.uid == request.auth.uid && d.at == request.time;
     }
+    // 🧩 샌드박스 물건 하나 (카드 위 펜·선·글자·메모지·도형·사진·스티커·링크) — 사진은 작게 줄인 그림(900KB 아래)
+    function okSb(d) {
+      return d.keys().hasOnly(['c', 't', 'x', 'y', 'w', 'h', 'z', 'p', 's', 'tx', 'co', 'fi', 'sw', 'fs', 'ff', 'b', 'al', 'hd', 'ds', 'hl', 'im', 'e', 'u', 'uid', 'n', 'k', 'cl', 'at'])
+        && d.keys().hasAll(['c', 't', 'x', 'y', 'w', 'h', 'z', 'uid'])
+        && d.c is string && d.c.size() > 0 && d.c.size() <= 40
+        && d.t in ['pen', 'line', 'text', 'note', 'shape', 'img', 'emo', 'link']
+        && d.x is number && d.y is number && d.w is number && d.h is number && d.z is number
+        && d.x > -3000 && d.x < 5000 && d.y > -3000 && d.y < 4000 && d.w > -5000 && d.w < 6000 && d.h > -5000 && d.h < 5000
+        && (!('p' in d) || (d.p is string && d.p.size() <= 60000))
+        && (!('tx' in d) || (d.tx is string && d.tx.size() <= 2000))
+        && (!('im' in d) || (d.im is string && d.im.size() <= 900000 && d.im.split(',')[0] in ['data:image/jpeg;base64', 'data:image/png;base64', 'data:image/webp;base64']))
+        && (!('u' in d) || (d.u is string && d.u.size() <= 500))
+        && (!('e' in d) || d.e is int || (d.e is string && d.e.size() <= 16))
+        && (!('co' in d) || (d.co is string && d.co.size() <= 12))
+        && (!('fi' in d) || (d.fi is string && d.fi.size() <= 12))
+        && (!('n' in d) || (d.n is string && d.n.size() <= 20))
+        && (!('k' in d) || (d.k is string && d.k.size() <= 130))
+        && (!('cl' in d) || (d.cl is string && d.cl.size() <= 60))
+        && d.uid == request.auth.uid;
+    }
+    // 학생이 이 카드에 쓸 수 있는지: 학생에게 보이고 · 잠기지 않고 · '보기만' 카드가 아니고 · 모둠 카드면 그 모둠에 들어간 학생(지금 쓰는 기기)
+    function sbCan(bid, d) {
+      let b = get(/databases/$(database)/documents/boards/$(bid)).data;
+      return b.get('public', false) == true && b.get('lock', false) != true
+        && b.get('ro', {}).get(d.c, false) != true
+        && (b.get('gc', {}).get(d.c, false) != true
+          || (('cl' in d) && ('k' in d)
+            && get(/databases/$(database)/documents/boards/$(bid)/sbm/$(d.cl + '_' + d.k)).data.c == d.c
+            && owner(d.cl, d.k)));
+    }
+    // 학생이 모둠을 골라 들어가기 (선생님이 '학생이 골라서'로 둔 때만, 자기 이름으로만)
+    function sbJoin(bid, m, d) {
+      let b = get(/databases/$(database)/documents/boards/$(bid)).data;
+      return b.get('public', false) == true && b.get('join', 'free') == 'free'
+        && d.keys().hasOnly(['cl', 'k', 'c', 'n', 'uid', 'by', 'at']) && d.keys().hasAll(['cl', 'k', 'c', 'n', 'uid'])
+        && d.cl is string && d.k is string && m == d.cl + '_' + d.k
+        && d.c is string && b.get('gc', {}).get(d.c, false) == true
+        && d.n is string && d.n.size() > 0 && d.n.size() <= 20
+        && d.uid == request.auth.uid
+        && owner(d.cl, d.k);
+    }
     match /boards/{bid} {
       allow read: if signedIn() && resource.data.public == true;
       // 함께 쓰는 선생님: 자기 패들렛만
@@ -247,6 +288,23 @@ service cloud.firestore {
         allow read: if signedIn() && boardPub(bid);
         allow create: if signedIn() && boardOpen(bid) && okLink(request.resource.data);
         allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+        allow read, write: if myBoard(bid);
+      }
+      // 🧩 샌드박스: 카드 위 물건 (학생은 자기 것만 고치기·지우기, 카드는 바꿀 수 없음 · 선생님은 모두)
+      match /sb/{o} {
+        allow read: if signedIn() && boardPub(bid);
+        allow create: if signedIn() && okSb(request.resource.data) && request.resource.data.at == request.time && sbCan(bid, request.resource.data);
+        allow update: if signedIn() && resource.data.uid == request.auth.uid
+          && okSb(request.resource.data) && request.resource.data.c == resource.data.c
+          && sbCan(bid, request.resource.data);
+        allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+        allow read, write: if myBoard(bid);
+      }
+      // 🧩 샌드박스 모둠: 문서 이름 = 반_학생. 선생님이 넣고 빼고, '학생이 골라서'일 때는 학생도 자기 것을 쓰고 지움
+      match /sbm/{m} {
+        allow read: if signedIn() && boardPub(bid);
+        allow create, update: if signedIn() && sbJoin(bid, m, request.resource.data);
+        allow delete: if signedIn() && get(/databases/$(database)/documents/boards/$(bid)).data.get('join', 'free') == 'free' && owner(resource.data.cl, resource.data.k);
         allow read, write: if myBoard(bid);
       }
     }

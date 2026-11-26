@@ -107,8 +107,8 @@ export async function purgeFiles(bid) {
     await deleteDoc(d.ref);
   }
 }
-// 패들렛 문서 아래 모음(글·댓글·파일·반응·자리·선)을 모두 지움
-export const BOARD_SUBS = ['posts', 'comments', 'reacts', 'pos', 'links'];
+// 패들렛 문서 아래 모음(글·댓글·파일·반응·자리·선 · 샌드박스 물건·모둠)을 모두 지움
+export const BOARD_SUBS = ['posts', 'comments', 'reacts', 'pos', 'links', 'sb', 'sbm']; // sb·sbm: 🧩 샌드박스 물건·모둠
 export async function purgeBoardSubs(bid) {
   for (const sub of BOARD_SUBS) {
     try { for (const x of (await getDocs(collection(fs, 'boards', bid, sub))).docs) await deleteDoc(x.ref); } catch (e) { /* 없으면 넘어감 */ }

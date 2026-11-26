@@ -115,6 +115,7 @@ main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(
 <script src="js/avatar.js"></script>
 <script type="module">
 import { trashBoard, purgeExpired, inTrash, TRASH_DAYS } from './js/trash.js';
+import { isSandbox, boardHref } from './js/sbkit.js';
 import { fs, rt, auth, ensureUser, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, ref, rget, nameKey, cleanName, getSession, setSession, esc, safeUrl, hostOf, errText, PREVIEW } from './js/fb.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
@@ -277,8 +278,8 @@ async function loadPads() {
     else await Promise.all([...new Set(bs.map((b) => b.cid).filter(Boolean))].map(async (cid) => { try { const s = await getDoc(doc(fs, 'classes', cid)); if (s.exists()) cls.set(cid, s.data()); } catch (e) { /* 무시 */ } }));
     const cards = bs.map((b, i) => {
       const c = cls.get(b.cid) || {};
-      const state = !b.public ? '학생에게 안 보여요 (선생님만)' : b.lock ? '읽기만 해요' : '글·사진·댓글 함께 쓰기';
-      const a = '<a class="lk" href="board.html?b=' + encodeURIComponent(b.id) + '">' +
+      const state = !b.public ? '학생에게 안 보여요 (선생님만)' : b.lock ? '읽기만 해요' : isSandbox(b) ? '🧩 샌드박스 · 함께 그리고 메모 붙이기' : '글·사진·댓글 함께 쓰기';
+      const a = '<a class="lk" href="' + boardHref(b) + '">' +
         '<span class="band" style="background:' + esc(c.color || COLORS[i % COLORS.length]) + '"><b>' + esc(c.name || '모아보드') + '</b></span>' +
         '<span class="body"><span class="t">' + esc(b.title || '모아보드') + '</span><span class="d">' + esc(state) + '</span>' +
         '<span class="h"><span>' + esc(b.date || '') + '</span><span>열기 ▶</span></span></span></a>';
