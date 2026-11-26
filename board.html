@@ -99,6 +99,8 @@
 .pin p{margin:0;font-size:14px;line-height:1.6;color:#333A55;white-space:pre-line;overflow-wrap:anywhere}
 .pin p.big{line-height:1}
 .cm li .stk{margin:2px 0}
+.limg{display:block;border-radius:12px;overflow:hidden;background:#EEF1F6;line-height:0}
+.limg img{display:block;width:100%;height:auto;max-height:420px;object-fit:contain;background:#EEF1F6}
 .lnk{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 10px;background:#EAF3FF;border:1px solid #D5DAE3;border-radius:12px;text-decoration:none;font-size:13px;font-weight:700;overflow-wrap:anywhere}
 .by{display:flex;align-items:center;justify-content:space-between;gap:4px 6px;padding:0 4px 4px 12px;font-size:12px;color:var(--sub);flex-wrap:wrap}
 .by b{color:var(--ink)}
@@ -484,6 +486,13 @@ function canvasHTML(all, ctx) {
     ZH.bodies + '<svg class="cvl" id="cvl" width="' + CW + '" height="' + CH + '" aria-hidden="true"></svg>' + memos + ZH.heads + '<div id="cvx"></div>' +
     (all.length || zonesOf().length ? '' : '<p class="cvhint pf">' + (ctx.w ? '빈 곳을 두 번 누르면 메모가 생겨요.' + (S.teacher ? ' 왼쪽 위 ＋ 그룹으로 메모를 모아 둘 칸을 만들 수 있어요.' : '') : '아직 메모가 없어요.') + '</p>') + '</div>';
 }
+const isImgUrl = (u) => /^https:\/\//i.test(u) && (/\.(png|jpe?g|gif|webp|bmp|avif)(\?|#|$)/i.test(u) || /padlet-uploads|padletusercontent|padlet\.net\/.*\/(image|images|uploads)/i.test(u));
+// 사진을 못 불러오면(지워졌거나 막힘) 보통 링크 단추로 바꿈
+document.addEventListener('error', (e) => {
+  const im = e.target; if (!im || !im.matches || !im.matches('img[data-limg]')) return;
+  const a = im.closest('a.limg'); if (!a) return;
+  a.className = 'lnk'; a.innerHTML = '<i aria-hidden="true">🖼️</i><b>' + esc(hostOf(a.href) || '첨부 사진') + ' · 사진 열기</b>';
+}, true);
 function postHTML(p, ctx, memo) {
   const cs = ctx.byPid.get(p.id) || [], rs = ctx.rByPid.get(p.id) || [], w = ctx.w;
   const link = safeUrl(p.link), video = /youtube\.com|youtu\.be/i.test(link);
@@ -503,7 +512,9 @@ function postHTML(p, ctx, memo) {
   if (p.title || menu || p.pin) h += '<div class="ptop">' + (p.pin ? '<span class="pin1" title="맨 위에 고정한 글" aria-label="고정한 글">📌</span>' : '') + (p.title ? '<h3>' + emoRich(esc(p.title), '1.3em') + '</h3>' : '<span class="sp"></span>') + menu + '</div>';
   h += '<div class="pin">';
   if (img) h += '<button type="button" class="pic" data-act="big" data-id="' + esc(p.id) + '" aria-label="사진 크게 보기"><img src="' + img + '" alt="' + esc(p.title || (p.author || '') + '의 사진') + '" loading="lazy" draggable="false"></button>';
-  if (link) h += '<a class="lnk' + (yt ? ' yt' : '') + '" href="' + esc(link) + '" target="_blank" rel="noopener"' + (yt ? ' style="background-image:url(https://i.ytimg.com/vi/' + yt + '/hqdefault.jpg)"' : '') + '><i aria-hidden="true">' + (video ? '▶' : '🔗') + '</i><b>' + esc(hostOf(link) || link) + '</b></a>';
+  // 사진 주소(패들렛 CSV로 가져온 첨부 사진 등)는 카드에 사진으로 바로 보여 줌 — 사진은 원래 있던 곳에서 불러와서 모아팡 저장 공간을 쓰지 않음
+  if (link && !video && isImgUrl(link)) h += '<a class="limg" href="' + esc(link) + '" target="_blank" rel="noopener" title="크게 보기"><img src="' + esc(link) + '" alt="' + esc(p.title || '첨부 사진') + '" loading="lazy" referrerpolicy="no-referrer" data-limg></a>';
+  else if (link) h += '<a class="lnk' + (yt ? ' yt' : '') + '" href="' + esc(link) + '" target="_blank" rel="noopener"' + (yt ? ' style="background-image:url(https://i.ytimg.com/vi/' + yt + '/hqdefault.jpg)"' : '') + '><i aria-hidden="true">' + (video ? '▶' : '🔗') + '</i><b>' + esc(hostOf(link) || link) + '</b></a>';
   h += filesHTML(p.files);
   if (p.body) h += emoOnly(p.body) >= 0 ? '<p class="big">' + emoHTML(emoOnly(p.body), '96px') + '</p>' : '<p>' + emoRich(esc(p.body)) + '</p>';
   h += '</div>';
