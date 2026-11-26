@@ -7,17 +7,18 @@ export async function unzip(buf) {
   const n = dv.getUint16(e + 10, true), files = {}; let p = dv.getUint32(e + 16, true);
   for (let i = 0; i < n; i++) {
     const nl = dv.getUint16(p + 28, true), name = new TextDecoder().decode(new Uint8Array(buf, p + 46, nl));
-    files[name] = { method: dv.getUint16(p + 10, true), size: dv.getUint32(p + 20, true), off: dv.getUint32(p + 42, true) };
+    files[name] = { method: dv.getUint16(p + 10, true), size: dv.getUint32(p + 20, true), usize: dv.getUint32(p + 24, true), off: dv.getUint32(p + 42, true) };
     p += 46 + nl + dv.getUint16(p + 30, true) + dv.getUint16(p + 32, true);
   }
   return {
     names: Object.keys(files),
-    async text(name) {
+    async bytes(name) {
       const f = files[name]; if (!f) return null;
       const start = f.off + 30 + dv.getUint16(f.off + 26, true) + dv.getUint16(f.off + 28, true), data = new Uint8Array(buf, start, f.size);
-      const out = f.method === 8 ? new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()) : data;
-      return new TextDecoder().decode(out);
-    }
+      return f.method === 8 ? new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()) : data;
+    },
+    async text(name) { const b = await this.bytes(name); return b === null ? null : new TextDecoder().decode(b); },
+    usize(name) { const f = files[name]; return f ? f.usize : 0; }
   };
 }
 const colNo = ref => { const m = /^([A-Z]+)/.exec(ref || ''); if (!m) return -1; let n = 0; for (const ch of m[1]) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };

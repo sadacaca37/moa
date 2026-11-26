@@ -204,14 +204,13 @@ header.compact .bpm .mi[aria-current=true]{background:#FFF3C4;font-weight:700}
 <header id="hdr"></header>
 <main id="main"><p class="note">불러오는 중…</p></main>
 <div id="dlg"></div>
-<input type="file" id="fileIn" accept=".csv,.xlsx,text/csv" hidden>
 <footer><span class="studio">© 2026 MOAPANG STUDIO · All rights reserved</span><span>Created by Eunkyung Kim</span><a href="mailto:sadacaca@naver.com">sadacaca@naver.com</a></footer>
 <script type="module">
 import { fs, rt, ref, set, remove, auth, whenAuth, isTeacher, teacherRole, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, getDocs, serverTimestamp, esc, safeUrl } from './js/fb.js';
-import { readXlsx, readCSV } from './js/xlsx.js';
+import { readXlsx, readCSV, unzip } from './js/xlsx.js';
 import { TRASH_DAYS, inTrash, daysLeft, trashTime, trashBoard, restoreBoard, purgeBoard, purgeExpired, trashClass, restoreClass, purgeClass, purgeExpiredClasses } from './js/trash.js';
 import { duplicateBoard, duplicateClass } from './js/padcopy.js';
-import { cleanFiles, okColor, copyFiles, purgeBoardSubs, layoutOf, FORMATS } from './js/padkit.js';
+import { cleanFiles, okColor, copyFiles, purgeBoardSubs, layoutOf, FORMATS, checkFile, uploadFile } from './js/padkit.js';
 import { classSections, sectionsHTML, groupBy, grpField, grpNames, cleanGrp, toggleFold } from './js/groups.js';
 {
 const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
@@ -359,10 +358,10 @@ function pick(head, words) {
   for (const w of words) { const i = h.findIndex((x) => x.includes(w)); if (i >= 0) return i; }
   return -1;
 }
-async function readRows(file) {
-  if (/\.xls$/i.test(file.name)) throw new Error('xls'); // 옛날 엑셀은 .xlsx로 저장해서 올리기
-  const buf = await file.arrayBuffer();
-  const rows = /\.xlsx$/i.test(file.name) ? await readXlsx(buf) : readCSV(buf);
+async function readRows(file) { return rowsOf(file.name, await file.arrayBuffer()); }
+async function rowsOf(name, buf) {
+  if (/\.xls$/i.test(name)) throw new Error('xls'); // 옛날 엑셀은 .xlsx로 저장해서 올리기
+  const rows = /\.xlsx$/i.test(name) ? await readXlsx(buf) : readCSV(buf);
   return rows.filter((r) => r.some((c) => String(c).trim() !== ''));
 }
 function rowsToBoard(rows) {
@@ -384,18 +383,101 @@ function rowsToBoard(rows) {
   });
   return { secs, posts };
 }
-async function importFile(file) {
-  const c = curClass(); if (!c || !file) return;
-  toast('읽는 중… ' + file.name);
-  let rows;
-  try { rows = await readRows(file); } catch (e) { toast(e && e.message === 'xls' ? '옛날 엑셀(.xls)이에요. 엑셀에서 "다른 이름으로 저장 → Excel 통합 문서(.xlsx)"로 바꿔서 넣어 주세요.' : '파일을 읽지 못했어요. 패들렛에서 내보낸 CSV나 엑셀 파일인지 확인해 주세요.', true); return; }
+/* ---------- 패들렛 전체 가져오기: 글 목록(CSV·엑셀) + 첨부 묶음(ZIP, 패들렛 '모든 파일 다운로드') ---------- */
+const UPL = /padlet-uploads|padletusercontent|padlet\.(com|net)\/.*\/(image|images|uploads?|attachments?)\//i;
+const nName = (x) => String(x || '').normalize('NFC').toLowerCase().trim();
+const lName = (x) => nName(x).replace(/\.[a-z0-9]{1,5}$/, '').replace(/[^\p{L}\p{N}]+/gu, '');
+function urlBase(u) { try { return decodeURIComponent(new URL(u).pathname.split('/').pop() || ''); } catch (e) { return ''; } }
+const MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml', heic: 'image/heic', pdf: 'application/pdf', mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', m4v: 'video/mp4', mp3: 'audio/mpeg', m4a: 'audio/mp4', wav: 'audio/wav', ogg: 'audio/ogg', txt: 'text/plain', csv: 'text/csv', hwp: 'application/x-hwp', hwpx: 'application/x-hwp', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ppt: 'application/vnd.ms-powerpoint', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', zip: 'application/zip' };
+// ZIP 안의 파일을 글의 첨부 주소(파일 이름)와 짝지음 — 못 찾은 글은 원래 주소 그대로 (사진은 카드에 그대로 보임)
+function matchZip(posts, z) {
+  const ents = z.names.filter((n) => !/\/$/.test(n) && !/(^|\/)(__MACOSX|\.DS_Store|Thumbs\.db)/i.test(n) && !/\.(csv|xlsx)$/i.test(n) && z.usize(n) > 0)
+    .map((n) => ({ n, base: n.split('/').pop(), used: false }));
+  const index = (f) => { const m = new Map(); ents.forEach((e) => { const k = f(e.base); if (k) { if (!m.has(k)) m.set(k, []); m.get(k).push(e); } }); return m; };
+  const ex = index(nName), lo = index(lName);
+  const take = (m, k) => { const e = k && (m.get(k) || []).find((x) => !x.used); if (e) e.used = true; return e; };
+  const ends = (k) => { if (!k || k.length < 4) return null; const e = ents.find((x) => !x.used && lName(x.base).endsWith(k)); if (e) e.used = true; return e; };
+  const want = posts.filter((p) => p.link && /^https?:/i.test(p.link));
+  const got = new Map();
+  want.forEach((p) => { const b = urlBase(p.link), e = take(ex, nName(b)) || take(lo, lName(b)); if (e) got.set(p, e); });
+  want.forEach((p) => { if (!got.has(p)) { const e = ends(lName(urlBase(p.link))); if (e) got.set(p, e); } });
+  want.forEach((p) => { if (!got.has(p) && UPL.test(p.link) && p.title) { const e = take(lo, lName(p.title)); if (e) got.set(p, e); } }); // 파일 이름이 글 제목인 경우
+  return { plan: [...got].map(([p, e]) => ({ p, e })), left: ents.filter((e) => !e.used).length, want: want.length };
+}
+async function shrinkImg(file) {
+  let bm; try { bm = await createImageBitmap(file); } catch (e) { return null; }
+  const big = Math.max(bm.width, bm.height);
+  if (file.size <= 450000 && big <= 1600) { bm.close(); return null; }
+  let side = 1600, q = 0.82, out = null;
+  for (let k = 0; k < 7; k++) {
+    const r = Math.min(1, side / big), w = Math.max(1, Math.round(bm.width * r)), h = Math.max(1, Math.round(bm.height * r));
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h); cx.drawImage(bm, 0, 0, w, h);
+    out = await new Promise((ok) => cv.toBlob(ok, 'image/jpeg', q));
+    if (out && out.size <= 600000) break;
+    if (q > 0.62) q -= 0.1; else side = Math.round(side * 0.8);
+  }
+  bm.close();
+  return out && out.size < file.size ? new File([out], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' }) : null;
+}
+async function zipFile(z, name, small) {
+  const base = name.split('/').pop(), ext = ((/\.([a-z0-9]+)$/i.exec(base) || [])[1] || '').toLowerCase();
+  const file = new File([await z.bytes(name)], base, { type: MIME[ext] || 'application/octet-stream' });
+  return (small && /^image\/(jpeg|png|webp|bmp)$/.test(file.type) && await shrinkImg(file)) || file;
+}
+function impDlg() {
+  if (!curClass()) return;
+  pending = null;
+  openDlg(dlgTop('📥 패들렛에서 가져오기') +
+    '<ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.7;color:#1B1F3B"><li>패들렛 보드에서 <b>공유</b>를 누르고 아래쪽 <b>내보내기</b>로 가요.</li><li><b>CSV</b>나 <b>엑셀</b>로 글 목록을 받아요.</li><li>사진·파일도 옮기려면 같은 곳에서 <b>모든 파일 다운로드</b>(ZIP)도 받아요.</li></ol>' +
+    '<label for="impT">① 글 목록 (CSV·엑셀)</label><input id="impT" class="field" type="file" accept=".csv,.xlsx,.xls,text/csv">' +
+    '<label for="impZ">② 사진·파일 묶음 (ZIP) — 글만 옮길 때는 비워 두세요</label><input id="impZ" class="field" type="file" accept=".zip,application/zip">' +
+    '<label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="impS" checked style="width:22px;height:22px"> 사진은 화면에 알맞은 크기로 줄여서 올리기 (저장 공간·데이터 절약, 추천)</label>' +
+    '<p style="font-size:13px;color:#4B4F6B;margin:0">ZIP을 넣으면 사진·파일이 모아팡에 저장돼서, 패들렛을 지워도 그대로 남아요. 파일 하나는 10MB까지예요.</p>' +
+    '<p id="impM" role="alert" style="margin:0;color:#B42318;font-weight:700;font-size:14px"></p>' +
+    '<div class="row"><button type="submit" class="btn blue" data-form="imp">가져오기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#impT');
+}
+async function importFile(file, zf, small) {
+  const c = curClass(); if (!c || (!file && !zf)) return;
+  toast('읽는 중… ' + (file || zf).name);
+  let z = null, rows, name = (file || zf).name;
+  if (zf) { try { z = await unzip(await zf.arrayBuffer()); } catch (e) { toast('ZIP 파일을 열지 못했어요. 패들렛에서 받은 ZIP 그대로 넣어 주세요.', true); return; } }
+  try {
+    if (file) rows = await readRows(file);
+    else {
+      const t = z.names.find((n) => /\.(csv|xlsx)$/i.test(n) && !/(^|\/)__MACOSX/.test(n));
+      if (!t) { toast('ZIP 안에 글 목록이 없어요. 패들렛에서 CSV나 엑셀도 받아서 ①에 같이 넣어 주세요.', true); return; }
+      name = t.split('/').pop(); rows = await rowsOf(name, (await z.bytes(t)).slice().buffer);
+    }
+  } catch (e) { toast(e && e.message === 'xls' ? '옛날 엑셀(.xls)이에요. 엑셀에서 "다른 이름으로 저장 → Excel 통합 문서(.xlsx)"로 바꿔서 넣어 주세요.' : '파일을 읽지 못했어요. 패들렛에서 내보낸 CSV나 엑셀(.xlsx) 파일인지 확인해 주세요.', true); return; }
   if (!rows || rows.length < 2) { toast('읽을 글이 없어요. 패들렛에서 내보낸 파일인지 확인해 주세요.', true); return; }
   const { secs, posts } = rowsToBoard(rows);
   if (!posts.length) { toast('제목·내용·링크가 있는 줄을 찾지 못했어요.', true); return; }
-  const meta = { id: uid('b'), cid: c.id, title: file.name.replace(/\.(csv|xlsx?)$/i, '').slice(0, 60) || '모아보드 보드', from: '패들렛에서 가져옴', date: todayISO(), created: new Date().toISOString(), sections: secs };
+  posts.forEach((p) => { p.id = uid('p'); });
+  const meta = { id: uid('b'), cid: c.id, title: name.replace(/\.(csv|xlsx?|zip)$/i, '').slice(0, 60) || '모아보드 보드', from: '패들렛에서 가져옴', date: todayISO(), created: new Date().toISOString(), sections: secs };
+  const m = z ? matchZip(posts, z) : { plan: [], left: 0, want: 0 };
   try { await writeBoard(meta, posts); } catch (e) { toast(S.saveErr || '저장하지 못했어요.', true); return; }
   S.bid = meta.id; S.wantBid = meta.id; watchParts();
-  toast(c.name + '에 \'' + meta.title + '\'을 저장했어요 · 칸 ' + secs.length + '개, 글 ' + posts.length + '개');
+  const done = c.name + '에 \'' + meta.title + '\'을 저장했어요 · 칸 ' + secs.length + '개, 글 ' + posts.length + '개';
+  if (!m.plan.length) {
+    toast(done + (z ? ' · ZIP에서 글과 짝이 맞는 파일을 찾지 못해서 첨부는 원래 주소로 보여 줘요.' : posts.some((p) => UPL.test(p.link)) ? ' · 사진·파일까지 옮기려면 \'모든 파일 다운로드\' ZIP도 같이 넣어 주세요.' : ''));
+    return;
+  }
+  let ok = 0, bad = 0, total = 0;
+  for (let i = 0; i < m.plan.length; i++) {
+    const { p, e } = m.plan[i];
+    toast('사진·파일 옮기는 중… ' + (i + 1) + ' / ' + m.plan.length + ' (창을 닫지 마세요)');
+    try {
+      const f = await zipFile(z, e.n, small);
+      if (checkFile(f)) { bad++; continue; } // 10MB 넘거나 실행 파일 → 원래 주소 그대로
+      const info = await uploadFile(meta.id, f, S.uid);
+      p.files = [info]; total += info.size; ok++;
+      if (UPL.test(p.link) || nName(urlBase(p.link)) === nName(e.base)) p.link = ''; // 이제 모아팡에 있으니 패들렛 주소는 뺌
+    } catch (err) { bad++; if (err && err.code === 'permission-denied') break; }
+  }
+  try { await writeBoard(meta, posts); } catch (e) { toast(S.saveErr || '파일 정보를 저장하지 못했어요.', true); return; }
+  const miss = posts.filter((p) => UPL.test(p.link) && !p.files).length;
+  toast(done + ' · 사진·파일 ' + ok + '개 옮김 (' + (total < 1048576 ? Math.max(1, Math.round(total / 1024)) + 'KB' : (total / 1048576).toFixed(1) + 'MB') + ')' + (miss > 0 ? ' · ' + miss + '개는 원래 주소로 남겨 뒀어요' : ''), false);
 }
 
 /* ---------- 화면 ---------- */
@@ -533,7 +615,7 @@ function drawBoard() {
   right += '<div class="bset"><button type="button" class="hb" data-act="menu" aria-expanded="' + !!S.menu + '" aria-controls="bmenu" title="설정">⚙ 설정</button>';
   if (S.menu) {
     right += '<div class="bmenu pf" id="bmenu">' + (b ? '<p class="bminfo">' + esc(b.from || '') + ' · ' + md(b.date) + ' · ' + F[2] + ' ' + F[1] + ' 형식 · 글 ' + ((b.postCount || 0) + S.live.length) + '개 · 댓글 ' + S.cmts.length + '개</p>' : '') +
-      '<div class="bmg"><b>모아보드</b><button class="mi" data-act="pickfile">📥 패들렛에서 가져오기 (CSV·엑셀)</button><button class="mi" data-act="newboard">＋ 빈 모아보드 만들기</button></div>' +
+      '<div class="bmg"><b>모아보드</b><button class="mi" data-act="pickfile">📥 패들렛에서 가져오기 (글·사진·파일)</button><button class="mi" data-act="newboard">＋ 빈 모아보드 만들기</button></div>' +
       (b ? '<div class="bmg"><b>보기</b><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '" target="_blank" rel="noopener" data-menu>↗ 새 창으로 크게 보기</a><a class="mi" href="board.html?b=' + encodeURIComponent(b.id) + '&preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '') + '" target="_blank" rel="noopener" data-menu>👀 학생 화면으로 보기</a></div>' +
         '<div class="bmg"><b>학생</b><button class="mi" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 글쓰기 잠김 (누르면 열기)' : '✎ 학생 글쓰기 열림 (누르면 잠그기)') + '</button><button class="mi" data-act="sharecls">🏫 같이 쓰는 교실 ' + (sharedTo(b).length ? sharedTo(b).length + '곳 (넣기·끊기)' : '(다른 교실에도 보이기)') + '</button></div>' +
         '<div class="bmg"><b>보내기</b><button class="mi" data-act="deploy">🚀 교실로 복사해서 보내기</button><button class="mi" data-act="copyboard">📋 다른 모아보드로 복사</button>' + (c.lib ? '' : '<button class="mi" data-act="pinhome">🏠 첫 화면 링크에 올리기</button>') + '</div>' +
@@ -545,7 +627,7 @@ function drawBoard() {
   let h = '';
   const msgs = msgHTML(); if (msgs) h += '<div class="bmsg">' + msgs + '</div>';
   if (!b) {
-    h += '<section class="nob pf"><h2>아직 가져온 모아보드가 없어요</h2><p>패들렛 보드에서 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 뒤 아래 버튼으로 넣으면 이 교실에 저장돼요. 여러 개를 넣으면 위에 탭으로 쌓여요. 빈 모아보드를 만들어 바로 써도 돼요.</p><div class="row">' + fileBtn('패들렛 파일 넣기', 'yel') + '<button class="btn" data-act="newboard">+ 빈 모아보드 만들기</button></div></section>';
+    h += '<section class="nob pf"><h2>아직 가져온 모아보드가 없어요</h2><p>패들렛 보드에서 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 뒤 아래 버튼으로 넣으면 이 교실에 저장돼요. 사진·파일까지 옮기려면 같은 곳의 \'모든 파일 다운로드\'(ZIP)도 같이 넣어요. 여러 개를 넣으면 위에 탭으로 쌓여요. 빈 모아보드를 만들어 바로 써도 돼요.</p><div class="row">' + fileBtn('패들렛 파일 넣기', 'yel') + '<button class="btn" data-act="newboard">+ 빈 모아보드 만들기</button></div></section>';
   }
   // 패들렛 판은 board.html을 그대로 넣어 보인다 (학생 화면과 똑같은 모양 · 형식 바꾸기·글·파일·댓글·이모티콘은 그 안에서)
   let top = $('btop'), slot = $('bslot');
@@ -872,7 +954,7 @@ document.addEventListener('click', (e) => {
   e.preventDefault();
   if (a === 'close') closeDlg();
   else if (a === 'home') goHome();
-  else if (a === 'pickfile') $('fileIn').click();
+  else if (a === 'pickfile') impDlg();
   else if (a === 'filter') { S.filter = t.dataset.v; draw(); }
   else if (a === 'open') openClass(id);
   else if (a === 'newclass') { if (S.classes.length < MAX_CLASSES) classDlg(null); else toast('교실은 20개까지 만들 수 있어요.', true); }
@@ -924,6 +1006,13 @@ document.addEventListener('submit', async (e) => {
   const btn = (e.submitter && e.submitter.dataset.form) ? e.submitter : e.target.querySelector('[data-form]');
   const f = btn && btn.dataset.form;
   if (f === 'class') saveClass();
+  else if (f === 'imp') {
+    const t = $('impT').files[0], z = $('impZ').files[0], small = $('impS').checked;
+    if (!t && !z) { $('impM').textContent = '① 글 목록 파일(CSV·엑셀)을 골라 주세요.'; $('impT').focus(); return; }
+    if (t && !/\.(csv|xlsx?)$/i.test(t.name)) { $('impM').textContent = '①에는 CSV나 엑셀 파일을 넣어 주세요.'; return; }
+    if (z && !/\.zip$/i.test(z.name)) { $('impM').textContent = '②에는 패들렛에서 받은 ZIP 파일을 넣어 주세요.'; return; }
+    closeDlg(); importFile(t, z, small);
+  }
   else if (f === 'sharecls') {
     const b = pending, want = new Set([...document.querySelectorAll('#shL input')].filter((x) => x.checked).map((x) => x.value)); closeDlg();
     try { const r = await saveShare(b, want); toast(r.add || r.cut ? (r.add ? r.add + '개 교실에 넣었어요' : '') + (r.add && r.cut ? ', ' : '') + (r.cut ? r.cut + '개 교실과 연결을 끊었어요' : '') + '.' : '바뀐 게 없어요.'); }
@@ -953,8 +1042,8 @@ document.addEventListener('submit', async (e) => {
   else if (f === 'deploy') { const cids = [...document.querySelectorAll('#dpL input')].filter((x) => x.checked).map((x) => x.value); if (!cids.length) { toast('보낼 반을 하나 이상 골라 주세요.', true); return; } const opts = { pub: $('dpPub').checked, lock: $('dpLock').checked }; closeDlg(); deployBoard(cids, opts); }
 });
 document.addEventListener('change', (e) => {
+  if (e.target.id === 'impT' || e.target.id === 'impZ') { const m = $('impM'); if (m) m.textContent = ''; }
   if (e.target.id === 'cc') { fillTargets(); return; }
-  if (e.target.id === 'fileIn') { const file = e.target.files && e.target.files[0]; e.target.value = ''; importFile(file); }
 });
 document.addEventListener('input', (e) => {
   if (e.target.id === 'q') { S.q = e.target.value; const g = $('grid'); if (g) g.innerHTML = gridHTML(classes(), S.classes.length >= MAX_CLASSES); }

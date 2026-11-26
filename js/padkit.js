@@ -189,16 +189,44 @@ async function viewFile(bid, f) {
 
 /* ---------- 그리기 도우미 (HTML 글자) ---------- */
 const REG = new Map(); // 화면에 그린 파일 정보 (누르면 찾아 씀)
+// 작은 그림 파일은 카드에 그림으로 바로 보여 줌 (화면에 가까워지면 그때 불러옴) — 큰 그림은 '보기'로
+export const THUMB_MAX = 1600000;
+function chipHTML(f, opts) {
+  const k = fileKind(f.name, f.type);
+  return '<div class="pk-file"><span class="pk-fi" aria-hidden="true">' + k.i + '</span><span class="pk-fn"><b>' + esc(f.name) + '</b><small>' + esc(k.l) + ' · ' + fmtSize(f.size) + '</small></span>' +
+    (VIEW[k.k] ? '<button type="button" class="pk-fb" data-pk="view" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 보기">보기</button>' : '') +
+    '<button type="button" class="pk-fb" data-pk="down" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 내려받기">받기</button>' +
+    (opts && opts.remove ? '<button type="button" class="pk-fb" data-pk="unfile" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 빼기">✕</button>' : '') + '</div>';
+}
 export function filesHTML(list, opts) {
   const fl = cleanFiles(list); if (!fl.length) return '';
   return '<div class="pk-files">' + fl.map((f) => {
     REG.set(f.id, f);
-    const k = fileKind(f.name, f.type);
-    return '<div class="pk-file"><span class="pk-fi" aria-hidden="true">' + k.i + '</span><span class="pk-fn"><b>' + esc(f.name) + '</b><small>' + esc(k.l) + ' · ' + fmtSize(f.size) + '</small></span>' +
-      (VIEW[k.k] ? '<button type="button" class="pk-fb" data-pk="view" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 보기">보기</button>' : '') +
-      '<button type="button" class="pk-fb" data-pk="down" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 내려받기">받기</button>' +
-      (opts && opts.remove ? '<button type="button" class="pk-fb" data-pk="unfile" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 빼기">✕</button>' : '') + '</div>';
+    if (!(opts && opts.remove) && fileKind(f.name, f.type).k === 'img' && f.size <= THUMB_MAX)
+      return '<button type="button" class="pk-thumb" data-pk="view" data-fid="' + esc(f.id) + '" aria-label="' + esc(f.name) + ' 크게 보기" title="크게 보기"><img alt="' + esc(f.name) + '" data-pkimg="' + esc(f.id) + '" draggable="false"></button>';
+    return chipHTML(f, opts);
   }).join('') + '</div>';
+}
+const THUMBS = new Map(); // 패들렛/파일 → 그림 주소 (한 번 만든 것은 다시 씀)
+let thumbIO = null, thumbT = 0;
+function thumbLoad(img) {
+  const bid = H.bid && H.bid(), f = REG.get(img.dataset.pkimg); if (!bid || !f) return;
+  const key = bid + '/' + f.id;
+  if (!THUMBS.has(key)) {
+    const p = fileBlob(bid, f).then((b) => URL.createObjectURL(new Blob([b], { type: /^image\//.test(f.type) ? f.type : 'image/jpeg' })));
+    THUMBS.set(key, p); p.catch(() => THUMBS.delete(key));
+  }
+  const fail = () => { const box = img.closest('.pk-thumb'); if (box && box.isConnected) box.outerHTML = chipHTML(f); };
+  img.onerror = fail;
+  THUMBS.get(key).then((u) => { img.src = u; }, fail);
+}
+function thumbWatch() {
+  thumbT = 0;
+  document.querySelectorAll('img[data-pkimg]:not([data-pkw])').forEach((img) => {
+    img.dataset.pkw = '1';
+    const bid = H.bid && H.bid();
+    if (!thumbIO || THUMBS.has(bid + '/' + img.dataset.pkimg)) thumbLoad(img); else thumbIO.observe(img);
+  });
 }
 const PAL = new Set(); // 열린 이모티콘 고르기 칸
 // 반응 줄: rs = 이 글의 반응들, can = 누를 수 있는지
@@ -234,6 +262,9 @@ export function installPadkit(h) {
   H = h || {};
   if (installed) return; installed = true;
   injectCSS();
+  if ('IntersectionObserver' in window) thumbIO = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { thumbIO.unobserve(e.target); thumbLoad(e.target); } }), { rootMargin: '600px' });
+  new MutationObserver(() => { if (!thumbT) thumbT = requestAnimationFrame(thumbWatch); }).observe(document.body, { childList: true, subtree: true });
+  thumbT = requestAnimationFrame(thumbWatch);
   document.addEventListener('click', async (e) => {
     const v = e.target.closest('[data-pkv]');
     if (v && viewer) {
@@ -307,6 +338,10 @@ function injectCSS() {
 .pk-fb{min-height:36px;padding:0 8px;border:1px solid #D5DAE3;border-radius:8px;background:#fff;color:#1B1F3B;font:700 12px 'Noto Sans KR',sans-serif;cursor:pointer;flex:none}
 .pk-fb:hover{background:#FFF1B8}
 .pk-fb:disabled{opacity:.7;cursor:wait}
+.pk-thumb{display:block;width:100%;padding:0;border:0;border-radius:12px;overflow:hidden;background:#EEF0F4;cursor:zoom-in}
+.pk-thumb img{display:block;width:100%;height:auto;max-height:560px;object-fit:contain}
+.pk-thumb img:not([src]){height:140px}
+.pk-thumb:focus-visible{outline:3px solid #2E5BFF;outline-offset:2px}
 .pk-rx{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
 .pk-r{min-height:34px;padding:0 9px;border:1px solid #D5DAE3;border-radius:8px;border-radius:999px;background:#fff;color:#1B1F3B;font:400 16px/1 'Noto Sans KR',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
 .pk-r b{font:700 12px 'Noto Sans KR',sans-serif}
