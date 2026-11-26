@@ -138,7 +138,7 @@
   const c01 = v => Math.max(0, Math.min(1, v));
   const tinted = new Map();
   // 몸: 피부 픽셀이 고른 피부색을 따른다(h가 있으면 색상도). 옷: 알파 254 = 옷 안에 그린 피부(손, 이마), 알파 253 = 바꾸지 않는 색,
-  // 알파 252 = 눈 안쪽(눈동자 색, 위는 어둡게·아래는 밝게. 테두리와 흰 반짝임은 그대로), 나머지 = 고른 색.
+  // 알파 252 = 눈 안쪽(눈동자 색, 위는 어둡게·아래는 밝게. 테두리와 흰 반짝임은 그대로), 알파 251 = 볼터치(반투명으로 얹어 어떤 피부에도 맞음), 나머지 = 고른 색.
   function eyeFix(d, w, eye) {
     const h = d.length / 4 / w;
     for (let x = 0; x < w; x++) for (let y = 0; y < h;) {
@@ -166,7 +166,7 @@
     } else {
       const isSkin = new Uint8Array(d.length / 4);
       // alpha 253: the item's own fixed colours (a face inside a hood, a bandage): never recoloured
-      for (let i = 0, p = 0; i < d.length; i += 4, p++) { if (d[i + 3] === 254) { isSkin[p] = 1; d[i + 3] = 255; tintSkin(i); } else if (d[i + 3] === 253) { isSkin[p] = 2; d[i + 3] = 255; } else if (d[i + 3] === 252) isSkin[p] = 2; }
+      for (let i = 0, p = 0; i < d.length; i += 4, p++) { if (d[i + 3] === 254) { isSkin[p] = 1; d[i + 3] = 255; tintSkin(i); } else if (d[i + 3] === 253) { isSkin[p] = 2; d[i + 3] = 255; } else if (d[i + 3] === 252) isSkin[p] = 2; else if (d[i + 3] === 251) { isSkin[p] = 2; d[i + 3] = 140; } }
       if (col && col.h !== undefined) {
         const hs = new Float32Array(d.length / 4 * 3), ch = new Float32Array(d.length / 4);
         let n = 0, nAll = 0;
@@ -198,7 +198,7 @@
     }
     if (!isBody) eyeFix(d, src.width, eye);
     c.getContext('2d').putImageData(out, 0, 0);
-    if (!isBody) { const sk = new Uint8Array(d.length / 4); for (let i = 0, p = 0; i < d.length; i += 4, p++) { const al = src.data[i + 3]; if (al === 254) sk[p] = 1; else if (al === 253 || al === 252) sk[p] = 2; } c.skin = sk; }
+    if (!isBody) { const sk = new Uint8Array(d.length / 4); for (let i = 0, p = 0; i < d.length; i += 4, p++) { const al = src.data[i + 3]; if (al === 254) sk[p] = 1; else if (al === 253 || al === 252 || al === 251) sk[p] = 2; } c.skin = sk; }
     if (tinted.size > 400) tinted.clear();
     tinted.set(key, c); return c;
   }
@@ -291,7 +291,22 @@
     for (const part of ORDER) {
       let L = null;
       if (part === 'back' && !preHair) { preHair = document.createElement('canvas'); preHair.width = W; preHair.height = H; preHair.getContext('2d').drawImage(c, 0, 0); }
+      // a bandage and blush are on the skin: hair falls over them (glasses and masks stay on top)
+      if (part === 'hair' && o.face === 'face_bandage') {
+        let FL = item('face'); const S = o.suit ? item('suit') : null;
+        if (FL && S && S.skin) {  // in a suit: only on the face inside the hood, never on the fur
+          const t = document.createElement('canvas'); t.width = W; t.height = H; const tx = t.getContext('2d'); tx.drawImage(FL, 0, 0);
+          const im = tx.getImageData(0, 0, W, H), dd = im.data, sa = S.getContext('2d').getImageData(0, 0, W, H).data;
+          const tot = new Int32Array(12), kept = new Int32Array(12), cell = (q) => Math.floor(Math.floor(q / W) / F) * 3 + Math.floor((q % W) / F);
+          for (let q = 0, i = 0; q < S.skin.length; q++, i += 4) { const band = dd[i + 3] === 255; if (band) tot[cell(q)]++; if (sa[i + 3] && S.skin[q] !== 1) dd[i + 3] = 0; else if (band) kept[cell(q)]++; }
+          // a bandage mostly under the hood (narrow side views) would leave white specks: drop it in that frame
+          for (let q = 0, i = 0; q < S.skin.length; q++, i += 4) { const k = cell(q); if (dd[i + 3] === 255 && kept[k] < tot[k] * 0.6) dd[i + 3] = 0; }
+          tx.putImageData(im, 0, 0); FL = t;
+        }
+        if (FL) x.drawImage(FL, 0, 0);
+      }
       if (part === 'body') L = bodyL;
+      else if (part === 'face' && o.face === 'face_bandage') L = null;  // drawn on the skin, under the hair (below)
       else if (o.suit && UNDER_SUIT.includes(part)) L = null;
       else if (part === 'bottom' && o.top && o.top.startsWith('dress_')) L = null;
       else if (part === 'back') { if (backL) { x.drawImage(rows(backL, [1]), 0, 0); if (!o.suit || o.back === 'back_scarf') x.drawImage(masked(rows(backL, [0, 2, 3]), bodyL), 0, 0); } continue; }  // over a puffy suit the straps (drawn for the slim body) floated as squiggles: bag and wings stay behind
