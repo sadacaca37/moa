@@ -188,9 +188,9 @@ service cloud.firestore {
         && d.b is string && d.b.size() > 0 && d.b.size() <= 60 && d.a != d.b
         && d.uid == request.auth.uid && d.at == request.time;
     }
-    // 🧩 샌드박스 물건 하나 (카드 위 펜·선·글자·메모지·도형·사진·스티커·링크) — 사진은 작게 줄인 그림(900KB 아래)
+    // 🧩 샌드박스 물건 하나 (카드 위 펜·선·글자·메모지·도형·사진·스티커·링크) — 사진은 작게 줄인 그림(900KB 아래), r 돌린 각도
     function okSb(d) {
-      return d.keys().hasOnly(['c', 't', 'x', 'y', 'w', 'h', 'z', 'p', 's', 'tx', 'co', 'fi', 'sw', 'fs', 'ff', 'b', 'al', 'hd', 'ds', 'hl', 'im', 'e', 'u', 'uid', 'n', 'k', 'cl', 'at'])
+      return d.keys().hasOnly(['c', 't', 'x', 'y', 'w', 'h', 'z', 'r', 'p', 's', 'tx', 'co', 'fi', 'sw', 'fs', 'ff', 'b', 'al', 'hd', 'ds', 'hl', 'im', 'e', 'u', 'uid', 'n', 'k', 'cl', 'at'])
         && d.keys().hasAll(['c', 't', 'x', 'y', 'w', 'h', 'z', 'uid'])
         && d.c is string && d.c.size() > 0 && d.c.size() <= 40
         && d.t in ['pen', 'line', 'text', 'note', 'shape', 'img', 'emo', 'link']
@@ -198,7 +198,8 @@ service cloud.firestore {
         && d.x > -3000 && d.x < 5000 && d.y > -3000 && d.y < 4000 && d.w > -5000 && d.w < 6000 && d.h > -5000 && d.h < 5000
         && (!('p' in d) || (d.p is string && d.p.size() <= 60000))
         && (!('tx' in d) || (d.tx is string && d.tx.size() <= 2000))
-        && (!('im' in d) || (d.im is string && d.im.size() <= 900000 && d.im.split(',')[0] in ['data:image/jpeg;base64', 'data:image/png;base64', 'data:image/webp;base64']))
+        && (!('r' in d) || (d.r is number && d.r >= -360 && d.r <= 360))
+        && (!('im' in d) || d.im == '' || (d.im is string && d.im.size() <= 900000 && d.im.split(',')[0] in ['data:image/jpeg;base64', 'data:image/png;base64', 'data:image/webp;base64']))
         && (!('u' in d) || (d.u is string && d.u.size() <= 500))
         && (!('e' in d) || d.e is int || (d.e is string && d.e.size() <= 16))
         && (!('co' in d) || (d.co is string && d.co.size() <= 12))

@@ -136,6 +136,17 @@ g.o .ed[contenteditable=true]:empty::before{content:attr(data-ph);color:rgba(29,
 #opts .og svg{width:26px;height:26px}
 #opts p{margin:0;font-size:13px;color:#6B7085}
 /* 확대 */
+#fab{position:absolute;right:18px;bottom:16px;z-index:5;display:inline-flex;align-items:center;gap:8px;min-height:52px;padding:0 20px 0 16px;border:0;border-radius:999px;background:#FFD23F;color:#1D2030;font:800 17px 'Noto Sans KR',sans-serif;cursor:pointer;box-shadow:0 6px 18px rgba(16,24,40,.3)}
+#fab:hover{background:#FFC800;transform:translateY(-1px)}
+#fab:focus-visible{outline:3px solid #3A6FF2;outline-offset:3px}
+#fab b{font-size:22px;line-height:1}
+#opts .og .nsw,.nsw{position:relative;width:56px;height:56px;min-width:0!important;padding:0!important;border:0!important;border-radius:3px!important;background:var(--n)!important;box-shadow:0 2px 5px rgba(16,24,40,.25);cursor:grab;touch-action:none}
+.nsw::after{content:'';position:absolute;right:0;bottom:0;width:14px;height:14px;background:linear-gradient(135deg,rgba(0,0,0,.12) 50%,#fff 50%);border-radius:0 0 3px 0}
+#opts .og .nsw[aria-pressed=true]{outline:3px solid #3A6FF2;outline-offset:2px}
+#opts .og .nsw:hover{transform:translateY(-2px) rotate(-2deg)}
+.nghost{position:fixed;z-index:70;width:90px;height:90px;border-radius:4px;box-shadow:0 8px 20px rgba(16,24,40,.35);pointer-events:none;transform:translate(-50%,-50%) rotate(-3deg);opacity:.92}
+.tl[data-tool=note] svg{fill:#FFD23F;stroke:#1D2030}
+.tl[data-tool=note][aria-pressed=true] svg{fill:#FFD23F}
 #zoom{position:absolute;left:14px;bottom:12px;z-index:5;display:flex;align-items:center;gap:2px;padding:3px;background:rgba(255,255,255,.95);border-radius:10px;box-shadow:0 2px 8px rgba(16,24,40,.2)}
 #zoom button{min-width:32px;height:30px;border:0;border-radius:8px;background:none;font:800 14px 'Noto Sans KR',sans-serif;color:#1D2030;cursor:pointer}
 #zoom button:hover{background:#F1F3F7}
@@ -278,6 +289,7 @@ body.panel #app{right:400px}
       <div id="selbar" hidden></div>
     </div>
     <p id="lockb" hidden></p>
+    <button type="button" id="fab" hidden title="판에 메모지를 붙이고 생각을 써요 (N)"><b aria-hidden="true">📝</b> 메모 붙이기</button>
     <div id="zoom"><button type="button" data-z="-" title="작게" aria-label="작게">−</button><button type="button" data-z="0" id="zv" title="화면에 맞추기">100%</button><button type="button" data-z="+" title="크게" aria-label="크게">＋</button></div>
     <div id="gate" hidden></div>
   </div>
@@ -289,6 +301,7 @@ body.panel #app{right:400px}
 <div id="show"></div>
 <div id="dlg"></div>
 <input type="file" id="imgIn" accept="image/*" multiple hidden>
+<input type="file" id="noteImgIn" accept="image/*" hidden>
 <script type="module">
 import { fs, ensureUser, isTeacher, teacherRole, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, writeBatch, esc, safeUrl, hostOf, errText, getSession, toast, PREVIEW, previewToast } from './js/fb.js';
 import { EMO_SRC, EMO_ROWS, okEmo, emoName, openEmoPicker, closeEmoPicker } from './js/emo.js';
@@ -314,7 +327,7 @@ const SHAPES = [['rect', '네모'], ['round', '둥근 네모'], ['ellipse', '동
 const LINES = [['line', '선'], ['arrow', '화살표'], ['both', '양쪽 화살표'], ['dash', '점선 화살표']];
 const BGC = [['#FFFFFF', '흰색'], ['#FFF8E7', '크림'], ['#FFF3B0', '노랑'], ['#E3F6E0', '연두'], ['#DDEFFF', '하늘'], ['#FBE4EC', '분홍'], ['#ECE6FF', '보라'], ['#2F5D50', '칠판'], ['#1D2030', '검정']];
 const BGP = [['', '무늬 없음'], ['dot', '점'], ['grid', '모눈'], ['line', '줄']];
-const KEYS = ['c', 't', 'x', 'y', 'w', 'h', 'z', 'p', 's', 'tx', 'co', 'fi', 'sw', 'fs', 'ff', 'b', 'al', 'hd', 'ds', 'hl', 'im', 'e', 'u', 'uid', 'n', 'k', 'cl', 'at'];
+const KEYS = ['c', 't', 'x', 'y', 'w', 'h', 'z', 'r', 'p', 's', 'tx', 'co', 'fi', 'sw', 'fs', 'ff', 'b', 'al', 'hd', 'ds', 'hl', 'im', 'e', 'u', 'uid', 'n', 'k', 'cl', 'at'];
 const okHex = (c) => /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/.test(String(c || ''));
 const col = (c, d) => (okHex(c) ? c : d);
 function isDark(hex) {
@@ -386,6 +399,16 @@ function smoothD(P) {
   const L = P[P.length - 1]; return d + 'L' + L[0] + ' ' + L[1];
 }
 function ptsBox(P) { let w = 0, h = 0; for (const [x, y] of P) { if (x > w) w = x; if (y > h) h = y; } return { w: Math.max(1, w), h: Math.max(1, h) }; }
+const rotPt = (x, y, cx, cy, deg) => { const a = deg * Math.PI / 180, dx = x - cx, dy = y - cy; return [cx + dx * Math.cos(a) - dy * Math.sin(a), cy + dx * Math.sin(a) + dy * Math.cos(a)]; };
+const rotOf = (o) => (o.t === 'line' ? 0 : num(o.r, 0));
+/** 돌린 것까지 감싸는 상자 */
+function aabb(o) {
+  const b = bbox(o), r = rotOf(o);
+  if (!r) return b;
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2, a = r * Math.PI / 180, c = Math.abs(Math.cos(a)), sn = Math.abs(Math.sin(a));
+  const W = b.w * c + b.h * sn, H = b.w * sn + b.h * c;
+  return { x: cx - W / 2, y: cy - H / 2, w: W, h: H };
+}
 function bbox(o) {
   if (o.t === 'line') { const x2 = o.x + o.w, y2 = o.y + o.h; return { x: Math.min(o.x, x2), y: Math.min(o.y, y2), w: Math.abs(o.w), h: Math.abs(o.h) }; }
   return { x: o.x, y: o.y, w: Math.max(1, o.w), h: Math.max(1, o.h) };
@@ -423,8 +446,15 @@ function head(xa, ya, xb, yb, s, color) {
 }
 const fo = (x, y, w, h, inner, extra) => '<foreignObject x="' + r1(x) + '" y="' + r1(y) + '" width="' + r1(Math.max(1, w)) + '" height="' + r1(Math.max(1, h)) + '"' + (extra || '') + '><div xmlns="http://www.w3.org/1999/xhtml" style="width:100%;height:100%">' + inner + '</div></foreignObject>';
 const edHTML = (o, ph) => '<div class="ed" data-ph="' + esc(ph) + '">' + esc(o.tx || '') + '</div>';
-/** 물건 하나 → SVG 글자 (thumb: 작은 그림용, 그림자·이름 없이) */
+/** 물건 하나 → SVG 글자 (thumb: 작은 그림용, 그림자·이름 없이). 돌린 것(r)은 가운데를 중심으로 돌림 */
 function objSVG(o, thumb) {
+  const s = objCore(o, thumb), r = rotOf(o);
+  if (!s || !r) return s;
+  const b = bbox(o);
+  return '<g transform="rotate(' + r1(r) + ' ' + r1(b.x + b.w / 2) + ' ' + r1(b.y + b.h / 2) + ')">' + s + '</g>';
+}
+const okPic = (im) => (/^data:image\/(png|jpeg|webp);base64,/.test(im || '') ? im : '');
+function objCore(o, thumb) {
   const x = num(o.x, 0), y = num(o.y, 0), w = num(o.w, 1), h = num(o.h, 1);
   switch (o.t) {
     case 'pen': {
@@ -451,7 +481,10 @@ function objSVG(o, thumb) {
     case 'note': {
       const fi = col(o.fi, '#FFF3A6'), tc = isDark(fi) ? '#FFFFFF' : col(o.co, '#1D2030');
       let s = '<rect x="' + r1(x) + '" y="' + r1(y) + '" width="' + r1(w) + '" height="' + r1(h) + '" rx="6" fill="' + fi + '"' + (thumb ? '' : ' filter="url(#shd)"') + '/>';
-      s += fo(x, y, w, h, '<div class="nt" style="font-size:' + clamp(num(o.fs, 30), 10, 160) + 'px;color:' + tc + ';font-family:' + FONT(o.ff) + ';font-weight:' + (o.b === 0 ? 500 : 700) + '">' + edHTML(o, '메모를 쓰세요') + '</div>');
+      // 메모지 위 작은 사진 (패들렛처럼 글과 함께)
+      const pic = okPic(o.im), ph = pic ? h * 0.56 : 0;
+      if (pic) s += '<image href="' + pic + '" x="' + r1(x + 12) + '" y="' + r1(y + 12) + '" width="' + r1(Math.max(1, w - 24)) + '" height="' + r1(Math.max(1, ph - 14)) + '" preserveAspectRatio="xMidYMid meet"/>';
+      s += fo(x, y + ph, w, h - ph, '<div class="nt" style="font-size:' + clamp(num(o.fs, 30), 10, 160) + 'px;color:' + tc + ';font-family:' + FONT(o.ff) + ';font-weight:' + (o.b === 0 ? 500 : 700) + (pic ? ';padding-top:4px' : '') + '">' + edHTML(o, '생각을 써요') + '</div>');
       if (!thumb && o.n && o.n !== '선생님') s += '<text x="' + r1(x + w - 12) + '" y="' + r1(y + h - 12) + '" text-anchor="end" font-size="17" font-weight="700" font-family="Noto Sans KR,sans-serif" fill="' + (isDark(fi) ? 'rgba(255,255,255,.7)' : 'rgba(29,32,48,.5)') + '">' + esc(o.n) + '</text>';
       return s;
     }
@@ -666,7 +699,11 @@ function whyNot(cid) {
   return '';
 }
 function notWritable() { if (PREVIEW) { previewToast(); return; } const m = whyNot(S.cur); if (m) toast(m, true); }
-function drawLock() { const m = whyNot(S.cur); $('lockb').hidden = !m || !!$('gate').innerHTML; $('lockb').textContent = m; }
+function drawLock() {
+  const m = whyNot(S.cur); $('lockb').hidden = !m || !!$('gate').innerHTML; $('lockb').textContent = m;
+  $('fab').hidden = !S.board || !S.cur || !canWriteCard(S.cur) || !!$('gate').innerHTML || !!S.show;
+}
+$('fab').addEventListener('click', () => { closePops(); quickNote(); });
 
 /* ---------- 위 띠 ---------- */
 function drawTop() {
@@ -903,7 +940,7 @@ const IC = {
   sticker: '<circle cx="12" cy="12" r="8.5"/><path d="M8.6 14.2a4 4 0 0 0 6.8 0"/><path d="M9.2 9.8v.4M14.8 9.8v.4"/>',
   link: '<path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/>'
 };
-const TOOLS = [[['hand', '손 — 화면 옮기기 (H, 스페이스 누르고 끌기)'], ['tpl', '템플릿', 1]], [['select', '고르기 (V)'], ['pen', '펜 (P)'], ['eraser', '지우개 (E)'], ['text', '글자 (T)'], ['note', '메모지 (N)'], ['shape', '도형 (S)'], ['line', '선·화살표 (L)'], ['image', '사진 올리기', 1], ['sticker', '스티커 · 모아팡 이모티콘', 1], ['link', '링크', 1]]];
+const TOOLS = [[['hand', '손 — 화면 옮기기 (H, 스페이스 누르고 끌기)'], ['tpl', '템플릿', 1]], [['select', '고르기 (V)'], ['pen', '펜 (P)'], ['eraser', '지우개 (E)'], ['text', '글자 (T)'], ['note', '메모지 — 생각을 써서 붙여요 (N)'], ['shape', '도형 (S)'], ['line', '선·화살표 (L)'], ['image', '사진 올리기', 1], ['sticker', '스티커 · 모아팡 이모티콘', 1], ['link', '링크', 1]]];
 const WRITE_TOOLS = new Set(['pen', 'eraser', 'text', 'note', 'shape', 'line', 'image', 'sticker', 'link', 'tpl']);
 let toolsSig = '';
 function drawTools() {
@@ -942,7 +979,7 @@ function drawOpts() {
   if (t === 'pen') h = '<b>펜 색</b>' + sw('co', INK, '펜 색') + '<b>굵기</b>' + sizes('sw', [3, 6, 10, 18], 'dot') + '<div class="og"><button type="button" data-o="hl" data-v="' + (OPT.hl ? 0 : 1) + '" aria-pressed="' + !!OPT.hl + '" style="padding:0 12px">🖍 형광펜</button></div>';
   else if (t === 'eraser') h = '<b>지우개</b><p>펜으로 그린 선과 선·화살표를 문질러 지워요.' + (S.teacher ? '' : ' 내가 그린 것만 지워져요.') + '</p>';
   else if (t === 'text') h = '<b>글자 색</b>' + sw('tco', INK, '글자 색') + '<b>크기</b>' + sizes('tfs', [20, 32, 48, 72, 110], 'txt') + '<p>판을 누른 곳에 글자 상자가 생겨요.</p>';
-  else if (t === 'note') h = '<b>메모지 색</b>' + sw('nfi', NOTEC, '메모지 색') + '<p>판을 누른 곳에 메모지가 붙어요.</p>';
+  else if (t === 'note') h = '<b>메모지</b><div class="og" role="group" aria-label="메모지 붙이기">' + NOTEC.map((c, i) => '<button type="button" class="nsw" data-note="' + c + '" style="--n:' + c + '" aria-pressed="' + (OPT.nfi === c) + '" aria-label="' + ['노랑', '분홍', '연두', '하늘', '보라', '주황', '흰'][i] + ' 메모지 붙이기" title="누르면 붙어요 · 판으로 끌어다 놓아도 돼요"></button>').join('') + '</div><p>메모지를 누르면 판에 붙고 바로 생각을 쓸 수 있어요. 판으로 끌어다 놓거나, 판을 눌러도 붙어요. 고른 메모지 옆 <b style="color:#3A6FF2">＋</b>를 누르면 옆에 하나 더!</p>';
   else if (t === 'shape') h = '<b>모양</b><div class="og">' + SHAPES.map(([k, n]) => '<button type="button" data-o="sk" data-v="' + k + '" aria-pressed="' + (OPT.sk === k) + '" title="' + n + '" aria-label="' + n + '"><svg viewBox="0 0 100 100" aria-hidden="true">' + shapeSVG(k, 8, 14, 84, 72, 'fill="#E5E8EF" stroke="#1D2030" stroke-width="6"') + '</svg></button>').join('') + '</div><b>채우기</b>' + sw('sfi', FILLC, '채우기') + '<b>테두리</b>' + sw('sco', INK, '테두리 색') + '<p>판 위에서 끌면 크기를 정해요.</p>';
   else if (t === 'line') h = '<b>종류</b><div class="og">' + LINES.map(([k, n]) => '<button type="button" data-o="lk" data-v="' + k + '" aria-pressed="' + (OPT.lk === k) + '" title="' + n + '" aria-label="' + n + '"><svg viewBox="0 0 100 40" aria-hidden="true">' + objSVG({ t: 'line', x: 8, y: 20, w: 84, h: 0, sw: 6, co: '#1D2030', hd: k === 'line' ? 0 : k === 'both' ? 2 : 1, ds: k === 'dash' ? 1 : 0 }, true) + '</svg></button>').join('') + '</div><b>색</b>' + sw('lco', INK, '선 색') + '<b>굵기</b>' + sizes('lsw', [3, 5, 8, 14], 'dot') + '<p>끌어서 그려요. Shift를 누르면 반듯하게.</p>';
   box.innerHTML = h; box.hidden = false;
@@ -953,6 +990,29 @@ function drawOpts() {
     else { box.style.left = Math.max(8, r.left - bw - 12) + 'px'; box.style.top = clamp(r.top - 20, 8, innerHeight - bh - 8) + 'px'; }
   }
 }
+let ndrag = null;
+$('opts').addEventListener('pointerdown', (e) => {
+  const b = e.target.closest('[data-note]'); if (!b) return;
+  e.preventDefault(); b.setPointerCapture(e.pointerId);
+  ndrag = { c: b.dataset.note, x: e.clientX, y: e.clientY, moved: false, g: null };
+});
+$('opts').addEventListener('pointermove', (e) => {
+  if (!ndrag) return;
+  if (!ndrag.moved && Math.hypot(e.clientX - ndrag.x, e.clientY - ndrag.y) > 6) { ndrag.moved = true; ndrag.g = document.createElement('div'); ndrag.g.className = 'nghost'; ndrag.g.style.background = ndrag.c; document.body.append(ndrag.g); }
+  if (ndrag.g) { ndrag.g.style.left = e.clientX + 'px'; ndrag.g.style.top = e.clientY + 'px'; }
+});
+const nend = (e) => {
+  const d = ndrag; if (!d) return; ndrag = null;
+  if (d.g) d.g.remove();
+  if (e.type === 'pointercancel') return;
+  OPT.nfi = d.c; saveOpt();
+  if (!d.moved) { quickNote(d.c); return; }
+  const r = sv.getBoundingClientRect();
+  if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) { const p = svgPt(e); newNote(p); }
+  else drawOpts();
+};
+$('opts').addEventListener('pointerup', nend);
+$('opts').addEventListener('pointercancel', nend);
 $('opts').addEventListener('click', (e) => {
   const b = e.target.closest('[data-o]'); if (!b) return;
   const k = b.dataset.o, v = b.dataset.v;
@@ -1010,6 +1070,8 @@ sv.addEventListener('pointermove', (e) => {
     drawSel(d.dx, d.dy); return;
   }
   if (d.k === 'resize') { resizeMove(d, p, e.shiftKey); return; }
+  if (d.k === 'rot') { rotMove(d, p, e.shiftKey); return; }
+  if (d.k === 'addnote') { d.p1 = p; if (!d.moved && Math.hypot(p.x - d.p0.x, p.y - d.p0.y) / pxUnit() > 6) d.moved = true; if (d.moved) { const o = S.objs.get(d.id); if (o) G_DRAFT.innerHTML = '<g opacity=".7">' + objSVG(Object.assign({}, o, { x: p.x - o.w / 2, y: p.y - o.h / 2, tx: '', im: '' }), true) + '</g>'; } return; }
   if (d.k === 'box') { d.p1 = p; drawSel(); }
 });
 const endPtr = (e) => {
@@ -1026,10 +1088,11 @@ const endPtr = (e) => {
       updObjs(list);
     } else d.ids.forEach((id) => { const el = els.get(id); if (el) el.removeAttribute('transform'); });
     drawSel();
-  } else if (d.k === 'resize') resizeEnd(d, e.type === 'pointercancel');
+  } else if (d.k === 'resize' || d.k === 'rot') resizeEnd(d, e.type === 'pointercancel');
+  else if (d.k === 'addnote') { if (e.type !== 'pointercancel') addSideNote(d); }
   else if (d.k === 'box') {
     const x1 = Math.min(d.p0.x, d.p1.x), y1 = Math.min(d.p0.y, d.p1.y), x2 = Math.max(d.p0.x, d.p1.x), y2 = Math.max(d.p0.y, d.p1.y);
-    if (x2 - x1 > 4 || y2 - y1 > 4) objsOf(S.cur).forEach((o) => { if (!canEdit(o)) return; const b = bbox(o); if (b.x < x2 && b.x + b.w > x1 && b.y < y2 && b.y + b.h > y1) S.sel.add(o.id); });
+    if (x2 - x1 > 4 || y2 - y1 > 4) objsOf(S.cur).forEach((o) => { if (!canEdit(o)) return; const b = aabb(o); if (b.x < x2 && b.x + b.w > x1 && b.y < y2 && b.y + b.h > y1) S.sel.add(o.id); });
     drawSel();
   }
   G_DRAFT.textContent = '';
@@ -1040,8 +1103,12 @@ sv.addEventListener('contextmenu', (e) => { if (S.tool !== 'select') e.preventDe
 function selectDown(e, p) {
   const h = e.target.closest('[data-h]');
   if (h && S.sel.size === 1) {
-    const id = [...S.sel][0], o = S.objs.get(id);
-    if (canEdit(o)) { S.drag = { k: 'resize', h: h.dataset.h, id, o0: strip(o), lock: new Set([id]) }; sv.setPointerCapture(e.pointerId); return; }
+    const id = [...S.sel][0], o = S.objs.get(id), hk = h.dataset.h;
+    if (canEdit(o)) {
+      if (hk.startsWith('add-')) S.drag = { k: 'addnote', dir: hk.slice(4), id, p0: p, p1: p, moved: false };
+      else S.drag = { k: hk === 'rot' ? 'rot' : 'resize', h: hk, id, o0: strip(o), lock: new Set([id]) };
+      sv.setPointerCapture(e.pointerId); return;
+    }
   }
   const el = e.target.closest('g.o'), o = el && S.objs.get(el.dataset.id);
   if (o && canEdit(o)) {
@@ -1136,10 +1203,49 @@ function newText(p) {
   putLocal(id, { c: S.cur, t: 'text', x: clamp(p.x, 0, SB_W - 60), y: clamp(p.y - OPT.tfs * 0.7, 0, SB_H - 40), w: Math.min(560, Math.max(260, SB_W - p.x)), h: Math.round(OPT.tfs * 1.35 + 16), z: nextZ(), tx: '', co: OPT.tco, fs: OPT.tfs, ff: 0, b: 0, al: 'l', fi: '', _draft: 1 });
   setTool('select'); S.sel = new Set([id]); drawAll(); startEdit(id, true);
 }
-function newNote(p) {
-  const id = doc(sbCol()).id;
-  putLocal(id, { c: S.cur, t: 'note', x: clamp(p.x - 110, 0, SB_W - 220), y: clamp(p.y - 110, 0, SB_H - 220), w: 220, h: 220, z: nextZ(), tx: '', fi: OPT.nfi, co: '#1D2030', fs: 30, ff: 0, b: 1, _draft: 1 });
+function newNote(p, like) {
+  const w = like ? like.w : 220, h = like ? like.h : 220;
+  newNoteAt(p.x - w / 2, p.y - h / 2, like);
+}
+/** 메모지 하나 붙이고 바로 쓰기 (쓰기를 마치면 저장). like: 옆에 붙일 때 그 메모지 모양을 따름 */
+function newNoteAt(x, y, like) {
+  if (!canWriteCard(S.cur)) { notWritable(); return; }
+  if (needName()) return;
+  const l = like || {}, w = l.w || 220, h = l.h || 220, id = doc(sbCol()).id;
+  putLocal(id, { c: S.cur, t: 'note', x: clamp(x, -w / 3, SB_W - w * 2 / 3), y: clamp(y, -h / 3, SB_H - h * 2 / 3), w, h, z: nextZ(), r: num(l.r, 0), tx: '', fi: l.fi || OPT.nfi, co: '#1D2030', fs: l.fs || 30, ff: l.ff || 0, b: l.b === 0 ? 0 : 1, _draft: 1 });
   setTool('select'); S.sel = new Set([id]); drawAll(); startEdit(id, true);
+}
+// 지금 보이는 판 가운데 (확대해 옮겨 봐도 보이는 곳에)
+function viewCenter() {
+  const sr = sv.getBoundingClientRect(), wr = WRAP.getBoundingClientRect();
+  return svgPt({ clientX: (Math.max(sr.left, wr.left) + Math.min(sr.right, wr.right)) / 2, clientY: (Math.max(sr.top, wr.top) + Math.min(sr.bottom, wr.bottom)) / 2 });
+}
+const overlaps = (a, b, pad) => a.x < b.x + b.w + pad && a.x + a.w + pad > b.x && a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
+/** 다른 메모지와 겹치지 않는 자리 (조금씩 비켜 감) */
+function freeSpot(x, y, w, h, dx, dy) {
+  const others = objsOf(S.cur).filter((o) => o.t === 'note').map(aabb);
+  for (let i = 0; i < 12; i++) {
+    const b = { x, y, w, h };
+    if (!others.some((o) => overlaps(b, o, -8))) break;
+    x += dx; y += dy;
+    if (x > SB_W - w / 2 || x < -w / 2 || y > SB_H - h / 2 || y < -h / 2) { x -= dx * (i + 1); y -= dy * (i + 1); x += 28; y += 28; dx = 28; dy = 28; }
+  }
+  return { x, y };
+}
+// 📝 메모 붙이기 (단추·메모지 고르는 칸): 보이는 곳 가운데에
+function quickNote(fi) {
+  if (fi) { OPT.nfi = fi; saveOpt(); }
+  const c = viewCenter(), q = freeSpot(c.x - 110, c.y - 110, 220, 220, 30, 30);
+  newNoteAt(q.x, q.y);
+}
+// 고른 메모지 옆 ＋ (패들렛처럼): 누르면 그 옆에 같은 메모지, 끌면 놓은 곳에
+function addSideNote(d) {
+  const o = S.objs.get(d.id); if (!o) return;
+  G_DRAFT.textContent = '';
+  if (d.moved) { newNote(d.p1, o); return; }
+  const gap = 28, st = { r: [o.w + gap, 0], l: [-(o.w + gap), 0], b: [0, o.h + gap] }[d.dir] || [o.w + gap, 0];
+  const q = freeSpot(o.x + st[0], o.y + st[1], o.w, o.h, st[0], st[1]);
+  newNoteAt(q.x, q.y, o);
 }
 function startEdit(id, isNew) {
   const el = els.get(id), o = S.objs.get(id); if (!el || !o) return;
@@ -1203,11 +1309,28 @@ function resizeMove(d, p, shift) {
     if (shift) { const a = Math.round(Math.atan2(by - ay, bx - ax) / (Math.PI / 4)) * (Math.PI / 4), L = Math.hypot(bx - ax, by - ay); bx = ax + L * Math.cos(a); by = ay + L * Math.sin(a); }
     n = d.h === 'p1' ? Object.assign({}, o0, { x: bx, y: by, w: x2 - bx, h: y2 - by }) : Object.assign({}, o0, { w: bx - o0.x, h: by - o0.y });
   } else {
-    let w = Math.max(16, p.x - o0.x), h = Math.max(16, p.y - o0.y);
+    // 돌린 것은 왼쪽 위 모서리를 그대로 두고 그 방향으로 늘림
+    const r = rotOf(o0), cx0 = o0.x + o0.w / 2, cy0 = o0.y + o0.h / 2;
+    const [tlx, tly] = r ? rotPt(o0.x, o0.y, cx0, cy0, r) : [o0.x, o0.y];
+    const [lx, ly] = r ? rotPt(p.x, p.y, tlx, tly, -r) : [p.x, p.y];
+    let w = Math.max(16, lx - tlx), h = Math.max(16, ly - tly);
     if (o0.t === 'img' || o0.t === 'emo' || shift) { const s = Math.max(w / o0.w, h / o0.h); w = Math.max(16, o0.w * s); h = Math.max(16, o0.h * s); }
     if (o0.t === 'text') h = o0.h;
-    n = Object.assign({}, o0, { w, h });
+    const [ncx, ncy] = r ? rotPt(tlx + w / 2, tly + h / 2, tlx, tly, r) : [tlx + w / 2, tly + h / 2];
+    n = Object.assign({}, o0, { w, h, x: ncx - w / 2, y: ncy - h / 2 });
   }
+  previewObj(d, n);
+}
+function rotMove(d, p, shift) {
+  const o0 = d.o0, b = bbox(o0), cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  let a = Math.atan2(p.y - cy, p.x - cx) * 180 / Math.PI + 90;
+  if (shift) a = Math.round(a / 15) * 15; else { const near = Math.round(a / 90) * 90; if (Math.abs(a - near) < 5) a = near; }
+  a = ((a % 360) + 540) % 360 - 180;
+  previewObj(d, Object.assign({}, o0, { r: Math.round(a) }));
+}
+// 끄는 동안 미리 보이기 (저장은 놓을 때)
+function previewObj(d, n) {
+  const o0 = d.o0, el = els.get(d.id);
   d.n = n;
   const ne = mkEl(Object.assign({ id: d.id, _rev: -1 }, n));
   if (el) el.replaceWith(ne); els.set(d.id, ne);
@@ -1218,16 +1341,16 @@ function resizeMove(d, p, shift) {
 function resizeEnd(d, cancel) {
   if (!d.n || cancel) { const el = els.get(d.id); if (el) el._rev = -1; render(); return; }
   const n = d.n, o0 = d.o0;
-  const patch = o0.t === 'line' ? { x: n.x, y: n.y, w: n.w, h: n.h } : { w: n.w, h: n.h };
+  const patch = d.k === 'rot' ? { r: n.r } : o0.t === 'line' ? { x: n.x, y: n.y, w: n.w, h: n.h } : { x: n.x, y: n.y, w: n.w, h: n.h };
   if (o0.t === 'text') { const el = els.get(d.id), f = el && el.querySelector('foreignObject'); if (f) patch.h = Math.max(30, +f.getAttribute('height')); }
-  const before = {}; Object.keys(patch).forEach((k) => { before[k] = o0[k]; });
+  const before = {}; Object.keys(patch).forEach((k) => { before[k] = k === 'r' ? num(o0.r, 0) : o0[k]; });
   updObjs([{ id: d.id, patch, before }]);
 }
 
 /* ---------- 고른 것 표시 · 작은 띠 ---------- */
 function selBox(ids, dx, dy) {
   let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
-  ids.forEach((id) => { const o = S.objs.get(id); if (!o) return; const b = bbox(o); x1 = Math.min(x1, b.x + dx); y1 = Math.min(y1, b.y + dy); x2 = Math.max(x2, b.x + b.w + dx); y2 = Math.max(y2, b.y + b.h + dy); });
+  ids.forEach((id) => { const o = S.objs.get(id); if (!o) return; const b = aabb(o); x1 = Math.min(x1, b.x + dx); y1 = Math.min(y1, b.y + dy); x2 = Math.max(x2, b.x + b.w + dx); y2 = Math.max(y2, b.y + b.h + dy); });
   return isFinite(x1) ? { x: x1, y: y1, w: x2 - x1, h: y2 - y1 } : null;
 }
 function drawSel(dx = 0, dy = 0) {
@@ -1235,16 +1358,27 @@ function drawSel(dx = 0, dy = 0) {
   const k = pxUnit(), d = S.drag;
   let s = '';
   for (const id of S.sel) {
-    const o = S.objs.get(id), b = bbox(o), mv = d && d.k === 'move' && d.ids.includes(id);
+    const o = S.objs.get(id), b = bbox(o), mv = d && d.k === 'move' && d.ids.includes(id), r = rotOf(o);
     const ox = mv ? dx : 0, oy = mv ? dy : 0;
-    s += '<rect x="' + r1(b.x + ox - 6 * k) + '" y="' + r1(b.y + oy - 6 * k) + '" width="' + r1(b.w + 12 * k) + '" height="' + r1(b.h + 12 * k) + '" rx="' + r1(5 * k) + '" fill="none" stroke="#3A6FF2" stroke-width="2" vector-effect="non-scaling-stroke"' + (S.sel.size > 1 ? ' stroke-dasharray="6 4"' : '') + ' pointer-events="none"/>';
+    s += '<rect x="' + r1(b.x + ox - 6 * k) + '" y="' + r1(b.y + oy - 6 * k) + '" width="' + r1(b.w + 12 * k) + '" height="' + r1(b.h + 12 * k) + '" rx="' + r1(5 * k) + '" fill="none" stroke="#3A6FF2" stroke-width="2" vector-effect="non-scaling-stroke"' + (S.sel.size > 1 ? ' stroke-dasharray="6 4"' : '') + (r ? ' transform="rotate(' + r1(r) + ' ' + r1(b.x + ox + b.w / 2) + ' ' + r1(b.y + oy + b.h / 2) + ')"' : '') + ' pointer-events="none"/>';
   }
   if (S.sel.size === 1 && !(d && d.k === 'move' && d.moved) && !S.editing) {
     const o = S.objs.get([...S.sel][0]);
     if (o && canEdit(o)) {
       const hs = 9 * k;
       if (o.t === 'line') s += [['p1', o.x, o.y], ['p2', o.x + o.w, o.y + o.h]].map(([h, x, y]) => '<circle data-h="' + h + '" cx="' + r1(x) + '" cy="' + r1(y) + '" r="' + r1(hs) + '" fill="#fff" stroke="#3A6FF2" stroke-width="2.5" vector-effect="non-scaling-stroke" style="cursor:crosshair"/>').join('');
-      else { const b = bbox(o); s += '<rect data-h="br" x="' + r1(b.x + b.w + 6 * k - hs) + '" y="' + r1(b.y + b.h + 6 * k - hs) + '" width="' + r1(hs * 2) + '" height="' + r1(hs * 2) + '" rx="' + r1(3 * k) + '" fill="#fff" stroke="#3A6FF2" stroke-width="2.5" vector-effect="non-scaling-stroke" style="cursor:nwse-resize"/>'; }
+      else {
+        const b = bbox(o), r = rotOf(o), cx = b.x + b.w / 2, cy = b.y + b.h / 2, P = (x, y) => (r ? rotPt(x, y, cx, cy, r) : [x, y]);
+        const [hx, hy] = P(b.x + b.w + 6 * k, b.y + b.h + 6 * k);
+        s += '<rect data-h="br" x="' + r1(hx - hs) + '" y="' + r1(hy - hs) + '" width="' + r1(hs * 2) + '" height="' + r1(hs * 2) + '" rx="' + r1(3 * k) + '"' + (r ? ' transform="rotate(' + r1(r) + ' ' + r1(hx) + ' ' + r1(hy) + ')"' : '') + ' fill="#fff" stroke="#3A6FF2" stroke-width="2.5" vector-effect="non-scaling-stroke" style="cursor:nwse-resize"><title>크기</title></rect>';
+        // 돌리기 손잡이 (위 가운데)
+        if (o.t !== 'pen') {
+          const [ax, ay] = P(cx, b.y - 6 * k), [qx, qy] = P(cx, b.y - 34 * k);
+          s += '<line x1="' + r1(ax) + '" y1="' + r1(ay) + '" x2="' + r1(qx) + '" y2="' + r1(qy) + '" stroke="#3A6FF2" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none"/><g data-h="rot" style="cursor:grab"><title>돌리기 (Shift: 15°씩)</title><circle cx="' + r1(qx) + '" cy="' + r1(qy) + '" r="' + r1(hs * 1.15) + '" fill="#fff" stroke="#3A6FF2" stroke-width="2.5" vector-effect="non-scaling-stroke"/><path d="M' + r1(qx - 4 * k) + ' ' + r1(qy - 3 * k) + 'a' + r1(5 * k) + ' ' + r1(5 * k) + ' 0 1 0 ' + r1(6 * k) + ' -' + r1(1 * k) + '" fill="none" stroke="#3A6FF2" stroke-width="1.8" vector-effect="non-scaling-stroke"/></g>';
+        }
+        // 메모지 옆 ＋ : 누르면 옆에 같은 메모지, 끌면 놓은 곳에 (패들렛처럼)
+        if (o.t === 'note') s += [['r', b.x + b.w + 30 * k, cy, '오른쪽'], ['l', b.x - 30 * k, cy, '왼쪽'], ['b', cx, b.y + b.h + 30 * k, '아래']].map(([dir, x, y, nm]) => { const [px, py] = P(x, y), q = 12 * k; return '<g data-h="add-' + dir + '" style="cursor:copy"><title>' + nm + '에 메모지 더하기 (끌어서 놓아도 돼요)</title><circle cx="' + r1(px) + '" cy="' + r1(py) + '" r="' + r1(q) + '" fill="#3A6FF2"/><path d="M' + r1(px - q * 0.5) + ' ' + r1(py) + 'H' + r1(px + q * 0.5) + 'M' + r1(px) + ' ' + r1(py - q * 0.5) + 'V' + r1(py + q * 0.5) + '" stroke="#fff" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/></g>'; }).join('');
+      }
     }
   }
   if (d && d.k === 'box') { const x = Math.min(d.p0.x, d.p1.x), y = Math.min(d.p0.y, d.p1.y); s += '<rect x="' + r1(x) + '" y="' + r1(y) + '" width="' + r1(Math.abs(d.p1.x - d.p0.x)) + '" height="' + r1(Math.abs(d.p1.y - d.p0.y)) + '" fill="rgba(58,111,242,.08)" stroke="#3A6FF2" stroke-width="1.5" vector-effect="non-scaling-stroke" pointer-events="none"/>'; }
@@ -1268,14 +1402,18 @@ function drawSelbar() {
   if (one && one.t === 'text') h += '<button type="button" class="sb" data-sb="al" title="줄 맞춤" aria-label="줄 맞춤">' + ({ c: '≡', r: '⫶' }[one.al] || '☰') + '</button>';
   if (one && ['text', 'note', 'shape'].includes(one.t)) h += '<button type="button" class="sb" data-sb="edit" title="글 쓰기·고치기" aria-label="글 쓰기">✏️</button>';
   if (one && one.t === 'link') h += '<button type="button" class="sb" data-sb="open" title="링크 열기" aria-label="링크 열기">↗</button>';
+  if (one && one.t === 'note') h += '<button type="button" class="sb" data-sb="npic" title="' + (one.im ? '메모지 사진 빼기' : '메모지에 작은 사진 넣기') + '" aria-label="' + (one.im ? '메모지 사진 빼기' : '메모지에 사진 넣기') + '">' + (one.im ? '🖼✕' : '🖼') + '</button>';
+  if (os.some((o) => rotOf(o))) h += '<button type="button" class="sb" data-sb="unrot" title="바로 세우기 (돌린 것 되돌리기)" aria-label="바로 세우기">⟲</button>';
   if (h) h += '<span class="sbs"></span>';
   h += '<button type="button" class="sb" data-sb="dup" title="복제 (Ctrl+D)" aria-label="복제">⧉</button><button type="button" class="sb" data-sb="front" title="맨 앞으로" aria-label="맨 앞으로">⤒</button><button type="button" class="sb" data-sb="back" title="맨 뒤로" aria-label="맨 뒤로">⤓</button><button type="button" class="sb del" data-sb="del" title="지우기 (Delete)" aria-label="지우기">🗑</button>';
   bar.innerHTML = h; bar.hidden = false;
   const b = selBox(ids, 0, 0), sr = sv.getBoundingClientRect(), wr = WRAP.getBoundingClientRect(), k = sr.width / SB_W;
   const bw = bar.offsetWidth, bh = bar.offsetHeight;
   let left = sr.left - wr.left + WRAP.scrollLeft + (b.x + b.w / 2) * k - bw / 2;
-  let top = sr.top - wr.top + WRAP.scrollTop + b.y * k - bh - 16;
-  if (top < WRAP.scrollTop + 4) top = sr.top - wr.top + WRAP.scrollTop + (b.y + b.h) * k + 16;
+  // 돌리기 손잡이(위)·메모 ＋(아래)를 가리지 않게 띄움
+  const upGap = one && !['pen', 'line'].includes(one.t) ? 52 : 16, downGap = one && one.t === 'note' ? 48 : 16;
+  let top = sr.top - wr.top + WRAP.scrollTop + b.y * k - bh - upGap;
+  if (top < WRAP.scrollTop + 4) top = sr.top - wr.top + WRAP.scrollTop + (b.y + b.h) * k + downGap;
   left = clamp(left, WRAP.scrollLeft + 4, WRAP.scrollLeft + WRAP.clientWidth - bw - 4);
   bar.style.left = left + 'px'; bar.style.top = top + 'px';
   if (popKind) drawPop();
@@ -1315,6 +1453,8 @@ $('selbar').addEventListener('click', (e) => {
   else if (k === 'al') updObjs([{ id: ids[0], patch: { al: { l: 'c', c: 'r', r: 'l' }[os[0].al || 'l'] } }]);
   else if (k === 'edit') startEdit(ids[0]);
   else if (k === 'open') { const u = safeUrl(os[0].u); if (u) window.open(u, '_blank', 'noopener'); }
+  else if (k === 'npic') { if (os[0].im) updObjs([{ id: ids[0], patch: { im: '' } }]); else { notePicFor = ids[0]; $('noteImgIn').click(); } }
+  else if (k === 'unrot') updObjs(os.filter((o) => rotOf(o)).map((o) => ({ id: o.id, patch: { r: 0 } })));
 });
 WRAP.addEventListener('click', (e) => {
   const b = e.target.closest('.pop [data-pv]'); if (!b) return;
@@ -1370,6 +1510,21 @@ async function insertImage(file, at) {
 $('imgIn').addEventListener('change', (e) => { const fs2 = [...(e.target.files || [])]; e.target.value = ''; fs2.slice(0, 5).forEach((f, i) => insertImage(f, { x: SB_W / 2 + i * 30, y: SB_H / 2 + i * 30 })); });
 STAGE.addEventListener('dragover', (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
 STAGE.addEventListener('drop', (e) => { const fs2 = [...((e.dataTransfer && e.dataTransfer.files) || [])].filter((f) => /^image\//.test(f.type)); if (!fs2.length) return; e.preventDefault(); const p = svgPt(e); fs2.slice(0, 5).forEach((f, i) => insertImage(f, { x: p.x + i * 30, y: p.y + i * 30 })); });
+// 메모지 안 작은 사진 (작게 줄여 300KB 아래)
+let notePicFor = '';
+$('noteImgIn').addEventListener('change', async (e) => {
+  const f = e.target.files && e.target.files[0]; e.target.value = '';
+  const id = notePicFor; notePicFor = '';
+  const o = S.objs.get(id); if (!f || !o || !canEdit(o)) return;
+  if (!/^image\//.test(f.type)) { toast('그림 파일만 넣을 수 있어요.', true); return; }
+  try {
+    const url = URL.createObjectURL(f), im = await loadImg(url); URL.revokeObjectURL(url);
+    let max = 520, q = 0.82, out = '';
+    for (let n = 0; n < 6; n++) { const k = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight)), cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(im.naturalWidth * k)); cv.height = Math.max(1, Math.round(im.naturalHeight * k)); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); out = cv.toDataURL('image/webp', q); if (!out.startsWith('data:image/webp')) out = cv.toDataURL('image/jpeg', q); if (out.length < 300000) break; max = Math.round(max * 0.8); q = Math.max(0.6, q - 0.06); }
+    const patch = { im: out }; if (o.h < 300) { patch.h = Math.max(o.h, 300); patch.w = Math.max(o.w, 240); }
+    updObjs([{ id, patch }]);
+  } catch (err) { toast('사진을 열 수 없어요.', true); }
+});
 let emoN = 0;
 const pickEmo = (i) => insertEmo(i);
 async function insertEmo(e) {
