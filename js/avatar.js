@@ -38,6 +38,11 @@
     { k: 'deep', name: '진한 갈색', c: '#93593a', lm: 0.535, sm: 0.463, h: 0.058 },
     { k: 'verydeep', name: '고동색', c: '#6e442d', lm: 0.405, sm: 0.448, h: 0.059 }
   ];
+  // 미니 게임 효과용 얼굴빛 (꾸미기에는 안 나옴): 똥을 맞으면 누런빛 → 초록빛
+  const SKIN_FX = [
+    { k: 'fx_ill', name: '누런빛', c: '#c9cf6a', lm: 0.97, sm: 0.8, h: 0.16 },
+    { k: 'fx_ill2', name: '초록빛', c: '#8fb24a', lm: 0.8, sm: 0.78, h: 0.25 }
+  ];
   // eye colours: the inside of each eye (alpha 252 in body.png and the suit faces) takes this colour, darker at the
   // top and lighter at the bottom; the dark rim and the white shine stay
   const EYE = [
@@ -209,11 +214,12 @@
   const sheets = new Map();
   function sheetFor(o0) {
     const o = clean(o0);
+    if (o0 && SKIN_FX.some(s => s.k === o0.skin)) o.skin = o0.skin; // 게임 효과 얼굴빛은 그릴 때만
     const key = JSON.stringify(o);
     if (sheets.has(key)) return sheets.get(key);
     const W = F * 3, H = F * 4;
     const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
-    const skin = find(SKIN, o.skin), eye = find(EYE, o.eyeColor);
+    const skin = find(SKIN.concat(SKIN_FX), o.skin), eye = find(EYE, o.eyeColor);
     let bodyL = layer('body', null, skin, false, true, eye);
     const item = (part, id) => { const cat = CATS.find(cc => cc.id === part); return layer(id || o[part], find(cat.colors, o[part + 'Color']), skin, cat.all, false, part === 'suit' ? eye : null); };
     const hk = HAIR_KEY[o.hair];

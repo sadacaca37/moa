@@ -286,7 +286,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
     <div id="gExtra"></div>
     <h3 id="rankH">지금 순위</h3>
     <ol class="rank" id="rank"></ol>
-    <div id="netBox" hidden><h3>함께 하는 친구들 <span id="netN"></span></h3><ol class="rank" id="netList"></ol><p class="note">파란 이름표가 같은 반 친구, 👑 주황 이름표가 선생님이에요. 🤖는 컴퓨터예요.</p></div>
+    <div id="netBox" hidden><h3>함께 하는 친구들 <span id="netN"></span></h3><ol class="rank" id="netList"></ol><p class="note">파란 이름표가 같은 반 친구, 👑 이름표가 선생님이에요.</p></div>
     <p class="note" id="sideNote">연습 게임이에요. 선생님이 반 진행판에서 게임을 시작하면 결과가 선생님께 모여요.</p>
   </aside>
 </main>
@@ -454,7 +454,7 @@ function itemsUpdate(dt) {
     for (const a of actors) {
       if (a.out || a.fin || hyp(a.x - it.x, (a.y - it.y) * 1.3) > 28) continue;
       if (c.can && !c.can(a, it)) continue;
-      it.gone = true; if (c.spots) it.back = G.time + 5;
+      it.gone = true; if (c.spots) it.back = G.time + (c.respawn || 5);
       sfx('key_get', a.isMe ? 0.9 : 0.25); addFx(a.x, a.y - 104, { img: it.k, life: 0.9, w: 30 });
       c.pick(a, it); break;
     }
@@ -492,7 +492,7 @@ function setCount(n) {
   const myName = ($('#myName').value.trim() || '나').slice(0, 6);
   if (!me) me = makeActor(myName, true);
   me.name = myName;
-  const want = NET_CID ? Math.max(2, n - 1 - ghosts.size) : n - 1; ghostN = ghosts.size;
+  const want = RUN ? 0 : n - 1; ghostN = ghosts.size; // 반 친구들과 하는 게임에는 🤖 없이 (혼자 연습할 때만)
   const bots = actors.filter(a => !a.isMe && !!a.bot === !!NET_CID).slice(0, want);
   const names = NET_CID ? NAMES.slice() : MATES.map(m => m.n).concat(NAMES.filter(x => !MATES.some(m => m.n === x)));
   while (bots.length < want) { const i = bots.length; const b = makeActor(names[i] || NAMES[i % NAMES.length], false, NET_CID ? null : MATES[i]); b.bot = !!NET_CID; bots.push(b); }
@@ -711,17 +711,21 @@ function Dodge() {
   const pickKind = () => { let r = Math.random(); for (const k of kinds) if ((r -= k.p) <= 0) return k; return kinds[0]; };
   const G = {
     view: [60 * k, 0, 1220 * k, 690 * k],
-    settings: [['limit', '시간', [[60, '1분'], [90, '1분 30초'], [120, '2분']]], ['what', '떨어지는 것', [['poop', '똥'], ['mix', '물풍선·공·도토리·눈덩이']]], ['gold', '황금 똥', [[1, '가끔 나와요'], [0, '안 나와요']]]],
+    settings: [['limit', '시간', [[60, '1분'], [90, '1분 30초'], [120, '2분']]], ['lives', '목숨', [[3, '3번 맞으면 탈락'], [2, '2번 맞으면 탈락'], [1, '한 번 맞으면 탈락']]], ['what', '떨어지는 것', [['poop', '똥'], ['mix', '물풍선·공·도토리·눈덩이']]], ['gold', '황금 똥', [[1, '가끔 나와요'], [0, '안 나와요']]]],
     setup() {
-      items = []; marks = []; spawnT = 0.8; G.limit = +S.limit; kinds = S.what === 'mix' ? MIX : POOP;
-      actors.forEach(a => { a.out = false; a.outAt = 0; a.alpha = 1; a.shield = 0; a.slowT = 0; a.react = rand(0.2, 0.6) * (1.7 - a.skill); });
+      items = []; marks = []; spawnT = 0.8; G.limit = +S.limit; G.lives = +S.lives || 3; kinds = S.what === 'mix' ? MIX : POOP;
+      actors.forEach(a => { a.out = false; a.outAt = 0; a.alpha = 1; a.shield = 0; a.slowT = 0; a.hits = 0; a.dirtyT = 0; a.immune = 0; a.react = rand(0.2, 0.6) * (1.7 - a.skill); });
       scatter(actors, (x, y) => inA(x, y) && x > 330 * k && x < 950 * k && y > 190 * k && y < 500 * k, 60);
       seats = waitSpots('playground', k); actors.forEach(a => { a.sit = null; });
     },
     usesWait: true,
     canStand: (x, y, a) => !(a && a.out) && inA(x, y), // 탈락하면 대기석에 앉아 있어요
-    speedMul: a => a.slowT > 0 ? 0.6 : 1,
-    items: { kinds: ['it_umbrella'], every: 7 / k, max: 2 * k, test: (x, y) => inA(x, y) && x > 250 * k && x < 1030 * k, can: a => a.umbT <= 0, pick(a) { a.umbT = 6; say(a, '우산이다!', '#fff6c8', 1.6); if (a.isMe) toast('우산을 주웠어요! 6초 동안 똥을 막아요'); } },
+    speedMul: a => a.dirtyT > 0 ? 0.55 : a.slowT > 0 ? 0.6 : 1, // 똥 맞으면 3초 동안 느릿느릿
+    sheet: a => a.hits ? illSheet(a) : null, // 똥 맞은 만큼 얼굴빛이 초록빛으로
+    items: { kinds: ['it_umbrella', 'shield'], every: 6 / k, max: 3 * k, test: (x, y) => inA(x, y) && x > 250 * k && x < 1030 * k, can: (a, it) => it.k === 'shield' ? !a.shield : a.umbT <= 0, pick(a, it) {
+      if (it.k === 'shield') { a.shield = 1; say(a, '방어막!', '#e0f4ff', 1.6); if (a.isMe) toast('방어막! 똥을 한 번 막아 줘요'); }
+      else { a.umbT = 6; say(a, '우산이다!', '#fff6c8', 1.6); if (a.isMe) toast('우산을 주웠어요! 6초 동안 똥을 막아요'); }
+    } },
     update(dt) {
       const alive = actors.filter(a => !a.out);
       if ((spawnT -= dt) <= 0) {
@@ -743,10 +747,11 @@ function Dodge() {
           if (it.kind.startsWith('poop') || it.gold) marks.push({ x: it.x, y: it.y, t: 0, gold: it.gold, w: it.gold ? 70 : it.w * 1.25, r: it.r });
           for (const a of alive) {
             if (a.out || ((a.x - it.x) / it.r) ** 2 + ((a.y - it.y) / (it.r * 0.7)) ** 2 >= 1) continue;
-            if (it.gold) { a.shield = 1; addFx(a.x, a.y - 104, { img: 'icon_sparkle', life: 1.2, w: 44 }); toast(`${a.name} 황금 똥! 한 번 봐줘요`); sfx('key_get', a.isMe ? 1 : 0.4); }
+            if (it.gold) { a.shield = 1; addFx(a.x, a.y - 104, { img: 'icon_sparkle', life: 1.2, w: 44 }); toast(`${a.name} 황금 똥! 방어막이 생겼어요`); sfx('key_get', a.isMe ? 1 : 0.4); }
             else if (a.umbT > 0) { addFx(a.x, a.y - 120, { text: '우산으로 막았다!', life: 1, color: '#ffe28a' }); sfx('score_up', a.isMe ? 1 : 0.3); }
-            else if (a.shield) { sfx('score_up', a.isMe ? 1 : 0.3); a.shield = 0; addFx(a.x, a.y - 104, { text: '휴, 살았다!', life: 1, color: '#ffd23f' }); }
-            else out(a, it);
+            else if (a.shield) { sfx('score_up', a.isMe ? 1 : 0.3); a.shield = 0; a.immune = 0.6; addFx(a.x, a.y - 104, { text: '방어막으로 막았다!', life: 1, color: '#bfe8ff' }); }
+            else if (a.immune > 0) continue; // 방금 맞았으면 잠깐 봐줘요
+            else hit(a, it);
           }
           if (!me.out && !it.gold && me.umbT <= 0 && performance.now() - nearT > 1300) { const d = hyp((me.x - it.x) / it.r, (me.y - it.y) / (it.r * 0.7)); if (d >= 1 && d < 1.9) { nearT = performance.now(); addFx(me.x, me.y - 120, { text: '아슬아슬!', life: 0.9, color: '#ffd23f' }); } }
         }
@@ -755,8 +760,9 @@ function Dodge() {
       if (left !== lastLeft) { if (lastLeft && [10, 5, 3, 2].includes(left) && actors.length > left) { toast(left === 2 ? '마지막 2명! 끝까지 버텨요!' : `남은 친구 ${left}명!`); sfx('score_up', 0.5); } lastLeft = left; }
       items = items.filter(it => it.t < it.warn + it.fall + 0.6);
       marks = marks.filter(m => (m.t += dt) < 3);
+      for (const a of alive) { a.dirtyT -= dt; a.immune -= dt; }
       for (const a of alive) { a.slowT -= dt; if (!a.out && marks.some(m => !m.gold && m.t < 2.6 && ((a.x - m.x) / (m.w * 0.42)) ** 2 + ((a.y - m.y) / (m.w * 0.24)) ** 2 < 1)) a.slowT = 0.3; }
-      if (actors.filter(a => !a.out).length <= 1) endGame();
+      if (actors.filter(a => !a.out).length <= (actors.length > 1 ? 1 : 0)) endGame();
     },
     bot(a, dt) {
       if (a.out) { a.moving = false; return; }
@@ -776,7 +782,6 @@ function Dodge() {
         g.fillStyle = it.gold ? `rgba(255,196,0,${0.2 + 0.35 * p})` : `rgba(20,30,70,${0.14 + 0.3 * p})`; g.beginPath(); g.ellipse(it.x, it.y, rx, rx * 0.62, 0, 0, 7); g.fill();
         if (p > 0.55) { g.strokeStyle = it.gold ? 'rgba(255,230,90,.95)' : 'rgba(255,70,70,.85)'; g.lineWidth = 3; g.stroke(); }
       }
-      for (const a of actors) if (a.shield && !a.out) { g.strokeStyle = '#ffcf1a'; g.lineWidth = 4; g.beginPath(); g.ellipse(a.x, a.y, 26, 10, 0, 0, 7); g.stroke(); }
     },
     drawOver() {
       for (const m of marks) if (!m.gold && m.t < 1.8) drawImg('stink', m.x + 4, m.y - 8 - m.t * 22, 30 + m.w * 0.15, 1 - m.t / 1.8);
@@ -787,13 +792,15 @@ function Dodge() {
         if (it.landed) { al = 1 - land / 0.6; if (it.kind === 'ball') { h = Math.abs(Math.sin(land * 9)) * 22 * (1 - land / 0.6); x += it.dx * land * 70; } }
         drawImg(it.kind, x, it.y + 6 - h, it.w, al);
       }
-      for (const a of actors) if (a.out && a.stinkT > 0) drawImg('stink', a.x, a.y - 96 - (1.6 - a.stinkT) * 14, 34, Math.min(1, a.stinkT));
+      for (const a of actors) if (a.stinkT > 0 && (a.out || a.dirtyT > 0)) drawImg('stink', a.x + (a.out ? 0 : 10), a.y - 96 - (1.6 - (a.stinkT % 1.6)) * 14, 34, Math.min(1, a.stinkT));
+      const t = performance.now() / 260; // 방어막: 몸을 감싼 반투명 막
+      for (const a of actors) if (a.shield && !a.out) { g.fillStyle = 'rgba(140,215,255,.16)'; g.strokeStyle = `rgba(150,222,255,${0.6 + 0.25 * Math.sin(t)})`; g.lineWidth = 3; g.beginPath(); g.ellipse(a.x, a.y - 44, 38, 54, 0, 0, 7); g.fill(); g.stroke(); }
     },
     status: () => `남은 친구 ${actors.filter(a => !a.out).length}명`,
-    hud: () => me.out ? '구경하는 중' : me.umbT > 0 ? `우산 쓰는 중! ${Math.ceil(me.umbT)}초` : me.shield ? '황금 똥 덕분에 한 번 봐줘요!' : S.what === 'mix' ? '그림자를 피해요!' : '똥 그림자를 피해요!',
-    tag: a => a.out ? { bg: 'rgba(120,120,120,.8)', fg: '#fff' } : a.shield ? { bg: '#ffd23f', fg: '#17181c', label: '★ ' + a.name } : null,
-    rank: () => actors.slice().sort((p, q) => (p.out - q.out) || (q.outAt - p.outAt)).map(a => ({ a, v: a.out ? `${a.outAt.toFixed(1)}초` : '버티는 중' })),
-    final: () => G.rank().map(r => ({ a: r.a, v: r.a.out ? `${r.a.outAt.toFixed(1)}초 버팀` : '끝까지 버팀' })),
+    hud: () => me.out ? '구경하는 중' : (me.dirtyT > 0 ? `똥 냄새! ${Math.ceil(me.dirtyT)}초 동안 느려요` : me.umbT > 0 ? `우산 쓰는 중! ${Math.ceil(me.umbT)}초` : me.shield ? '방어막! 똥을 한 번 막아 줘요' : S.what === 'mix' ? '그림자를 피해요!' : '똥 그림자를 피해요!') + (G.lives > 1 ? ' · 목숨 ' + hearts(me) : ''),
+    tag: a => a.out ? { bg: 'rgba(120,120,120,.8)', fg: '#fff' } : a.shield ? { bg: '#9fdcff', fg: '#17181c', label: '방어막 ' + a.name } : a.dirtyT > 0 ? { bg: '#8d6e2f', fg: '#fff', label: '똥냄새 ' + a.name } : null,
+    rank: () => actors.slice().sort((p, q) => (p.out - q.out) || (q.outAt - p.outAt) || ((p.hits || 0) - (q.hits || 0))).map(a => ({ a, v: a.out ? `${a.outAt.toFixed(1)}초` : G.lives > 1 ? `목숨 ${G.lives - (a.hits || 0)}` : '버티는 중' })),
+    final: () => G.rank().map(r => ({ a: r.a, v: r.a.out ? `${r.a.outAt.toFixed(1)}초 버팀` : '끝까지 버팀' + (G.lives > 1 ? ` · 목숨 ${G.lives - (r.a.hits || 0)}` : '') })),
     // 다 같이 하기: 떨어지는 것만 보내고, 자국·아슬아슬은 학생 화면이 스스로
     snap: () => ({ it: items.map(it => [it.id, it.kind, Math.round(it.x), Math.round(it.y), r2(G.time - it.t), r2(it.warn), it.fall, it.r, it.w, it.gold ? 1 : 0, r2(it.dx)]) }),
     load(s) {
@@ -815,9 +822,25 @@ function Dodge() {
     },
     feel(o, n) {
       if (n.out && !o.out) { sfx('hit'); setTimeout(() => sfx('wrong', 0.7), 250); toast('으악! 탈락… 대기석에서 친구들을 응원해요'); }
+      else if ((n.hits || 0) > (o.hits || 0)) { sfx('hit', 1, 1.2); toast(`으악, 똥! 3초 동안 느려져요 · 남은 목숨 ${G.lives - n.hits}`); }
       if (gotT(o, n, 'umbT')) toast('우산을 주웠어요! 6초 동안 똥을 막아요');
+      if (n.shield && !o.shield) toast('방어막! 똥을 한 번 막아 줘요');
     }
   };
+  const hearts = a => '❤'.repeat(Math.max(0, G.lives - (a.hits || 0))) + '♡'.repeat(Math.min(G.lives, a.hits || 0));
+  function illSheet(a) { // 똥 맞은 얼굴빛(1번: 연두빛, 2번: 초록빛) + 우산
+    const key = (a.hits >= 2 ? 2 : 1) + (a.umbT > 0 ? 'u' : '');
+    if (!a._ill || a._ill.k !== key || a._ill.o !== a.o) a._ill = { k: key, o: a.o, s: sheetFor(Object.assign({}, a.o, { skin: a.hits >= 2 ? 'fx_ill2' : 'fx_ill' }, a.umbT > 0 ? { hand: 'hand_umbrella', handColor: 'yellow' } : {})) };
+    return a._ill.s;
+  }
+  function hit(a, it) { // 목숨이 남으면: 얼굴빛이 변하고 3초 동안 느려져요
+    a.hits = (a.hits || 0) + 1;
+    if (a.hits >= G.lives) { out(a, it); return; }
+    const poo = it.kind.startsWith('poop');
+    a.dirtyT = 3; a.immune = 1.2; a.stinkT = poo ? 3 : 0; a.path = null;
+    addFx(a.x, a.y - 100, { text: poo ? '으악, 똥!' : '앗, 맞았다!', life: 1, color: '#c8f08a' });
+    sfx('hit', a.isMe ? 1 : 0.3, 1.2); say(a, poo ? pick(['으악, 냄새!', '끈적끈적~', '으아, 똥!']) : pick(['앗!', '아야!']), null, 1.6);
+  }
   function out(a, it) {
     a.out = true; a.outAt = G.time; a.alpha = 0.6; a.path = null; a.shield = 0;
     const poo = it.kind.startsWith('poop');
@@ -828,6 +851,10 @@ function Dodge() {
   return G;
 }
 
+/* 술래·좀비 직접 고르기: 들어온 사람 이름 체크 상자 (아무도 안 고르면 컴퓨터가 뽑아요) */
+const pickItems = sel => actors.length ? actors.map(a => { const key = akey(a); return `<label><input type="checkbox" value="${esc(key)}"${(sel || []).includes(key) ? ' checked' : ''}>${a.bot ? '🤖 ' : a.tc ? '👑 ' : ''}${esc(a.name)}</label>`; }).join('') : '';
+const pickBox = (id, legend, sel) => `<fieldset class="kinds pickp" id="${id}"><legend>${legend}</legend>${pickItems(sel)}</fieldset>`;
+const readPick = id => { const el = document.querySelectorAll('#' + id + ' input'); return el.length ? [...el].filter(i => i.checked).map(i => i.value) : null; };
 /* 2. 술래잡기 — 운동장 · 개인전(닿으면 술래가 바뀜) / 팀전 얼음땡(술래 팀 vs 도망 팀) · 술래는 컴퓨터가 뽑거나 선생님이 골라요 */
 const TT = [{ name: '도망', label: '도망 팀', c: '#3d7bff' }, { name: '술래', label: '술래 팀', c: '#ff3b42' }];
 const iceSheet = a => (a._i && a._is === a.sheet) ? a._i : (a._is = a.sheet, a._i = tintSheet(a.sheet, 'rgba(120,205,255,.55)'));
@@ -838,8 +865,7 @@ function Tag() {
   let endT = 0, lastLeft = 0;
   const free = () => actors.filter(a => !a.it && !a.ice);
   const itNames = () => actors.filter(a => a.it).map(a => a.name).join(', ');
-  const pickItems = () => actors.map(a => { const key = akey(a); return `<label><input type="checkbox" value="${esc(key)}"${(S.itSel || []).includes(key) ? ' checked' : ''}>${a.bot ? '🤖 ' : a.tc ? '👑 ' : ''}${esc(a.name)}</label>`; }).join('');
-  const PICK_L = '<legend>술래로 할 사람 · 눌러서 골라요 (안 고르면 컴퓨터가 뽑아요)</legend>';
+  const PICK_L = '<legend>술래로 할 사람 · 눌러서 골라요 (안 고르면 술래 수만큼 뽑아요)</legend>';
   const teamBars = () => { const f = free().length, ic = actors.filter(a => a.ice).length; return `<span style="background:${TT[0].c}">도망 ${f}${ic ? ` · 얼음 ${ic}` : ''}</span><span style="background:${TT[1].c}">술래 ${actors.filter(a => a.it).length}</span>`; };
   function chase(a, dt, ok) { // 가장 가까운 사람을 쫓아가기
     let t = a.target;
@@ -850,18 +876,17 @@ function Tag() {
   }
   const G = {
     view: [300 * k, 60 * k, 1250 * k, 575 * k],
-    settings: [['tmode', '방식', [['solo', '개인전'], ['team', '팀전 얼음땡']]], ['limit', '시간', [[60, '1분'], [90, '1분 30초'], [120, '2분']]], ['its', '술래 수', [[0, '알아서'], [1, '1명'], [2, '2명'], [3, '3명'], [4, '4명'], [5, '5명']]], ['itpick', '술래', [['rand', '뽑기'], ['pick', '직접 고르기']]]],
-    panelKeys: ['itpick'],
-    settingsExtra: () => S.itpick === 'pick' ? `<fieldset class="kinds" id="itPick">${PICK_L}${pickItems()}</fieldset>` : '',
-    readExtra() { const el = document.querySelectorAll('#itPick input'); if (el.length) S.itSel = [...el].filter(i => i.checked).map(i => i.value); },
-    refreshSet() { const el = $('#itPick'); if (el) el.innerHTML = PICK_L + pickItems(); },
+    settings: [['tmode', '방식', [['solo', '개인전'], ['team', '팀전 얼음땡']]], ['limit', '시간', [[60, '1분'], [90, '1분 30초'], [120, '2분']]], ['its', '술래 수', [[0, '알아서'], [1, '1명'], [2, '2명'], [3, '3명'], [4, '4명'], [5, '5명']]]],
+    settingsExtra: () => `<fieldset class="kinds pickp" id="itPick">${PICK_L}${pickItems(S.itSel)}</fieldset>`,
+    readExtra() { const v = readPick('itPick'); if (v) S.itSel = v; },
+    refreshSet() { const el = $('#itPick'); if (el) el.innerHTML = PICK_L + pickItems(S.itSel); },
     setup() {
       G.limit = +S.limit; endT = 0; lastLeft = 0; G.team = team(); G.bars = team() ? teamBars : undefined;
       G.resultSub = '술래 팀 vs 도망 팀 · 시간이 끝날 때 얼지 않은 도망 팀이 한 명이라도 있으면 도망 팀이 이겨요';
       scatter(actors, (x, y) => inS(x, y) && tileWalk(x, y), 60);
       actors.forEach(a => { a.it = false; a.itTime = 0; a.immune = 0; a.freeze = 0; a.alpha = 1; a.ice = false; a.iceT = 0; a.saves = 0; a.catches = 0; a.target = null; a.team = team() ? 0 : null; });
       const want = clamp(+S.its || Math.round(actors.length / (team() ? 5 : 7) * (1 + (k - 1) * (team() ? 0.15 : 0.25))), 1, Math.max(1, actors.length - 1)); // 팀전은 다섯 명에 한 명쯤
-      let its = S.itpick === 'pick' && S.itSel && S.itSel.length ? actors.filter(a => S.itSel.includes(akey(a))) : [];
+      let its = S.itSel && S.itSel.length ? actors.filter(a => S.itSel.includes(akey(a))) : []; // 선생님이 고른 술래
       if (!its.length) its = shuffle(actors).slice(0, want);
       if (its.length >= actors.length) its = its.slice(0, actors.length - 1); // 도망가는 사람이 한 명은 있어야
       its.forEach(a => { a.it = true; if (team()) a.team = 1; });
@@ -885,6 +910,7 @@ function Tag() {
       for (const a of actors) { if (a.it) a.itTime += dt; a.immune -= dt; a.freeze -= dt; if (a.ice) a.iceT += dt; }
       if (endT > 0) { if ((endT -= dt) <= 0) endGame(); return; }
       if (!team()) {
+        if (actors.length > 1 && !actors.some(a => a.it)) { const n = pick(actors); n.it = true; n.freeze = 1; toast(`새 술래: ${n.name}`); } // 술래가 나갔을 때
         for (const s of actors) {
           if (!s.it || s.freeze > 0) continue;
           for (const p of actors) {
@@ -937,9 +963,9 @@ function Tag() {
         else if (a.ice) { g.fillStyle = 'rgba(160,220,255,.55)'; g.beginPath(); g.ellipse(a.x, a.y, 30, 11, 0, 0, 7); g.fill(); g.strokeStyle = '#5cb8ff'; g.lineWidth = 3; g.stroke(); }
       }
     },
-    status: () => team() ? `얼지 않은 도망 팀 ${free().length}명` : '술래 ' + itNames(),
+    status: () => team() ? (me.spec ? '' : me.it ? '나는 술래 팀(빨강) · ' : '나는 도망 팀(파랑) · ') + `얼지 않은 도망 ${free().length}명` : '술래 ' + itNames(),
     hud: () => me.ice ? '얼음! 같은 팀 친구가 닿으면 땡으로 풀려요' : me.freeze > 0 ? '잠깐! 곧 움직여요' : me.starT > 0 ? `무적! ${Math.ceil(me.starT)}초` : me.boostT > 0 ? '번개 속도!' : me.it ? (team() ? '도망 팀에게 닿아서 얼려요!' : '친구를 잡아요! 번개는 쌩!') : team() ? '술래를 피하고, 언 친구에게 닿아 땡!' : '술래를 피해요! 별은 무적!',
-    tag: a => a.it ? { bg: '#ff3b42', fg: '#fff', label: '술래 ' + a.name } : a.ice ? { bg: '#bfe8ff', fg: '#17181c', label: '얼음 ' + a.name } : a.starT > 0 ? { bg: '#ffd23f', fg: '#17181c', label: '무적 ' + a.name } : team() && !a.isMe ? { bg: TT[0].c, fg: '#fff' } : null,
+    tag: a => a.it ? { bg: '#ff3b42', fg: '#fff', label: '술래 ' + a.name } : a.ice ? { bg: '#bfe8ff', fg: '#17181c', label: '얼음 ' + a.name } : a.starT > 0 ? { bg: '#ffd23f', fg: '#17181c', label: '무적 ' + a.name } : team() ? { bg: TT[0].c, fg: '#fff' } : null,
     rank: () => team()
       ? [{ team: TT[0], v: `${free().length}명 안 얼음`, members: actors.filter(a => !a.it) }, { team: TT[1], v: `${actors.reduce((n, a) => n + (a.catches || 0), 0)}번 얼림`, members: actors.filter(a => a.it) }]
       : actors.slice().sort((p, q) => p.itTime - q.itTime).map(a => ({ a, v: `술래 ${a.itTime.toFixed(1)}초` })),
@@ -1076,8 +1102,8 @@ function Race() {
     },
     canStand(x, y) { const r = radial(x, y); if (r < R - HW || r > R + HW) return false; for (const o of obs) if (o.k === 'cone' && hyp(x - o.x, (y - o.y) * 1.5) < 15) return false; return true; },
     lock: () => state !== 'play',
-    speedMul: a => a.slow,
-    items: { kinds: ['it_shoe'], spots: () => [0.2, 0.44, 0.68, 0.9].map(f => posAt(S0 + P * f, rand(-8, 8) * k)), pick(a) { a.boostT = 2.5; say(a, '쌩!', '#ffe0d0', 1.2); if (a.isMe) toast('날개 운동화! 잠깐 빨라져요'); } },
+    speedMul: a => a.slow * 1.3 * (a.boostT > 0 ? 1.2 : 1), // 달리기는 걷기보다 빠르게, 운동화는 더 쌩
+    items: { kinds: ['it_shoe'], respawn: 3, spots: () => { const n = Math.round(4 * k); return Array.from({ length: n }, (_, i) => posAt(S0 + P * (0.1 + i / n), (i % 2 ? 1 : -1) * rand(3, 9) * k)); }, pick(a) { a.boostT = 3.5; say(a, '쌩!', '#ffe0d0', 1.2); if (a.isMe) toast('날개 운동화! 3초 동안 아주 빨라져요'); } },
     update(dt) {
       for (const a of actors) {
         const s = sAt(a.x, a.y); a.prog += wrap(s - a.s); a.s = s; a.slow = 1;
@@ -1140,7 +1166,7 @@ function Race() {
     feel(o, n) {
       if (n.fin && !o.fin) { sfx('whistle'); const p = finished.indexOf(me) + 1; toast(p ? `도착! ${p}등` : '도착!'); }
       if (gotT(o, n, 'stun')) sfx('hit', 0.8);
-      if (gotT(o, n, 'boostT')) toast('날개 운동화! 잠깐 빨라져요');
+      if (gotT(o, n, 'boostT')) toast('날개 운동화! 3초 동안 아주 빨라져요');
     }
   };
   const place = a => G.rank().findIndex(r => r.a === a) + 1;
@@ -1368,6 +1394,7 @@ function zombieIcon() {
 const ZT = [{ name: '사람', label: '사람 팀', c: '#3d7bff' }, { name: '좀비', label: '좀비 팀', c: '#2fbf5b' }];
 function Zombie() {
   let dH = null, dZ = null, fT = 0, endT = 0, lastLeft = 0, zMul = 1;
+  const ZPICK_L = '처음 좀비로 할 사람 · 눌러서 골라요 (안 고르면 좀비 수만큼 뽑아요)';
   const NB = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
   const wc = (cx, cy) => cx >= 0 && cy >= 0 && cx < M.cols && cy < M.rows && M.walk[cy][cx] === '.';
   const ok8 = (cx, cy, dx, dy) => wc(cx + dx, cy + dy) && (!dx || !dy || (wc(cx + dx, cy) && wc(cx, cy + dy)));
@@ -1403,11 +1430,15 @@ function Zombie() {
     view: [0, 0, M.size[0], M.size[1]], team: true,
     resultSub: '사람 팀 vs 좀비 팀 · 시간이 끝날 때 사람이 한 명이라도 남으면 사람 팀이 이겨요',
     settings: [['limit', '시간', [[90, '1분 30초'], [60, '1분'], [120, '2분']]], ['zn', '처음 좀비 수', [[0, '알아서'], [1, '1명'], [2, '2명'], [3, '3명']]], ['zspd', '좀비 빠르기', [[0.92, '조금 느리게'], [1, '사람과 같게'], [1.1, '조금 빠르게']]]],
+    settingsExtra: () => pickBox('zPick', ZPICK_L, S.zSel),
+    readExtra() { const v = readPick('zPick'); if (v) S.zSel = v; },
+    refreshSet() { const el = $('#zPick'); if (el) el.innerHTML = `<legend>${ZPICK_L}</legend>` + pickItems(S.zSel); },
     setup() {
       G.limit = +S.limit; zMul = +S.zspd; endT = 0; fT = 0; dH = dZ = null;
       actors.forEach(a => { a.zombie = false; a.z0 = false; a.zAt = 0; a.kills = 0; a.close = 0; a.nearZ = 9999; a.freeze = 0; a.immune = 0; a.alpha = 1; });
       const k = Math.max(1, Math.min(actors.length - 1, +S.zn || clamp(Math.round(actors.length / 10), 1, 3)));
-      const zs = shuffle(actors).slice(0, k); zs.forEach(a => { a.zombie = true; a.z0 = true; });
+      const chosen = S.zSel && S.zSel.length ? actors.filter(a => S.zSel.includes(akey(a))).slice(0, Math.max(1, actors.length - 1)) : []; // 선생님이 고른 좀비
+      const zs = chosen.length ? chosen : shuffle(actors).slice(0, k); zs.forEach(a => { a.zombie = true; a.z0 = true; });
       // 좀비는 가운데 복도에서, 사람은 교실 곳곳에서
       scatter(zs, (x, y) => x > 28 * T + 6 && x < 31 * T - 6 && y > 10 * T + 10 && y < 16 * T - 4 && tileWalk(x, y), 30);
       scatter(humans(), (x, y) => tileWalk(x, y) && tileWalk(x - 12, y) && tileWalk(x + 12, y) && hyp(x - 29.5 * T, y - 13 * T) > 8.4 * T, 46);
@@ -1477,7 +1508,7 @@ function Zombie() {
     },
     status: hud, hud,
     bars: () => { const h = humans().length; return `<span style="background:${ZT[0].c}">사람 ${h}</span><span style="background:${ZT[1].c}">좀비 ${actors.length - h}</span>`; },
-    tag: a => a.zombie ? { bg: ZT[1].c, fg: '#fff', label: '좀비 ' + a.name } : a.starT > 0 ? { bg: '#ffd23f', fg: '#17181c', label: '무적 ' + a.name } : a.isMe ? null : { bg: ZT[0].c, fg: '#fff' },
+    tag: a => a.zombie ? { bg: ZT[1].c, fg: '#fff', label: '좀비 ' + a.name } : a.starT > 0 ? { bg: '#ffd23f', fg: '#17181c', label: '무적 ' + a.name } : { bg: ZT[0].c, fg: '#fff' },
     rank: () => { const hs = humans(), zs = actors.filter(a => a.zombie); return [{ team: ZT[0], v: `${hs.length}명`, members: hs }, { team: ZT[1], v: `${zs.length}명`, members: zs }]; },
     final: () => {
       const hs = humans(), zs = actors.filter(a => a.zombie), kills = zs.reduce((s, a) => s + a.kills, 0);
@@ -1955,10 +1986,10 @@ const OBS_KINDS = [['hurdle', '허들'], ['cone', '고깔'], ['banana', '바나�
 const DEF_WORDS = ['컴퓨터', '로봇', '센서', '코딩', '엔트리', '블록', '반복', '조건', '순서', '데이터', '인공지능', '키보드', '마우스', '모니터', '프로그램', '알고리즘', '디버깅', '변수', '신호', '카메라', '이진수', '저장', '화면', '인터넷', '비밀번호'];
 
 const GAMES = [
-  { id: 'dodge', name: '똥 피하기', map: 'playground', mapName: '놀이터', icon: 'poop', tags: ['개인전', '서바이벌'], rule: '하늘에서 똥이 떨어져요! 바닥에 그림자가 생기면 재빨리 피해요. 맞으면 탈락, 마지막까지 남은 사람이 1등이에요. 떨어진 똥을 밟으면 느려지고, 황금 똥을 맞으면 한 번 봐줘요.', how: '방향키로 그림자를 피해요.', act: '', make: Dodge },
+  { id: 'dodge', name: '똥 피하기', map: 'playground', mapName: '놀이터', icon: 'poop', tags: ['개인전', '서바이벌'], rule: '하늘에서 똥이 떨어져요! 바닥에 그림자가 생기면 재빨리 피해요. 똥을 맞으면 얼굴빛이 이상해지고 3초 동안 느려져요. 목숨을 다 쓰면 탈락, 마지막까지 남은 사람이 1등이에요. 방어막·황금 똥은 똥을 한 번 막아 주고, 우산은 6초 동안 막아 줘요.', how: '방향키로 그림자를 피해요.', act: '', make: Dodge },
   { id: 'tag', name: '술래잡기', map: 'field', mapName: '학교 운동장', icon: 'game_flag', tags: ['개인전·팀전', '운동장'], rule: '빨간 이름표가 술래예요. 개인전: 술래에게 닿으면 내가 술래가 되고, 술래였던 시간이 짧을수록 높은 순위! 팀전(얼음땡): 술래 팀에게 닿으면 얼음! 같은 팀 친구가 닿으면 땡! 도망 팀이 모두 얼면 술래 팀이, 시간이 끝날 때 한 명이라도 남으면 도망 팀이 이겨요.', how: '술래를 피해 도망쳐요. 내가 술래면 친구를 잡아요. 팀전에서는 언 친구에게 닿아 땡!', act: '', make: Tag },
   { id: 'treasure', name: '보물찾기', map: 'classroom', mapName: '교실', icon: 'treasure_chest', tags: ['개인전', '퀴즈'], rule: '교실 곳곳의 보물 상자를 찾아가 문제를 풀어요. 맞히면 보물을 얻고, 틀리면 5초 뒤에 다시 풀 수 있어요. 많이 푼 사람이 1등!', how: '상자에 다가가 스페이스(행동)를 누르거나 상자를 눌러요.', act: '상자 열기', make: Treasure },
-  { id: 'race', name: '달리기 경주', map: 'field', mapName: '학교 운동장', icon: 'hurdle', tags: ['개인전', '장애물'], rule: '출발선에서 오른쪽으로 달려 트랙을 돌아요. 허들·바나나·진흙은 점프로 넘고, 고깔은 돌아가요. 먼저 들어온 순서대로 순위!', how: '방향키로 달리고 스페이스(행동)로 점프해요.', act: '점프', make: Race },
+  { id: 'race', name: '달리기 경주', map: 'field', mapName: '학교 운동장', icon: 'hurdle', tags: ['개인전', '장애물'], rule: '출발선에서 오른쪽으로 달려 트랙을 돌아요. 허들·바나나·진흙은 점프로 넘고, 고깔은 돌아가요. 날개 운동화를 밟으면 3초 동안 아주 빨라져요! 먼저 들어온 순서대로 순위!', how: '방향키로 달리고 스페이스(행동)로 점프해요.', act: '점프', make: Race },
   { id: 'paint', name: '땅따먹기', map: 'quiz_plaza', mapName: '퀴즈 광장', icon: 'confetti', tags: ['모둠 대항'], rule: '밟은 칸이 우리 모둠 색으로 바뀌어요. 다른 모둠 칸도 밟으면 빼앗을 수 있어요. 시간이 끝났을 때 칸이 많은 모둠이 이겨요.', how: '방향키로 돌아다니며 바닥을 칠해요.', act: '', make: Paint },
   { id: 'chat', name: '채팅 게임', map: 'classroom', mapName: '교실', icon: 'icon_alert', tags: ['개인전', '초성·업다운'], rule: '초성 퀴즈: 스크린의 초성을 보고 낱말을 채팅으로 먼저 맞혀요. 숫자 업다운: 선생님이 정한 숫자를 업·다운 힌트로 찾아요.', how: '오른쪽 채팅 칸에 답을 쓰고 보내요.', act: '', make: Chat },
   { id: 'bingo', name: '빙고', map: 'group_room', mapName: '모둠 교실', icon: 'icon_correct', tags: ['개인전', '차시 낱말'], rule: '칠판에 낱말이 하나씩 불려요. 내 빙고판에 있으면 눌러서 지우고, 줄이 다 차면 "빙고!" 버튼을 눌러요.', how: '오른쪽 빙고판에서 불린 낱말을 눌러요.', act: '', make: Bingo },
@@ -2000,7 +2031,7 @@ async function selectGame(gm) {
   if (MODE === 'client') { cRound = null; state = 'ready'; GMQ.add('h'); gmKick(); } else resetGame();
 }
 function resetActors() {
-  actors.forEach(a => { a.stun = 0; a.spin = 0; a.jumpT = 0; a.bubbleT = 0; a.alpha = 1; a.path = null; a.team = null; a.wt = 0; a.tx = 0; a.boostT = 0; a.umbT = 0; a.starT = 0; a.hint = 0; a.streak = 0; a.emoT = rand(6, 20); a.out = false; a.zombie = false; a.bomb = null; a.shield = 0; a.freeze = 0; a.immune = 0; a.outNow = false; a.ice = false; a.sit = null; a.fin = 0; a.mark = ''; });
+  actors.forEach(a => { a.stun = 0; a.spin = 0; a.jumpT = 0; a.bubbleT = 0; a.alpha = 1; a.path = null; a.team = null; a.wt = 0; a.tx = 0; a.boostT = 0; a.umbT = 0; a.starT = 0; a.hint = 0; a.streak = 0; a.emoT = rand(6, 20); a.out = false; a.zombie = false; a.bomb = null; a.shield = 0; a.freeze = 0; a.immune = 0; a.outNow = false; a.ice = false; a.sit = null; a.fin = 0; a.mark = ''; a.hits = 0; a.dirtyT = 0; a.goneAt = 0; });
 }
 function resetGame() {
   if (MODE === 'host') buildActors(); // 새로 들어온 친구·나간 친구를 이번 판에 반영
@@ -2017,6 +2048,7 @@ function resetGame() {
 function startGame() {
   if (MODE === 'client') return;
   readSettings(); if (state !== 'ready' || (MODE === 'host' && ROSTER_DIRTY)) resetGame(); // 선생님 탭: 새로 들어온 친구도 같이
+  if (MODE === 'host' && actors.length < 2) { toast('학생이 들어와야 시작할 수 있어요 (2명 이상)'); return; }
   if (MODE === 'local' && NET_CID && ghosts.size !== ghostN) { setCount(+$('#count').value); resetGame(); } // 같이 들어온 친구 수만큼 컴퓨터를 줄여요
   if (MODE === 'local' && TEACHER && TEACH_CID && RUN) update(ref(rt, 'live/' + TEACH_CID + '/state/game'), { go: Date.now() }).catch(() => {}); // 각자 하는 게임: 학생들도 같이 시작
   state = 'count'; countT = 3.2; lastCount = 0; lastHurry = 0; sfx('ui_click'); if (me.spec) camMid(); else camTo(me.x, me.y); $('#gSet').hidden = true; startBtn.disabled = true; endBtn.disabled = false; cv.focus({ preventScroll: true });
@@ -2276,12 +2308,12 @@ function netStart() {
 
 
 /* ---------- 다 같이 하기: 선생님이 초대한 반 친구들과 한 게임 ----------
- * 선생님 탭(host): 판정·🤖를 모두 돌리고, live/반/state/gm 에 1초에 8번쯤 올려요
+ * 선생님 탭(host): 판정을 모두 하고, live/반/state/gm 에 1초에 8번쯤 올려요
  * 학생(client): 내 캐릭터만 내 화면에서 움직여 live/반/players/내uid 에 올리고, 나머지는 gm 을 받아 그려요
  * gm: h 머리(게임·판·단계·설정) · ro 참가자 · t 시계 · p 자리 · a 상태 · g 게임마다 따로 · gi 바닥 아이템 · ev 효과 · rk 순위 · fin 결과 · hb 살아 있음
  * 선생님 탭이 '움직인' 학생(대기석·출발선·넘어짐)은 tp 번호를 올려서, 학생 화면이 그 자리로 옮겨요 */
-const AF_V = ['out', 'it', 'ice', 'zombie', 'z0', 'shield', 'fin', 'mark', 'score', 'outNow', 'outAt', 'zAt'];
-const AF_T = ['freeze', 'immune', 'starT', 'boostT', 'umbT', 'stun', 'spin', 'jumpT', 'stinkT']; // 남은 시간 → 끝나는 시각으로 보냄
+const AF_V = ['out', 'it', 'ice', 'zombie', 'z0', 'shield', 'fin', 'mark', 'score', 'outNow', 'outAt', 'zAt', 'hits'];
+const AF_T = ['freeze', 'immune', 'starT', 'boostT', 'umbT', 'stun', 'spin', 'jumpT', 'stinkT', 'dirtyT']; // 남은 시간 → 끝나는 시각으로 보냄
 const DIRS = ['down', 'up', 'left', 'right'];
 const SPEC = {}; // 선생님 탭이 게임을 돌리는 동안 '나'가 없는 척: 선생님만의 안내·소리가 모두에게 가지 않게
 const listOf = x => Array.isArray(x) ? x : x && typeof x === 'object' ? Object.keys(x).sort((p, q) => p - q).map(k => x[k]) : [];
@@ -2333,18 +2365,18 @@ function remUp(uid, v) {
       if (r.okey !== okey || REM.get(uid) !== r) return;
       const first = !r.ready; r.o = o; r.ready = true;
       const a = actors.find(x => x.uid === uid);
-      if (a) { a.o = o; a.sheet = sheetFor(o); a._u = a._z = a._i = null; if (!a.remote) { a.remote = true; a.bot = false; a.path = null; a.hx = NaN; } }
+      if (a) { a.o = o; a.sheet = sheetFor(o); a._u = a._z = a._i = a._ill = null; if (a.goneAt) { a.goneAt = 0; a.path = null; a.hx = NaN; } }
       else if (first) markDirty();
     });
-  } else if (r.ready) { const a = actors.find(x => x.uid === uid); if (a && !a.remote) { a.remote = true; a.bot = false; a.path = null; a.hx = NaN; } } // 다시 들어옴
+  } else if (r.ready) { const a = actors.find(x => x.uid === uid); if (a && a.goneAt) { a.goneAt = 0; a.path = null; a.hx = NaN; } } // 다시 들어옴
 }
 function remGone(uid) {
   REM.delete(uid);
   const a = actors.find(x => x.uid === uid);
   if (!a) { ROSTER_DIRTY = ROSTER_DIRTY || false; return; }
-  if (state === 'ready') markDirty(); else { a.remote = false; a.bot = true; a.path = null; a.moving = false; } // 게임 중에 나가면 🤖가 대신
+  if (state === 'ready') markDirty(); else { a.goneAt = performance.now(); a.path = null; a.moving = false; } // 게임 중에 나가면 잠깐 멈춰 기다렸다가 빠져요
 }
-function buildActors() {
+function buildActors() { // 선생님(같이 할 때) + 들어온 학생들 — 🤖 없이
   if (!TME) return;
   const prev = actors, list = [];
   if (hostPlays) { me = TME; TME.isMe = true; list.push(TME); } else me = HSPEC;
@@ -2352,22 +2384,16 @@ function buildActors() {
   for (const r of studs) {
     let a = prev.find(x => x.uid === r.uid);
     if (!a) { a = makeActor(r.n, false, { o: r.o }); a.uid = r.uid; a.tp = r.tp; a.hx = NaN; }
-    a.remote = true; a.bot = false; a.name = r.n; a.k = r.k; a.isMe = false;
+    a.remote = true; a.bot = false; a.goneAt = 0; a.name = r.n; a.k = r.k; a.isMe = false;
     list.push(a);
-  }
-  const total = Math.max(4, +$('#count').value || 0), used = new Set(list.map(a => a.name)), bots = prev.filter(a => a.bot && !a.uid);
-  while (list.length < total) {
-    let b = bots.shift();
-    if (!b) { b = makeActor(NAMES.find(x => !used.has(x)) || '친구' + list.length, false, null); b.bot = true; }
-    if (used.has(b.name)) b.name = NAMES.find(x => !used.has(x)) || b.name + list.length;
-    used.add(b.name); list.push(b);
   }
   actors = list; ROSTER_DIRTY = false;
 }
 function hostApply(dt) {
+  const gone = [];
   for (const a of actors) {
     if (!a.remote) continue;
-    const r = REM.get(a.uid); if (!r) { a.moving = false; continue; }
+    const r = REM.get(a.uid); if (!r) { a.moving = false; if (a.goneAt && performance.now() - a.goneAt > 8000) gone.push(a); continue; }
     if (!(Math.abs(a.x - a.hx) < 0.5 && Math.abs(a.y - a.hy) < 0.5)) { a.tp = (a.tp | 0) + 1; a.hx = a.x; a.hy = a.y; r.tp = a.tp; } // 지난 판정에서 선생님 탭이 옮겼어요
     if (r.ctp === (a.tp | 0)) { // 학생이 내 마지막 '옮기기'를 받은 뒤의 자리만 믿어요
       const dx = r.x - a.x, dy = r.y - a.y, d = hyp(dx, dy);
@@ -2378,6 +2404,7 @@ function hostApply(dt) {
     if (r.acQ) { r.acQ = 0; if (state === 'play' && G.remoteAct) sim(() => G.remoteAct(a)); }
     if (r.emQ) { const i = +String(r.emQ).split(':')[1]; r.emQ = 0; const t = emoText(i); if (t) sim(() => say(a, t, '#fff6c8', 2.4)); }
   }
+  for (const a of gone) { const i = actors.indexOf(a); if (i >= 0) { actors.splice(i, 1); sim(() => toast(`${a.name} 친구가 나갔어요`)); } } // 8초 넘게 안 돌아오면 이번 판에서 빠져요
 }
 function hostFeel() { // 선생님 캐릭터의 내 안내·소리 (학생 화면과 같은 방법)
   if (me.spec || !G.feel) { MF = null; return; }
@@ -2623,7 +2650,7 @@ function clientFrame(dt, now) {
   }
   for (const a of actors) {
     a.bubbleT -= dt; a.jumpT = Math.max(0, a.jumpT - dt); a.jumpCd -= dt; if (a.stinkT > 0) a.stinkT -= dt;
-    if (state === 'play') { a.boostT -= dt; a.umbT -= dt; a.starT -= dt; a.freeze -= dt; a.immune -= dt; }
+    if (state === 'play') { a.boostT -= dt; a.umbT -= dt; a.starT -= dt; a.freeze -= dt; a.immune -= dt; a.dirtyT -= dt; }
     if (state === 'over' && winners.includes(a) && a.jumpT <= 0 && Math.random() < dt * 1.6) a.jumpT = 0.6;
     if (a.stun > 0) { a.stun -= dt; if (a.spin > 0) { a.spin -= dt; a.dir = ['down', 'right', 'up', 'left'][Math.floor(now / 90) % 4]; } }
     if (a.isMe) continue;
@@ -2650,6 +2677,7 @@ function clientFrame(dt, now) {
 }
 function clientStart() {
   CSPEC = makeActor(SES.name, true); CSPEC.spec = true; me = CSPEC;
+  if (netRef) onValue(netRef, s => { if (!s.exists() && netOn) CN.full = false; }); // 앞 게임 창이 닫히며 내 자리를 지웠으면 다시 올려요
   const base = 'live/' + SES.cid + '/state/', gmR = ref(rt, base + 'gm');
   onChildAdded(gmR, s => gmOn(s.key, s.val())); onChildChanged(gmR, s => gmOn(s.key, s.val())); onChildRemoved(gmR, s => gmOn(s.key, null));
   onValue(ref(rt, base + 'game'), s => { const g = s.val(); if (!g || !g.run) clientLeave(); else if (g.run !== RUN) goRun(g); });
@@ -2667,12 +2695,12 @@ function goRun(g) { // 선생님이 다른 게임으로 바꿈 → 그 게임으
 }
 function livePanel() { // 진행판: 함께 하는 친구들
   const ppl = actors.filter(a => a.uid || a.tc), watch = MODE === 'host' ? [...REM.values()].filter(r => !actors.some(a => a.uid === r.uid)) : [];
-  const html = ppl.map(a => `<li${a.isMe ? ' class="mine"' : ''}><b>${a.tc ? '👑' : a.bot ? '🤖' : '👫'}</b><span>${esc(a.name)}</span><span>${a.bot ? '나갔어요' : a.tc ? '선생님' : ''}</span></li>`).join('')
+  const html = ppl.map(a => `<li${a.isMe ? ' class="mine"' : ''}><b>${a.tc ? '👑' : '👫'}</b><span>${esc(a.name)}</span><span>${a.goneAt ? '나갔어요' : a.tc ? '선생님' : ''}</span></li>`).join('')
     + watch.map(r => `<li><b>⏳</b><span>${esc(r.n)}</span><span>다음 판부터</span></li>`).join('');
   $('#netBox').hidden = false; $('#netN').textContent = ppl.filter(a => a.uid).length + '명';
   const out = html || '<li><span>아직 들어온 친구가 없어요</span></li>';
   if (out !== livePanel.last) { livePanel.last = out; $('#netList').innerHTML = out; }
-  if (MODE === 'host') $('#hostN').textContent = `학생 ${ppl.filter(a => a.uid && !a.bot).length}명이 같이 하고 있어요` + (watch.length ? ` · ${watch.length}명은 다음 판부터` : '') + (ROSTER_DIRTY && state !== 'ready' ? ' (새로 온 친구는 다시 시작할 때 들어와요)' : '');
+  if (MODE === 'host') $('#hostN').textContent = `학생 ${ppl.filter(a => a.uid && !a.bot).length}명이 같이 하고 있어요` + (watch.length ? ` · ${watch.length}명은 다음 판부터` : '') + (ROSTER_DIRTY && state !== 'ready' ? ' (새로 온 친구는 다시 시작할 때 들어와요)' : '') + (actors.length < 2 && state === 'ready' ? ' · 2명 이상이면 시작할 수 있어요' : '');
 }
 function gate(ses) { // 학생은 선생님이 초대한 게임에만 들어와요
   $('#loading').hidden = true;
@@ -2691,8 +2719,7 @@ function modeUI() {
   if (MODE === 'host') {
     document.title = '모아팡 미니 게임';
     $('#myName').value = '선생님'; $('#myName').readOnly = true; $('#reroll').hidden = true;
-    $('#countT').textContent = '컴퓨터 친구';
-    $('#count').innerHTML = '<option value="0">없이 우리 반만</option><option value="12" selected>모자라면 12명까지</option><option value="20">모자라면 20명까지</option><option value="30">모자라면 30명까지</option>';
+    $('#countL').style.display = 'none'; // 반 친구들만 (🤖 없이)
     $('#subT').textContent = '👑 우리 반 친구들을 초대했어요! 친구들이 다 들어오면 시작을 눌러요.';
     $('#backT').href = 'teacher.html#live-' + encodeURIComponent(HOST_CID);
     $('#rankH').insertAdjacentHTML('beforebegin', '<div class="set hostbox" id="hostBox"><b>👑 초대한 게임</b><label><span>나도 캐릭터로 같이 하기</span><input type="checkbox" id="hostPlay" checked></label><p class="note" id="hostN"></p><div class="row"><button class="btn r" type="button" id="hostEnd">초대 끝내기 · 모두 반으로</button></div></div>');
@@ -2780,11 +2807,11 @@ let USER = null, sentRun = false;
   if (SES && !TEACHER && USER) { try { const c = await getDoc(doc(fs, 'classes', SES.cid)); CLS = c.exists() ? c.data() : null; OWN = (CLS && CLS.owner) || ''; } catch (e) { OWN = SES.tid || ''; } }
   else if (TEACHER && CID) { try { const c = await getDoc(doc(fs, 'classes', CID)); CLS = c.exists() ? c.data() : null; } catch (e) { CLS = null; } }
   if (SES) { $('#backCls').hidden = false; $('#resBack').hidden = false; $('#myName').value = SES.name; $('#myName').readOnly = true; }
-  if (RUN && TEACH_CID && TEACHER && !SES) { NET_CID = TEACH_CID; $('#myName').value = '선생님'; $('#myName').readOnly = true; }
+  if (RUN && TEACH_CID && TEACHER && !SES) { NET_CID = TEACH_CID; $('#myName').value = '선생님'; $('#myName').readOnly = true; $('#countL').style.display = 'none'; }
   if (TEACHER) { $('#backT').hidden = false; if (TEACH_CID) $('#backT').href = 'teacher.html#live-' + encodeURIComponent(TEACH_CID); $('#sideNote').textContent = (OWN ? '선생님 계정이에요. 문제 만들기에서 저장한 문제는 내가 만든 반의 게임과 퀴즈에서 함께 써요.' : '선생님 계정이에요. 문제 만들기에서 저장한 문제는 모든 반의 게임과 퀴즈에서 함께 써요.'); }
   if (RUN && MODE === 'local') {
     $('#subT').textContent = SES ? '선생님이 시작한 게임이에요! 끝나면 내 기록이 선생님께 가요.' : '👑 선생님도 같이 하는 중이에요. 시작을 누르면 학생들도 같이 시작해요.';
-    $('#sideNote').textContent = '선생님이 시작한 게임이에요. 파란 이름표는 진짜 우리 반 친구, 🤖는 컴퓨터예요.';
+    $('#sideNote').textContent = '선생님이 시작한 게임이에요. 파란 이름표는 우리 반 친구예요.';
   }
   if (RUN && SES) { try { const r = JSON.parse(sessionStorage.getItem('moa_runs') || '[]'); if (!r.includes(RUN)) { r.push(RUN); sessionStorage.setItem('moa_runs', JSON.stringify(r.slice(-20))); } } catch (e) { /* 무시 */ } }
   modeUI();
@@ -2793,7 +2820,7 @@ let USER = null, sentRun = false;
     await Promise.all(['ox', 'mc', 'ch'].map(async k => { try { const s = await getDoc(doc(fs, 'banks', bankId(OWN, k))); const l = s.exists() && s.data().list; if (Array.isArray(l) && l.length) BANKS[k] = l; } catch (e) { /* 기본 문제 */ } }));
     // 선생님이 이 반에 보낸 퀴즈 세트가 있으면 그 문제로 (📚 퀴즈 보관함)
     for (const k of ['ox', 'mc']) { const q = CLS && CLS.qz && CLS.qz[k]; if (q && Array.isArray(q.list) && q.list.length) BANKS[k] = q.list; }
-    // 지금 반에 들어와 있는 친구들의 이름과 옷 (각자 하는 게임에서 🤖 대신)
+    // 지금 반에 들어와 있는 친구들의 이름과 옷 (혼자 연습할 때 쓰던 것, 반 게임에는 🤖 없음)
     if (SES && MODE === 'local') { try { const ps = await rget(ref(rt, 'live/' + SES.cid + '/players')); ps.forEach(p => { const v = p.val(); if (v && p.key !== USER.uid && v.n) MATES.push({ n: String(v.n).slice(0, 6), o: AV.clean(v.o) }); }); } catch (e) { /* 친구 없이 */ } }
   }
   aiNS().then(s => { if (!s) { const t = document.querySelector('#qbTabs [data-t=ai]'); if (t) t.hidden = true; } });
