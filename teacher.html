@@ -86,6 +86,9 @@ header.top .brand-icon{width:34px;height:34px}
 .menu .btn:hover{background:#F2F4F7;transform:none;box-shadow:none}
 .menu .btn:active{transform:none;box-shadow:none}
 .menu .btn[aria-pressed=true]{background:#1D2030;border-color:#1D2030;color:#fff}
+/* 위 메뉴는 어느 화면에서나 위에 붙어 있게 (모아보드·미니 게임·출석·문자도 js/tnav.js 로 같은 메뉴) */
+header.top{position:sticky;top:0;z-index:40}
+@media (max-width:760px){header.top{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:6px 10px}header.top .brand-icon{width:30px;height:30px}.menu{flex:1;min-width:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.menu::-webkit-scrollbar{display:none}.menu .btn{flex:none;white-space:nowrap}}
 .qr{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center}
 .qr svg{width:min(320px,70vw);height:auto;background:#fff;border:1px solid #D5DAE3;border-radius:12px}
 .qr .code{font:700 44px/1 'Noto Sans KR',monospace;letter-spacing:.3em;background:var(--ink);color:var(--grn);padding:10px 14px 10px calc(14px + .3em)}
@@ -129,7 +132,6 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
     <a class="btn sm" href="padlet.html">📋 내 모아보드</a>
     <a class="btn sm" href="#quiz" data-nav="quiz">📚 퀴즈 보관함</a>
     <a class="btn sm" href="games.html">🎮 미니 게임</a>
-    <a class="btn sm" href="padlet.html#new" title="📋 모아보드나 🧩 샌드박스를 골라 교실에 바로 만들기">＋ 모아보드·샌드박스 만들기</a>
     <a class="btn sm" href="sms.html" id="navSms" hidden title="타자팡 출석부 · 부모님 출석 문자 · 안내장">📱 출석·문자</a>
     <a class="btn sm" href="#home" data-nav="home" id="navHome">🏠 첫 화면 꾸미기</a>
     <a class="btn sm" href="#team" data-nav="team" id="navTeam" hidden>👥 선생님 관리</a>
@@ -1142,6 +1144,7 @@ async function delSet(s) {
 function route() {
   const h = location.hash.slice(1) || 'classes';
   document.querySelectorAll('[data-nav]').forEach((a) => a.setAttribute('aria-pressed', String(h.startsWith(a.dataset.nav))));
+  { const on = document.querySelector('#menu [aria-pressed=true]'); if (on && innerWidth <= 760) on.scrollIntoView({ block: 'nearest', inline: 'center' }); } // 휴대폰: 한 줄 메뉴에서 지금 화면 단추가 보이게
   if (h.startsWith('live-')) { view = 'live'; drawLive(h.slice(5)); }
   else { stopLive(); if (h === 'home') { view = 'home'; drawHome(); } else if (h === 'quiz') { view = 'quiz'; drawQuizLib(); } else if (h === 'team' && isAdmin()) { view = 'team'; drawTeam(); } else { view = 'classes'; drawClasses(); pollCounts(); } }
 }

@@ -356,6 +356,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 <script src="js/avatar.js"></script>
 <script type="module">
 import { fs, rt, whenAuth, ensureUser, isTeacher, teacherRole, bankId, doc, getDoc, setDoc, ref, set, update, rget, rnow, getSession, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, PREVIEW } from './js/fb.js';
+import { mountTopNav } from './js/tnav.js';
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
 import { QUIZ, OXT as DEF_OX, defWhy } from './js/questions.js'; // 기본 문제 (선생님 화면과 같은 것)
 import { aiJSON, aiReason, catRules, factRule } from './js/ai.js';
@@ -2793,7 +2794,7 @@ let USER = null, sentRun = false;
 (async () => {
   try { USER = SES ? await ensureUser() : await whenAuth(); } catch (e) { USER = null; }
   TEACHER = false;
-  if (isTeacher(USER) && !PREVIEW) { const r = await teacherRole(USER); if (r === 'admin' || r === 'teacher') { TEACHER = true; OWN = r === 'teacher' ? USER.uid : ''; } }
+  if (isTeacher(USER) && !PREVIEW) { const r = await teacherRole(USER); if (r === 'admin' || r === 'teacher') { TEACHER = true; OWN = r === 'teacher' ? USER.uid : ''; mountTopNav('games', { admin: r === 'admin', before: document.querySelector('header.top') }); } } // 선생님: 위 메뉴 (모든 선생님 화면과 같게)
   // 학생은 선생님이 초대한 게임에만 들어와요 (혼자 들어오거나 끝난 게임이면 막아요)
   if (!TEACHER) {
     let GAME = null;

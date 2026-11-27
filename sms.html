@@ -120,15 +120,12 @@ details.guide[open]>summary{margin-bottom:10px}
 </head>
 <body>
 <header class="top">
-  <div class="brands sm"><a class="brand" href="taja/" title="타자팡으로 가기"><img src="assets/brand/tajapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/tajapang_word.webp" alt="타자팡" class="brand-word" draggable="false"></a><span class="brand-sep" aria-hidden="true">✦</span><a class="brand" href="./" title="모아팡 첫 화면"><img src="assets/brand/moapang.webp" alt="" aria-hidden="true" class="brand-icon" draggable="false"><img src="assets/brand/moapang_word.webp" alt="모아팡" class="brand-word" draggable="false"></a></div>
   <b style="font:400 20px 'Jua',sans-serif">📱 출석·문자</b>
   <nav class="menu" id="menu" hidden>
     <button class="btn sm" type="button" data-go="attend">📋 출석부</button>
     <button class="btn sm" type="button" data-go="notice">✉️ 안내장 보내기</button>
     <button class="btn sm" type="button" data-go="log">🗂 보낸 기록</button>
     <button class="btn sm" type="button" data-go="setup">⚙️ 휴대폰 연결</button>
-    <a class="btn sm" href="teacher.html">선생님 화면</a>
-    <button class="btn sm" type="button" id="logout">로그아웃</button>
   </nav>
 </header>
 <main class="wrap" id="view"><p class="pf pad">불러오는 중…</p></main>
@@ -140,6 +137,7 @@ import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, query, where, onSnapshot, serverTimestamp, limit,
   esc, errText, toast, TEACHER_EM_KEY
 } from './js/fb.js';
+import { mountTopNav } from './js/tnav.js';
 import { runTransaction, deleteField, orderBy } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 const $ = (id) => document.getElementById(id);
 
@@ -289,15 +287,12 @@ async function afterLogin(u) {
   }
   start();
 }
-$('logout').addEventListener('click', async () => {
-  if (pumpBusy || sendingBatch) { toast('문자를 보내는 중이에요. 다 보낸 뒤에 로그아웃해 주세요.', true); return; }
-  await logout(); location.href = './';
-});
 // 문자를 보내는 중에 창을 닫으려 하면 한 번 물어봄
 addEventListener('beforeunload', (e) => { if (sendingBatch || pumpBusy) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ================= 시작 ================= */
 async function start() {
+  mountTopNav('sms', { admin: true, before: document.querySelector('header.top') }); // 선생님 화면과 같은 위 메뉴
   $('menu').hidden = false;
   $('view').innerHTML = '<p class="pf pad">명단을 불러오는 중…</p>';
   try { const s = await getDoc(CONF()); if (s.exists()) conf = Object.assign(conf, s.data()); } catch (err) { toast('설정을 못 불러왔어요: ' + errText(err), true); }
