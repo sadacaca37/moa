@@ -666,9 +666,11 @@ function paintQuiz() {
     (sets.length ? qzOptHTML() : '') +
     (sets.length ? '<div class="stack" id="qzSets">' + sets.map((st) => '<div class="pf white pad stack" style="padding:12px;box-shadow:none"><div class="row"><span class="tag" style="background:' + (st.k === 'ox' ? '#FFD23F' : '#9DB8FF') + '">' + KN[st.k] + '</span><b style="flex:1">📚 ' + esc(st.name) + ' · ' + st.list.length + '문제</b></div>' +
       '<div class="mapsel"><select class="field" data-qsel="' + st.k + '" aria-label="' + esc(st.name) + ' 문제 고르기">' + st.list.map((x, i) => '<option value="' + i + '">' + (i + 1) + '. ' + esc(String(x.q).slice(0, 50)) + '</option>').join('') + '</select><button class="btn blue" type="button" data-qgo="' + st.k + '">이 문제 내기 ▶</button></div></div>').join('') + '</div>'
-      : '<p class="note" style="color:var(--ink)">이 반에 보낸 퀴즈 세트가 없어요. <a href="#quiz">📚 퀴즈 보관함</a>에서 세트를 만들고 이 반으로 보내면 여기서 낼 수 있어요.</p>') +
+      : '<p class="note" style="color:var(--ink)">이 반에 보낸 퀴즈 세트가 없어요. 아래 단추로 퀴즈 보관함의 세트를 골라 가져와요.</p>') +
+    '<div class="row"><button class="btn ' + (sets.length ? 'sm' : 'blue') + '" type="button" data-qpick>📚 퀴즈 보관함에서 가져오기</button></div>' +
     '<p class="note">문제 만들기·고치기는 <a href="#quiz">📚 퀴즈 보관함</a>에서 해요. 정답을 공개하면 학생 화면과 교실 스크린에 정답과 해설이 보여요.</p>';
   $('quizC').onclick = (e) => {
+    if (e.target.closest('[data-qpick]')) { pickSetDlg(L.cid); return; }
     const o = e.target.closest('[data-qlim],[data-qauto]');
     if (o) {
       if (o.dataset.qlim !== undefined) QZO.lim = +o.dataset.qlim; else { QZO.auto = o.dataset.qauto === '1'; if (L.st.quiz) setSt({ 'quiz/auto': QZO.auto }); }
@@ -679,6 +681,29 @@ function paintQuiz() {
     if (st) sendSetQ(st, +(sel ? sel.value : 0));
   };
   paintQuizLive();
+}
+// 📚 진행판에서 바로: 퀴즈 보관함의 세트를 골라 이 반 퀴즈로 가져오기 (OX·객관식 한 세트씩, 보관함의 '반에 보내기'와 같은 자리에 저장)
+function pickSetDlg(cid) {
+  const c = classes.find((x) => x.id === cid); if (!c) return;
+  const sets = LIB.sets.filter((s) => (s.list || []).length).sort((a, b) => (b.at || 0) - (a.at || 0));
+  const now = (k) => (setOf(cid, k) || {}).id;
+  openDlg(dlgTop('📚 퀴즈 보관함에서 가져오기') +
+    '<p class="note">고른 세트가 \'' + esc(c.name) + '\' 반의 퀴즈가 돼요. OX 퀴즈와 객관식은 한 세트씩 가져올 수 있고, 새로 가져오면 바뀌어요.</p>' +
+    (sets.length ? '<ul class="list" id="pkL" style="max-height:50vh">' + sets.map((s) => '<li><span class="tag" style="background:' + (s.k === 'ox' ? '#FFD23F' : '#9DB8FF') + '">' + KN[s.k] + '</span><span class="sp"><b>' + esc(s.name) + '</b> · ' + s.list.length + '문제</span>' +
+      (now(s.k) === s.id ? '<span class="badge">✓ 지금 이 반</span>' : '<button class="btn sm blue" type="button" data-pk="' + esc(s.id) + '">가져오기</button>') + '</li>').join('') + '</ul>'
+      : '<p class="note" style="color:var(--ink)">' + (LIB.ok ? '문제가 들어 있는 퀴즈 세트가 아직 없어요. 퀴즈 보관함에서 세트를 만들고 엑셀이나 AI로 문제를 넣어 주세요.' : '퀴즈 보관함을 불러오는 중이에요. 잠시 뒤에 다시 눌러 주세요.') + '</p>') +
+    '<div class="row"><a class="btn" href="#quiz" id="pkNew">＋ 새 세트 만들기 (엑셀·AI)</a><button class="btn" type="button" data-x>닫기</button></div>', sets.length ? '[data-pk]' : '#pkNew');
+  $('pkNew').addEventListener('click', () => closeDlg());
+  if (!$('pkL')) return;
+  $('pkL').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-pk]'); if (!b) return;
+    const s = LIB.sets.find((x) => x.id === b.dataset.pk); if (!s) return;
+    b.disabled = true;
+    try {
+      await setDoc(doc(fs, 'classes', cid), { qz: { [s.k]: { sid: s.id, name: s.name, list: s.list, at: Date.now() } } }, { merge: true });
+      closeDlg(); toast('\'' + s.name + '\' 세트를 가져왔어요. 이제 문제를 골라 낼 수 있어요.');
+    } catch (err) { toast(errText(err), true); b.disabled = false; }
+  });
 }
 /* ⏱ 퀴즈 진행 방법 (이 컴퓨터에 기억): 한 문제 시간(없음·10·20·30·60초), 다음 문제로 자동/선생님이 */
 const QZO = (() => { try { return Object.assign({ lim: 0, auto: false }, JSON.parse(localStorage.getItem('moa_qz_opt') || '{}')); } catch (e) { return { lim: 0, auto: false }; } })();
