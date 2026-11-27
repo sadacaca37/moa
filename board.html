@@ -876,7 +876,7 @@ async function copyPostDlg(p, moveMode) {
   const srcSec = secsOf()[p.sec || 0] || '글 모음';
   CP = { p, bs, srcSec };
   const order = [S.board.cid].concat(cls.map((c) => c.id).filter((id) => id !== S.board.cid), ['lib']);
-  const cname = (id) => id === 'lib' ? '📦 과제 보관함' : (cls.find((c) => c.id === id) || {}).name || '다른 교실';
+  const cname = (id) => id === 'lib' ? '✨ 내가 만든 것' : (cls.find((c) => c.id === id) || {}).name || '다른 교실';
   const groups = order.map((cid) => { const g = bs.filter((x) => x.cid === cid); return g.length ? '<optgroup label="' + esc(cid === S.board.cid ? '이 교실 · ' + cname(cid) : cname(cid)) + '">' + g.map((x) => '<option value="' + esc(x.id) + '">' + esc(x.title) + '</option>').join('') + '</optgroup>' : ''; }).join('');
   openDlg('<form class="dlg" id="cpf" novalidate><div class="tp"><h2 id="dlgt">' + (moveMode ? '➡️ 다른 모아보드로 옮기기' : '📋 다른 모아보드로 복사') + '</h2><button type="button" class="btn sm" data-act="close">닫기 ✕</button></div>' +
     '<p class="note">\'' + esc(p.title || (p.body || '').slice(0, 30) || '이 글') + '\'을 다른 모아보드에 새 글로 ' + (moveMode ? '옮겨요. 여기 글은 지워져요.' : '넣어요.') + ' 사진·파일·카드 색도 같이 가요. 댓글·이모티콘은 따라가지 않아요.</p>' +

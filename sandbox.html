@@ -713,7 +713,7 @@ function drawTop() {
   else t.textContent = b.title || '샌드박스';
   document.title = (b.title || '샌드박스') + ' · 모아팡';
   let sub = '🧩 샌드박스';
-  if (S.teacher) sub += S.cls ? ' · ' + S.cls.name : b.cid === 'lib' ? ' · 📦 과제 보관함 (나만 봐요)' : '';
+  if (S.teacher) sub += S.cls ? ' · ' + S.cls.name : b.cid === 'lib' ? ' · ✨ 내가 만든 것 (나만 봐요)' : '';
   if (S.teacher && b.cid !== 'lib') sub += b.public ? ' · 학생에게 보여요' : ' · 학생에게 안 보여요';
   if (b.lock) sub += ' · 🔒 쓰기 잠김';
   if (breakout()) sub += ' · 👥 모둠별로 따로 하는 중';
@@ -1697,7 +1697,7 @@ function setMenu(open) {
   S.menu = open; $('setBtn').setAttribute('aria-expanded', String(open));
   const m = $('setMenu'); if (!open) { m.hidden = true; return; }
   const b = B(), lib = b.cid === 'lib';
-  m.innerHTML = (lib ? '<small>📦 과제 보관함의 샌드박스는 학생에게 안 보여요. 🚀 교실로 보내기로 고른 교실에 복사해요.</small>' : '<button type="button" data-m="pub">' + (b.public ? '✓ 학생에게 보여요 (누르면 숨기기)' : '👀 학생에게 보이기') + '</button>') +
+  m.innerHTML = (lib ? '<small>✨ 내가 만든 것의 샌드박스는 학생에게 안 보여요. 수업 때 그 교실에서 📥 불러오기로 넣어요(🚀 교실로 보내기도 돼요).</small>' : '<button type="button" data-m="pub">' + (b.public ? '✓ 학생에게 보여요 (누르면 숨기기)' : '👀 학생에게 보이기') + '</button>') +
     '<button type="button" data-m="lock">' + (b.lock ? '🔒 학생 쓰기 잠김 (누르면 열기)' : '✎ 학생 쓰기 열림 (누르면 잠그기)') + '</button><hr>' +
     '<button type="button" data-m="rename">✏️ 이름 바꾸기</button><button type="button" data-m="bgall">🎨 모든 카드 배경</button>' +
     (EMBED ? '<a href="sandbox.html?b=' + encodeURIComponent(bid) + '" target="_blank" rel="noopener">↗ 새 창으로 크게 보기</a>' : '<a href="padlet.html#class-' + encodeURIComponent(b.cid || 'lib') + '">📋 내 모아보드에서 보기</a>') +
@@ -1745,7 +1745,7 @@ async function sendDlg() {
     $('sdGo').disabled = true; $('sdM').textContent = '보내는 중… (0/' + cids.length + ')';
     const done = [];
     try {
-      const from = B().cid === 'lib' ? '과제 보관함에서 보냄' : ((S.cls && S.cls.name) || '다른 교실') + '에서 보냄';
+      const from = B().cid === 'lib' ? '내가 만든 것에서 보냄' : ((S.cls && S.cls.name) || '다른 교실') + '에서 보냄';
       for (const cid of cids) {
         const id = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
         await copySandbox(Object.assign({ id: bid }, S.board), { id, cid, title: B().title, from, public: opts.pub, lock: opts.lock, src: B().src || bid }, { uid: me(), owner: B().owner || null, mode: 'mine', groups: opts.groups });
@@ -1797,7 +1797,7 @@ function drawPanel() {
       (S.pick.size ? '<button type="button" class="put" data-g="put" data-id="' + esc(c.id) + '">고른 학생 ' + S.pick.size + '명 여기로 ▶</button>' : '') + '</div>'; }).join('') : '<p class="note">아직 모둠이 없어요. 아래에서 만들면 모둠마다 카드가 한 장씩 생겨요.</p>') +
     '<div class="row2"><button type="button" class="btn sm blue" data-g="add">＋ 모둠 추가</button><select id="gN" aria-label="모둠 수">' + [2, 3, 4, 5, 6, 7, 8].map((n) => '<option' + (n === Math.max(4, gs.length) ? ' selected' : '') + '>' + n + '</option>').join('') + '</select><button type="button" class="btn sm" data-g="many">개가 되게 만들기</button></div>' +
     '<h3>학생 명단</h3>' +
-    (lib ? '<p class="note">📦 과제 보관함에 있는 샌드박스예요. 🚀 교실로 보낸 뒤, 보낸 샌드박스에서 학생을 모둠에 넣어요. (여기서는 모둠 카드만 준비해요)</p>'
+    (lib ? '<p class="note">✨ 내가 만든 것에 있는 샌드박스예요. 교실에 넣은 뒤(교실에서 📥 불러오기), 보낸 샌드박스에서 학생을 모둠에 넣어요. (여기서는 모둠 카드만 준비해요)</p>'
       : R.loading ? '<p class="note">학생 명단을 불러오는 중…</p>' : R.err ? '<p class="note">' + esc(R.err) + '</p>'
       : '<div class="row2"><button type="button" class="btn sm" data-g="shuffle"' + (gs.length && free.length ? '' : ' disabled') + '>🎲 남은 학생 골고루 나누기</button><button type="button" class="btn sm" data-g="clear"' + (assigned.size ? '' : ' disabled') + '>모두 빼기</button><button type="button" class="btn sm" data-g="reload" title="명단 새로 불러오기">↻</button></div>' +
         '<p class="note">' + (b.join === 'pick' ? '이름을 눌러 고른 뒤 모둠의 \'여기로\'를 눌러요.' : '학생이 직접 모둠을 골라 들어와요. 선생님도 이름을 눌러 넣거나 뺄 수 있어요.') + ' 반에 한 번 들어온 학생만 보여요.</p>' +

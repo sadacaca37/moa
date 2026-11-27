@@ -319,8 +319,9 @@ const classes = () => S.classes.slice().sort(byCreated);
 const boardsOf = (cid) => S.boards.filter((b) => b.cid === cid && !inTrash(b)).sort(byCreated);
 const trashed = () => S.boards.filter(inTrash).sort((a, b) => trashTime(b) - trashTime(a));
 const homeRefP = () => doc(fs, 'config', isMate() ? 'home_' + S.uid : 'home');
-// 📦 과제 보관함: 교실에 묶이지 않고 선생님만 보는 모아보드 (cid 'lib') — 새 모아보드는 여기에 먼저, '교실로 복사해서 보내기'로 필요할 때만 복사
-const LIBC = { id: 'lib', name: '📦 과제 보관함', color: '#C8F171', kind: '보관함', lib: true };
+// ✨ 내가 만든 것 (cid 'lib', 예전 이름 과제 보관함): 교실에 묶이지 않고 선생님만 보는 모아보드·샌드박스
+//   새로 만들면 언제나 여기에 — 수업 때 그 교실에서 📥 불러오기로 복사해 넣음 (2026-11-27 선생님 요청)
+const LIBC = { id: 'lib', name: '✨ 내가 만든 것', color: '#C8F171', kind: '내가 만든 것', lib: true };
 const curClass = () => S.cid === 'lib' ? LIBC : S.classes.find((c) => c.id === S.cid) || null;
 const curBoard = () => S.boards.find((b) => b.id === S.bid) || null;
 function postsOfBoard() {
@@ -515,7 +516,7 @@ function draw() {
 function drawHome(ready) {
   const cs = classes(), full = cs.length >= MAX_CLASSES;
   const total = S.boards.filter((b) => !inTrash(b)).length, nTrash = trashed().length + S.tclasses.length;
-  $('hdr').innerHTML = logo + '<div class="htxt"><small>교실 ' + cs.length + ' / ' + MAX_CLASSES + ' · 저장된 모아보드 ' + total + '개</small><h1 class="hh1">내 모아보드</h1></div><div class="hright"><span class="save"></span><a class="hb" href="teacher.html#classes" title="교실(선생님 화면)로 가기">🏫 교실</a><span class="dk-mw"><button type="button" class="dk-dots dk-set" aria-expanded="false" aria-haspopup="true" title="설정">⚙ 설정</button><span class="dk-menu" hidden><button type="button" data-act="newclass"' + (full ? ' disabled' : '') + '>＋ 새 교실 만들기</button><button type="button" data-act="trash">🗑 휴지통' + (nTrash ? '<b class="dk-n">' + nTrash + '</b>' : '') + '</button></span></span><button class="hb go" data-act="newpad">＋ 모아보드 만들기</button></div>';
+  $('hdr').innerHTML = logo + '<div class="htxt"><small>교실 ' + cs.length + ' / ' + MAX_CLASSES + ' · 저장된 모아보드 ' + total + '개</small><h1 class="hh1">내 모아보드</h1></div><div class="hright"><span class="save"></span><a class="hb" href="teacher.html#classes" title="교실(선생님 화면)로 가기">🏫 교실</a><span class="dk-mw"><button type="button" class="dk-dots dk-set" aria-expanded="false" aria-haspopup="true" title="설정">⚙ 설정</button><span class="dk-menu" hidden><button type="button" data-act="newclass"' + (full ? ' disabled' : '') + '>＋ 새 교실 만들기</button><button type="button" data-act="trash">🗑 휴지통' + (nTrash ? '<b class="dk-n">' + nTrash + '</b>' : '') + '</button></span></span><button class="hb go" data-act="newany" title="📋 모아보드 · 🧩 샌드박스 만들어 두기">＋ 만들기</button></div>';
   let h = msgHTML();
   if (!ready) { $('main').className = ''; $('main').innerHTML = h + '<p class="note">저장된 모아보드를 불러오는 중…</p>'; return; }
   if (!cs.length) {
@@ -528,7 +529,7 @@ function drawHome(ready) {
   h += '<section class="dk-wrap"><div class="dk-h"><h1>교실별 모아보드<small>' + cs.length + ' / ' + MAX_CLASSES + '</small></h1><div class="dk-tools"><div class="dk-chips" role="group" aria-label="분류로 거르기">' + ['전체'].concat(kinds).map((f) => '<button class="dk-chip" data-act="filter" data-v="' + esc(f) + '" aria-pressed="' + (S.filter === f) + '">' + esc(f) + ' ' + counts[f] + '</button>').join('') + '<button class="dk-chip" data-act="kinds" title="분류 더하기 · 이름 바꾸기 · 순서 · 지우기">🏷 분류 정하기</button></div>' +
     '<label class="dk-find" for="q"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7085" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg><input id="q" type="search" autocomplete="off" placeholder="교실 찾기" aria-label="교실 이름으로 찾기" value="' + esc(S.q) + '"></label></div></div>';
   h += '<div id="grid" class="dk-secs">' + gridHTML(cs, full) + '</div>';
-  h += '<p class="dk-note">＋ 만들기에서 📋 모아보드나 🧩 샌드박스를 골라 교실에 바로 만들어요. 다른 교실에서도 쓰려면 ⋮ → 🚀 교실로 보내기로 복사해요. 교실은 🏷 분류 정하기에서 정한 분류(예: 정규반·특강반·월요일반)로 나뉘고, 교실 ⋮ → 📁 묶음 바꾸기로 그 안에서 한 번 더 나눌 수 있어요. 교실을 누르면 그 반에 저장된 모아보드가 열려요. 패들렛 → 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 파일은 교실 안의 ⚙ 설정 → \'패들렛에서 가져오기\'로 넣어요.</p></section>';
+  h += '<p class="dk-note">＋ 만들기로 📋 모아보드나 🧩 샌드박스를 만들어 두면 위에 모여요(학생에게 안 보여요). 수업 때 그 교실에 들어가 📥 불러오기로 넣어요. 교실은 🏷 분류 정하기에서 정한 분류(예: 정규반·특강반·월요일반)로 나뉘고, 교실 ⋮ → 📁 묶음 바꾸기로 그 안에서 한 번 더 나눌 수 있어요. 교실을 누르면 그 반에 저장된 모아보드가 열려요. 패들렛 → 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 파일은 교실 안의 ⚙ 설정 → \'패들렛에서 가져오기\'로 넣어요.</p></section>';
   $('main').className = ''; $('main').innerHTML = h;
 }
 const stamp = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
@@ -569,11 +570,16 @@ function gridHTML(cs, full) {
   const pads = (bs) => bs.length ? '<span class="dk-pads">' + bs.slice(-3).reverse().map((b) => '<span>' + (isSandbox(b) ? '🧩 ' : '') + esc(b.title) + '</span>').join('') + '</span>' : '';
   const menu = (items) => '<span class="dk-mw"><button type="button" class="dk-dots" aria-expanded="false" aria-label="메뉴" title="메뉴">⋮</button><span class="dk-menu" hidden>' + items + '</span></span>';
   // 첫 카드: 패들렛처럼 점선 '＋ 클래스 만들기'
-  // 첫 카드: '＋ 만들기' 하나로 (📋 모아보드 · 🧩 샌드박스를 골라 교실에 바로) — 과제 보관함은 없앰(2026-11-27 선생님 요청)
-  let first = '<article class="dk-card dk-add"><button class="dk-th" type="button" data-act="newany" aria-label="모아보드·샌드박스 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>만들기</b><small>📋 모아보드 · 🧩 샌드박스 — 고른 교실에 바로 만들어요</small></div></div></article>';
-  // 예전 과제 보관함에 남은 모아보드가 있으면 그것만 보이게 (교실로 보내거나 지울 수 있게)
-  if (lb.length && S.filter === '전체' && !q) first += '<article class="dk-card" style="--c:#B7E06A"><button class="dk-th" type="button" data-act="open" data-id="lib" aria-label="예전 과제 보관함 열기"><span class="dk-tag">예전 보관함</span><span class="dk-big em" aria-hidden="true">📦</span>' + pads(lb) + '</button>' +
-    '<div class="dk-row"><div class="dk-tx"><b>예전 과제 보관함</b><small>남은 모아보드 ' + lb.length + '개 · ⋮ → 🚀 교실로 보내거나 지워요</small></div>' + menu('<button type="button" data-act="open" data-id="lib">📂 보관함 열기</button>') + '</div></article>';
+  // 첫 카드: '＋ 만들기' (📋 모아보드 · 🧩 샌드박스) — 교실은 고르지 않고 ✨ 내가 만든 것에 만들어 둠
+  let first = '<article class="dk-card dk-add"><button class="dk-th" type="button" data-act="newany" aria-label="모아보드·샌드박스 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>만들기</b><small>📋 모아보드 · 🧩 샌드박스 — 만들어 두고, 수업 때 교실에서 불러와요</small></div></div></article>';
+  // ✨ 내가 만든 것: 만들어 둔 모아보드·샌드박스를 카드로 바로 (누르면 열어서 고치기)
+  const used = (b) => S.boards.filter((x) => x.src === b.id && x.cid !== 'lib' && !inTrash(x)).length;
+  const mine = lb.filter((b) => !q || (b.title || '').includes(q)).slice().reverse();
+  if (S.filter === '전체') mine.forEach((b) => {
+    const sb = isSandbox(b), when = md(b.date || b.created);
+    first += '<article class="dk-card" style="--c:' + (sb ? '#C9B6FF' : '#B7E06A') + '"><button class="dk-th" type="button" data-act="openlib" data-id="' + esc(b.id) + '" aria-label="' + esc(b.title) + ' 열기"><span class="dk-tag">' + (sb ? '🧩 샌드박스' : '📋 모아보드') + '</span><span class="dk-big em" aria-hidden="true">' + (sb ? '🧩' : '📋') + '</span></button>' +
+      '<div class="dk-row"><div class="dk-tx"><b>' + esc(b.title) + '</b><small>' + (when ? when + ' 만듦 · ' : '') + (used(b) ? '교실 ' + used(b) + '곳에 넣음' : '아직 교실에 안 넣음') + '</small></div></div></article>';
+  });
   const card = (c) => {
     const bs = boardsOf(c.id), posts = bs.reduce((n, b) => n + (b.postCount || 0), 0), last = bs[bs.length - 1];
     return '<article class="dk-card" style="--c:' + esc(c.color) + '"><button class="dk-th" type="button" data-act="open" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 모아보드 열기"><span class="dk-tag">' + esc(kindOf(c)) + '</span>' + (bs.length ? pads(bs) : '<span class="dk-big em" aria-hidden="true">🗒️</span>') + '</button>' +
@@ -613,17 +619,18 @@ function drawBoard() {
   // 패들렛처럼 한 줄 머리 띠: 왼쪽 ◀·반 이름·패들렛 이름(▾ 누르면 이 반 패들렛 고르기), 오른쪽 한곳에 버튼 모두
   const F = b ? FORMATS.find((f) => f[0] === layoutOf(b)) || FORMATS[1] : null, nT = trashed().length, sb = isSandbox(b);
   const pick = '<div class="bpw"><button type="button" class="bpick" data-act="pick" aria-expanded="' + !!S.pick + '" aria-haspopup="true" title="이 반 모아보드 고르기"><span>' + esc(b ? b.title : c.name) + '</span><i aria-hidden="true">▾</i></button>' +
-    (S.pick ? '<div class="bpm pf" role="menu">' + pickList(bs, b) + '<button type="button" class="mi" role="menuitem" data-act="newboard">＋ 빈 모아보드 만들기</button><button type="button" class="mi" role="menuitem" data-act="newsb">🧩 샌드박스 만들기</button></div>' : '') + '</div>';
+    (S.pick ? '<div class="bpm pf" role="menu">' + pickList(bs, b) + (c.lib ? '<button type="button" class="mi" role="menuitem" data-act="newany">＋ 새로 만들기</button>' : '<button type="button" class="mi" role="menuitem" data-act="loadlib">📥 만든 것 불러오기</button>') + '</div>' : '') + '</div>';
   let right = '<span class="save"></span>';
   if (b) {
     right += (sb ? '<a class="hb" href="' + boardHref(b) + '" title="샌드박스를 크게 열기 (모둠·교실로 보내기도 거기서)">🧩 크게 열기</a>' : '<button type="button" class="hb" data-act="bfmt" title="형식 바꾸기">' + F[2] + ' 형식: ' + F[1] + '</button>') +
       (c.lib ? '' : '<button type="button" class="hb' + (b.public ? ' on' : '') + '" data-act="pubboard" aria-pressed="' + !!b.public + '" title="학생 첫 화면에 보이기">' + (b.public ? '✓ 학생에게 보여요' : '👀 학생에게 보이기') + '</button>');
   }
+  if (!c.lib) right += '<button type="button" class="hb go" data-act="loadlib" title="✨ 내가 만든 것에서 골라 이 교실에 넣기">📥 불러오기</button>';
   right += '<a class="hb" href="teacher.html#' + (c.lib ? 'classes' : 'live-' + encodeURIComponent(c.id)) + '" title="' + (c.lib ? '교실 목록으로 가기' : esc(c.name) + ' 교실(진행판)로 바로 가기') + '">🏫 교실</a>';
   right += '<div class="bset"><button type="button" class="hb" data-act="menu" aria-expanded="' + !!S.menu + '" aria-controls="bmenu" title="설정">⚙ 설정</button>';
   if (S.menu) {
     right += '<div class="bmenu pf" id="bmenu">' + (b ? '<p class="bminfo">' + esc(b.from || '') + ' · ' + md(b.date) + (sb ? ' · 🧩 샌드박스 · 카드 ' + (Array.isArray(b.cards) ? b.cards.length : 1) + '장' : ' · ' + F[2] + ' ' + F[1] + ' 형식 · 글 ' + ((b.postCount || 0) + S.live.length) + '개 · 댓글 ' + S.cmts.length + '개') + '</p>' : '') +
-      '<div class="bmg"><b>모아보드</b><button class="mi" data-act="pickfile">📥 패들렛에서 가져오기 (글·사진·파일)</button><button class="mi" data-act="newboard">＋ 빈 모아보드 만들기</button><button class="mi" data-act="newsb">🧩 샌드박스 만들기</button></div>' +
+      '<div class="bmg"><b>모아보드</b>' + (c.lib ? '' : '<button class="mi" data-act="loadlib">📥 만든 것 불러오기</button>') + '<button class="mi" data-act="pickfile">📥 패들렛에서 가져오기 (글·사진·파일)</button><button class="mi" data-act="newany">＋ 새로 만들기 (✨ 내가 만든 것에)</button></div>' +
       (b ? '<div class="bmg"><b>보기</b><a class="mi" href="' + boardHref(b) + '" target="_blank" rel="noopener" data-menu>↗ 새 창으로 크게 보기</a><a class="mi" href="' + boardHref(b, '&preview=' + encodeURIComponent(c.id) + '&pn=' + encodeURIComponent(c.name || '')) + '" target="_blank" rel="noopener" data-menu>👀 학생 화면으로 보기</a></div>' +
         '<div class="bmg"><b>학생</b><button class="mi" data-act="lockboard" aria-pressed="' + !!b.lock + '">' + (b.lock ? '🔒 학생 ' + (sb ? '쓰기' : '글쓰기') + ' 잠김 (누르면 열기)' : '✎ 학생 ' + (sb ? '쓰기' : '글쓰기') + ' 열림 (누르면 잠그기)') + '</button><button class="mi" data-act="sharecls">🏫 같이 쓰는 교실 ' + (sharedTo(b).length ? sharedTo(b).length + '곳 (넣기·끊기)' : '(다른 교실에도 보이기)') + '</button></div>' +
         '<div class="bmg"><b>보내기</b><button class="mi" data-act="deploy">🚀 교실로 복사해서 보내기</button>' + (sb ? '' : '<button class="mi" data-act="copyboard">📋 다른 모아보드로 복사</button>') + (c.lib ? '' : '<button class="mi" data-act="pinhome">🏠 첫 화면 링크에 올리기</button>') + '</div>' +
@@ -631,11 +638,12 @@ function drawBoard() {
         : '<div class="bmg"><b>관리</b><button class="mi" data-act="trash">🗑 휴지통 보기' + (nT ? ' (' + nT + ')' : '') + '</button></div>') + '</div>';
   }
   right += '</div>' + (b && !sb ? '<button type="button" class="hb go" data-act="bwrite">＋ 글 쓰기</button>' : '');
-  $('hdr').innerHTML = logo + '<button class="hb back" data-act="home" title="내 모아보드 목록으로" aria-label="내 모아보드 목록으로">◀</button><div class="htxt"><small><span class="dot" aria-hidden="true" style="background:' + esc(c.color) + '"></span>' + esc(c.name) + (c.lib ? ' · 나만 보는 곳 (학생에게 안 보여요)' : ' · ' + esc(c.kind) + ' · 방번호 ' + esc(c.room)) + (b && sharedTo(b).length ? ' · 🔗 ' + sharedTo(b).length + '개 교실에서 같이 써요' : '') + '</small>' + pick + '</div><div class="hright">' + right + '</div>';
+  $('hdr').innerHTML = logo + '<button class="hb back" data-act="home" title="내 모아보드 목록으로" aria-label="내 모아보드 목록으로">◀</button><div class="htxt"><small><span class="dot" aria-hidden="true" style="background:' + esc(c.color) + '"></span>' + esc(c.name) + (c.lib ? ' · 만들어 둔 곳 (학생에게 안 보여요 · 교실에서 📥 불러오기로 넣어요)' : ' · ' + esc(kindOf(c)) + ' · 방번호 ' + esc(c.room)) + (b && sharedTo(b).length ? ' · 🔗 ' + sharedTo(b).length + '개 교실에서 같이 써요' : '') + '</small>' + pick + '</div><div class="hright">' + right + '</div>';
   let h = '';
   const msgs = msgHTML(); if (msgs) h += '<div class="bmsg">' + msgs + '</div>';
   if (!b) {
-    h += '<section class="nob pf"><h2>아직 가져온 모아보드가 없어요</h2><p>패들렛 보드에서 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 뒤 아래 버튼으로 넣으면 이 교실에 저장돼요. 사진·파일까지 옮기려면 같은 곳의 \'모든 파일 다운로드\'(ZIP)도 같이 넣어요. 여러 개를 넣으면 위에 탭으로 쌓여요. 빈 모아보드를 만들어 바로 써도 돼요.</p><div class="row">' + fileBtn('패들렛 파일 넣기', 'yel') + '<button class="btn" data-act="newboard">+ 빈 모아보드 만들기</button></div></section>';
+    h += c.lib ? '<section class="nob pf"><h2>아직 만들어 둔 것이 없어요</h2><p>＋ 만들기로 📋 모아보드나 🧩 샌드박스를 만들어 두면 여기에 모여요. 수업 때 그 교실에 들어가 📥 불러오기로 넣어요.</p><div class="row"><button class="btn blue" data-act="newany">＋ 만들기</button>' + fileBtn('패들렛 파일 넣기', 'yel') + '</div></section>'
+      : '<section class="nob pf"><h2>아직 넣은 모아보드가 없어요</h2><p>📥 불러오기를 누르면 ✨ 내가 만든 것에서 골라 이 교실에 넣어요. 패들렛 보드에서 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 파일을 바로 넣어도 돼요. 사진·파일까지 옮기려면 같은 곳의 \'모든 파일 다운로드\'(ZIP)도 같이 넣어요.</p><div class="row"><button class="btn blue" data-act="loadlib">📥 만든 것 불러오기</button>' + fileBtn('패들렛 파일 넣기', 'yel') + '</div></section>';
   }
   // 패들렛 판은 board.html을 그대로 넣어 보인다 (학생 화면과 똑같은 모양 · 형식 바꾸기·글·파일·댓글·이모티콘은 그 안에서)
   let top = $('btop'), slot = $('bslot');
@@ -791,7 +799,7 @@ async function deployBoard(cids, opts) {
     toast(cids.length + '개 반에 보내는 중…');
     let n = 0;
     try {
-      for (const cid of cids) { await copySandbox(src, { id: uid('b'), cid, title: src.title, from: from.lib ? '과제 보관함에서 보냄' : from.name + '에서 보냄', public: !!opts.pub, lock: !!opts.lock, src: src.src || src.id }, { uid: S.uid, owner: isMate() ? S.uid : null, mode: 'mine' }); n++; }
+      for (const cid of cids) { await copySandbox(src, { id: uid('b'), cid, title: src.title, from: from.lib ? '내가 만든 것에서 보냄' : from.name + '에서 보냄', public: !!opts.pub, lock: !!opts.lock, src: src.src || src.id }, { uid: S.uid, owner: isMate() ? S.uid : null, mode: 'mine' }); n++; }
       toast('\'' + src.title + '\'을(를) ' + n + '개 반에 보냈어요.' + (opts.pub ? ' 학생 화면 → 📋 모아보드에 보여요.' : ' (학생에게는 아직 안 보여요)'));
     } catch (e) { toast(errText(e) + (n ? ' (' + n + '개 반은 보냈어요)' : ''), true); }
     return;
@@ -802,7 +810,7 @@ async function deployBoard(cids, opts) {
   let n = 0;
   try {
     for (const cid of cids) {
-      const meta = { id: uid('b'), cid, title: src.title, from: from.lib ? '과제 보관함에서 보냄' : from.name + '에서 보냄', date: todayISO(), created: new Date().toISOString(), sections: (src.sections || ['글 모음']).slice(), src: src.src || src.id, public: !!opts.pub, lock: !!opts.lock, layout: layoutOf(src), groups: src.groups !== false };
+      const meta = { id: uid('b'), cid, title: src.title, from: from.lib ? '내가 만든 것에서 보냄' : from.name + '에서 보냄', date: todayISO(), created: new Date().toISOString(), sections: (src.sections || ['글 모음']).slice(), src: src.src || src.id, public: !!opts.pub, lock: !!opts.lock, layout: layoutOf(src), groups: src.groups !== false };
       await writeBoard(meta, []); // 패들렛 문서 먼저 (파일을 올릴 자리)
       const idMap = new Map(), posts = [];
       for (const p of olds) { const q = await oldCopy(p, src.id, meta.id, p.sec || 0); idMap.set(p.id, q.id); posts.push(q); }
@@ -899,19 +907,42 @@ const NTYPE = {
   pad: { icon: '📋', name: '모아보드', ph: '예: 3차시 캔바 발표', note: '글·사진·링크·파일을 칸에 모으는 판이에요. 패들렛에서 내보낸 파일도 넣을 수 있어요.' },
   sb: { icon: '🧩', name: '샌드박스', ph: '예: 책 소개 모둠 활동', note: '카드(쪽)마다 그리기·글자·메모지·도형·사진·스티커를 올리는 판이에요. 템플릿으로 시작하고, 👥 모둠을 만들면 모둠마다 카드가 생겨요.' }
 };
-function newAnyDlg(type, cur) {
-  const cs = classes(), ty = NTYPE[type] ? type : 'pad';
-  if (!cs.some((c) => c.id === cur)) cur = (cs.find((c) => c.id === S.lastCid) || cs[0] || {}).id;
-  const opt = (c) => '<option value="' + esc(c.id) + '"' + (c.id === cur ? ' selected' : '') + '>' + esc(c.name) + '</option>';
-  const groups = classSections(cs).map((sec) => sec.groups.map((g) => '<optgroup label="' + esc(sec.label + (g.name ? ' · 📁 ' + g.name : '')) + '">' + g.list.map(opt).join('') + '</optgroup>').join('')).join('');
+function newAnyDlg(type) {
+  const ty = NTYPE[type] ? type : 'pad';
   pending = null;
   openDlg(dlgTop('＋ 새로 만들기') +
     '<label>무엇을 만들까요?</label><div class="seg" role="group" aria-label="만들 것">' + Object.keys(NTYPE).map((k) => '<button type="button" class="chip" data-act="ntype" data-v="' + k + '" aria-pressed="' + (k === ty) + '">' + NTYPE[k].icon + ' ' + NTYPE[k].name + '</button>').join('') + '</div>' +
     '<input type="hidden" id="nt" value="' + ty + '"><p id="ntN" style="margin:0;font-size:14px;color:#4B4F6B">' + esc(NTYPE[ty].note) + '</p>' +
     '<label for="pn" id="pnL">' + NTYPE[ty].name + ' 이름</label><input id="pn" class="field" maxlength="60" autocomplete="off" placeholder="' + esc(NTYPE[ty].ph) + '">' +
-    '<label for="pc">넣을 교실</label><select id="pc" class="field">' + groups + (S.classes.length < MAX_CLASSES ? '<optgroup label="그 밖에"><option value="__new"' + (cs.length ? '' : ' selected') + '>＋ 새 교실 만들기…</option></optgroup>' : '') + '</select>' +
-    '<p style="font-size:13px;color:#4B4F6B;margin:0">고른 교실에 바로 만들어요. 다른 교실에서도 쓰려면 만든 뒤 ⋮ → 🚀 교실로 보내기로 복사해요.</p>' +
+    '<p style="font-size:13px;color:#4B4F6B;margin:0">만든 것은 ✨ 내가 만든 것에 모아 둬요(학생에게 안 보여요). 수업 때 그 교실에 들어가 📥 불러오기로 넣어요.</p>' +
     '<div class="row"><button type="submit" class="btn blue" data-form="newany">만들기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#pn');
+}
+// 📥 불러오기: ✨ 내가 만든 것에서 골라 이 교실에 복사해서 넣음 (만들어 둔 것은 그대로 남아 다른 교실에도 또 불러올 수 있음)
+function loadLibDlg(cid) {
+  const c = S.classes.find((x) => x.id === cid); if (!c) return;
+  const lb = boardsOf('lib').slice().reverse();
+  const has = (b) => S.boards.some((x) => x.cid === cid && x.src === b.id && !inTrash(x));
+  pending = { cid };
+  openDlg(dlgTop('📥 불러오기 — ' + esc(c.name)) +
+    (lb.length ? '<p>✨ 내가 만든 것에서 골라요. 고른 것이 이 교실에 복사돼서 들어가고, 만들어 둔 것은 그대로 남아요.</p>' +
+      '<div id="llL" style="display:flex;flex-direction:column;gap:6px;max-height:44vh;overflow:auto">' + lb.map((b) => '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#fff;border:3px solid var(--ink);cursor:pointer"><input type="checkbox" value="' + esc(b.id) + '" style="width:20px;height:20px;flex:none"><span style="flex:1;min-width:0"><b>' + (isSandbox(b) ? '🧩 ' : '📋 ') + esc(b.title) + '</b>' + (has(b) ? ' <small style="color:#B54708">· 이 교실에 이미 넣었어요</small>' : '') + '</span></label>').join('') + '</div>' +
+      '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="llPub" checked style="width:20px;height:20px"> 학생에게 바로 보이기 (반 화면 → 📋 모아보드)</label>' +
+      '<div class="row"><button type="submit" class="btn blue" data-form="loadlib">이 교실에 넣기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>'
+      : '<p>아직 만들어 둔 것이 없어요. ＋ 만들기로 모아보드나 샌드박스를 먼저 만들어 두세요.</p><div class="row"><button type="button" class="btn blue" data-act="newany">＋ 만들기</button><button type="button" class="btn" data-act="close">닫기</button></div>'), lb.length ? '#llL input' : '[data-act=newany]');
+}
+async function loadLib(cid, ids, pub) {
+  const c = S.classes.find((x) => x.id === cid); if (!c || !ids.length) return;
+  toast(ids.length + '개를 넣는 중…');
+  let n = 0, last = '';
+  try {
+    for (const id of ids) {
+      const src = S.boards.find((x) => x.id === id); if (!src) continue;
+      last = await duplicateBoard(src, { cid, mode: 'mine', uid: S.uid, owner: isMate() ? S.uid : null, own: ownQ(), from: '내가 만든 것에서 불러옴', pub });
+      n++;
+    }
+    if (last && S.cid === cid) { S.wantBid = last; S.bid = last; draw(); }
+    toast(n + '개를 \'' + c.name + '\'에 넣었어요.' + (pub ? ' 학생 화면 → 📋 모아보드에 보여요.' : ' (학생에게는 아직 안 보여요)'));
+  } catch (e) { toast(errText(e) + (n ? ' (' + n + '개는 넣었어요)' : ''), true); }
 }
 async function createSandbox(cid, title) {
   const meta = sandboxMeta({ cid, title: title || '새 샌드박스 ' + (boardsOf(cid).filter(isSandbox).length + 1), from: '직접 만듦' });
@@ -930,12 +961,6 @@ async function createPad(cid, title) {
     history.replaceState(null, '', '#class-' + cid); draw(); window.scrollTo(0, 0);
     toast('\'' + meta.title + '\' 모아보드를 만들었어요. ＋ 글 쓰기로 바로 써 보세요.');
   } catch (e) { S.wantBid = null; toast(S.saveErr || errText(e), true); }
-}
-async function newBoard() {
-  const c = curClass(); if (!c) return;
-  const meta = { id: uid('b'), cid: c.id, title: '새 모아보드 ' + (boardsOf(c.id).length + 1), from: '직접 만듦', date: todayISO(), created: new Date().toISOString(), sections: ['첫 칸'] };
-  S.wantBid = meta.id;
-  try { await writeBoard(meta, []); S.bid = meta.id; draw(); toast('빈 모아보드를 만들었어요. \'이름 바꾸기\'로 제목을 정해 보세요.'); } catch (e) { toast(S.saveErr, true); }
 }
 
 async function setPublic(b, v) {
@@ -963,7 +988,9 @@ function openClass(id) { S.view = 'board'; S.cid = id; S.lastCid = id; S.bid = n
 function openTrash() { S.view = 'trash'; S.cid = null; S.bid = null; S.msg = ''; watchParts(); if (location.hash !== '#trash') history.replaceState(null, '', '#trash'); draw(); window.scrollTo(0, 0); }
 function goHome() { S.view = 'home'; S.cid = null; S.bid = null; S.msg = ''; watchParts(); if (location.hash && location.hash !== '#home') history.replaceState(null, '', '#home'); draw(); }
 function route() {
-  if (location.hash === '#newsb' || location.hash === '#new') { const ty = location.hash === '#newsb' ? 'sb' : 'pad'; history.replaceState(null, '', '#home'); if (S.view !== 'home') goHome(); else draw(); newAnyDlg(ty, S.lastCid); return; }
+  if (location.hash === '#newsb' || location.hash === '#new') { const ty = location.hash === '#newsb' ? 'sb' : 'pad'; history.replaceState(null, '', '#home'); if (S.view !== 'home') goHome(); else draw(); newAnyDlg(ty); return; }
+  const ld = /^#load-([A-Za-z0-9]+)$/.exec(location.hash); // 📥 진행판에서 바로 불러오기
+  if (ld && S.classes.find((c) => c.id === ld[1])) { openClass(ld[1]); loadLibDlg(ld[1]); return; }
   const m = /^#class-([A-Za-z0-9]+)$/.exec(location.hash);
   if (m && (m[1] === 'lib' || S.classes.find((c) => c.id === m[1]))) { if (S.cid !== m[1]) openClass(m[1]); }
   else if (location.hash === '#trash') { if (S.view !== 'trash') openTrash(); else draw(); }
@@ -995,7 +1022,9 @@ document.addEventListener('click', (e) => {
   else if (a === 'filter') { S.filter = t.dataset.v; draw(); }
   else if (a === 'open') openClass(id);
   else if (a === 'newclass') { if (S.classes.length < MAX_CLASSES) classDlg(null); else toast('교실은 20개까지 만들 수 있어요.', true); }
-  else if (a === 'newpad' || a === 'newsb' || a === 'newany') newAnyDlg(a === 'newsb' ? 'sb' : 'pad', S.view === 'board' && S.cid ? S.cid : S.lastCid);
+  else if (a === 'newpad' || a === 'newsb' || a === 'newany' || a === 'newboard') newAnyDlg(a === 'newsb' ? 'sb' : 'pad');
+  else if (a === 'loadlib') loadLibDlg(S.cid);
+  else if (a === 'openlib') { openClass('lib'); S.bid = id; draw(); }
   else if (a === 'ntype') {
     const ty = NTYPE[t.dataset.v] ? t.dataset.v : 'pad'; $('nt').value = ty;
     t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t)));
@@ -1020,7 +1049,6 @@ document.addEventListener('click', (e) => {
   else if (a === 'restorecls') { const c = S.tclasses.find((x) => x.id === id); if (!c) return; if (S.classes.length >= MAX_CLASSES) { toast('교실이 20개라서 되살릴 수 없어요. 안 쓰는 교실을 먼저 버려 주세요.', true); return; } restoreClass(c, { own: ownQ(), homeRef: homeRefP(), owner: isMate() ? S.uid : null }).then((r) => toast('\'' + c.name + '\' 교실을 되살렸어요. 방번호 ' + r.room + (r.boards ? ' · 모아보드 ' + r.boards + '개도 같이' : '') + '.'), (err) => toast(errText(err), true)); }
   else if (a === 'purgecls') { const c = S.tclasses.find((x) => x.id === id); if (!c) return; confirmDlg('교실 영구 삭제', '\'' + c.name + '\' 교실과 학생 기록, 같이 지운 모아보드를 완전히 지워요. 되돌릴 수 없어요.', '영구 삭제', async () => { try { await purgeClass(c, { own: ownQ() }); remove(ref(rt, 'owners/' + c.id)).catch(() => {}); toast('영구 삭제했어요.'); } catch (err) { toast(errText(err), true); } }); }
   else if (a === 'tab') { S.bid = id; S.msg = ''; S.menu = false; draw(); }
-  else if (a === 'newboard') newBoard();
   else if (a === 'pubboard') { const b = curBoard(); if (b) setPublic(b, !b.public); }
   else if (a === 'pinhome') { const b = curBoard(); if (b) pinHome(b); }
   else if (a === 'lockboard') { const b = curBoard(); if (b) saveBoard(b, { lock: !b.lock }).then(() => toast(b.lock ? '학생 글쓰기를 열었어요.' : '학생 글쓰기를 잠갔어요. 읽기만 할 수 있어요.'), () => toast(S.saveErr, true)); }
@@ -1076,7 +1104,8 @@ document.addEventListener('submit', async (e) => {
       history.replaceState(null, '', '#class-' + cid); draw(); toast('\'' + title + '\'을 만들었어요.');
     } catch (err) { toast(S.saveErr || errText(err), true); }
   }
-  else if (f === 'newany') { const cid = $('pc').value, title = $('pn').value.trim(), ty = $('nt').value; closeDlg(); if (!cid || cid === '__new') classDlg(null); else if (ty === 'sb') createSandbox(cid, title); else createPad(cid, title); }
+  else if (f === 'newany') { const title = $('pn').value.trim(), ty = $('nt').value; closeDlg(); if (ty === 'sb') createSandbox('lib', title); else createPad('lib', title); }
+  else if (f === 'loadlib') { const ids = [...document.querySelectorAll('#llL input:checked')].map((x) => x.value), pub = $('llPub').checked, cid = pending && pending.cid; if (!ids.length) { toast('넣을 것을 골라 주세요.', true); return; } closeDlg(); loadLib(cid, ids, pub); }
   else if (f === 'grp') { const v = cleanGrp($('gv').value), fn = pending; closeDlg(); try { await fn(v); toast(v ? '\'' + v + '\' 묶음으로 옮겼어요.' : '묶음에서 뺐어요.'); } catch (err) { toast(S.saveErr || '저장하지 못했어요.', true); } }
   else if (f === 'text') { const v = $('tv').value.trim(); if (!v) { $('tv').focus(); return; } const fn = pending; closeDlg(); try { await fn(v); toast('저장했어요.'); } catch (err) { toast(S.saveErr || '저장하지 못했어요.', true); } }
   else if (f === 'confirm') { const fn = pending; closeDlg(); fn(); }

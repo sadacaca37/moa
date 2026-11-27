@@ -154,7 +154,7 @@ import { DEF_OX, DEF_MC, defWhy } from './js/questions.js';
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
 import { aiQuiz, aiReason, AGES, CATS } from './js/ai.js';
 import { trashBoard, inTrash, TRASH_DAYS, trashClass, purgeExpiredClasses } from './js/trash.js';
-import { duplicateClass } from './js/padcopy.js';
+import { duplicateClass, duplicateBoard } from './js/padcopy.js';
 import { classSections, sectionsHTML, grpField, grpNames, cleanGrp, toggleFold, kindOf, kindOrder } from './js/groups.js';
 import { watchKinds, kindPickHTML, bindKindPick, pickedKind, kindsDlg } from './js/kinds.js';
 const $ = (id) => document.getElementById(id);
@@ -539,7 +539,7 @@ function padsShown() {
 function paintPads() {
   if (!L || !$('padC')) return;
   const { bs, list } = padsShown();
-  const cname = (id) => id === 'lib' ? '📦 과제 보관함' : (classes.find((x) => x.id === id) || {}).name || '다른 교실';
+  const cname = (id) => id === 'lib' ? '✨ 내가 만든 것 (이 교실에 복사해서 넣어요)' : (classes.find((x) => x.id === id) || {}).name || '다른 교실';
   const rest = bs.filter((b) => !list.includes(b));
   const order = [L.cid].concat(classes.map((x) => x.id).filter((id) => id !== L.cid), ['lib']);
   const groups = order.map((cid) => { const g = rest.filter((b) => b.cid === cid); return g.length ? '<optgroup label="' + esc(cid === L.cid ? '이 교실' : cname(cid)) + '">' + g.map((b) => '<option value="' + esc(b.id) + '">' + (b.kind === 'sandbox' ? '🧩 ' : '') + esc(b.title) + '</option>').join('') + '</optgroup>' : ''; }).join('');
@@ -550,6 +550,16 @@ function paintPads() {
   if ($('padA')) $('padA').onclick = async () => {
     const b = (L.boards || []).find((x) => x.id === $('padS').value); if (!b) return;
     const { c, extra } = padsShown();
+    // ✨ 내가 만든 것은 그대로 두고 이 교실에 복사해서 넣음 (학생 글이 만들어 둔 것에 쌓이지 않게)
+    if (b.cid === 'lib') {
+      $('padA').disabled = true;
+      try {
+        await duplicateBoard(b, { cid: c.id, mode: 'mine', uid: user.uid, owner: isAdmin() ? null : user.uid, own: isAdmin() ? [] : [where('owner', '==', user.uid)], from: '내가 만든 것에서 불러옴', pub: true });
+        toast('\'' + b.title + '\'을 이 교실에 복사해서 학생 📋 모아보드 탭에 넣었어요.');
+      } catch (err) { toast(errText(err), true); }
+      if ($('padA')) $('padA').disabled = false;
+      return;
+    }
     try {
       if (!b.public) await setBoardPub(b, true);
       if (b.cid !== L.cid && !extra.includes(b.id)) await setDoc(doc(fs, 'classes', c.id), { pads: extra.concat(b.id).slice(-8) }, { merge: true });

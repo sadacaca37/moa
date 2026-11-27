@@ -12,7 +12,6 @@ let ORDER = DEF_KINDS.slice();
 export function setKindOrder(list) { const l = [...new Set((list || []).map(cleanKind).filter(Boolean))]; ORDER = l.length ? l : DEF_KINDS.slice(); }
 /** 정한 분류 + 교실에 적혀 있는데 목록에 없는 분류(뒤에) */
 export function kindOrder(cs) { const extra = [...new Set((cs || []).map(kindOf))].filter((k) => !ORDER.includes(k)).sort((a, b) => a.localeCompare(b, 'ko')); return ORDER.concat(extra); }
-const LABEL = Object.fromEntries(KINDS);
 export const cleanGrp = (s) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 20);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -25,7 +24,7 @@ export function groupBy(list, getGrp) {
 }
 /** 반 목록 → 종류별 칸 [{ kind, label, list, groups }] (빈 종류는 뺌) */
 export function classSections(cs, labels) {
-  return kindOrder(cs).map((k) => ({ kind: k, label: (labels && labels[k]) || LABEL[k] || k, list: cs.filter((c) => kindOf(c) === k) }))
+  return kindOrder(cs).map((k) => ({ kind: k, label: (labels && labels[k]) || k, list: cs.filter((c) => kindOf(c) === k) })) // 칸 이름 = 선생님이 정한 분류 이름 그대로
     .filter((s) => s.list.length).map((s) => Object.assign(s, { groups: groupBy(s.list, (c) => c.grp) }));
 }
 /** 이미 쓰고 있는 묶음 이름들 */
