@@ -212,7 +212,8 @@ import { TRASH_DAYS, inTrash, daysLeft, trashTime, trashBoard, restoreBoard, pur
 import { duplicateBoard, duplicateClass } from './js/padcopy.js';
 import { cleanFiles, okColor, copyFiles, purgeBoardSubs, layoutOf, FORMATS, checkFile, uploadFile } from './js/padkit.js';
 import { isSandbox, boardHref, sandboxMeta, copySandbox } from './js/sbkit.js';
-import { classSections, sectionsHTML, groupBy, grpField, grpNames, cleanGrp, toggleFold } from './js/groups.js';
+import { classSections, sectionsHTML, groupBy, grpField, grpNames, cleanGrp, toggleFold, kindOf, kindOrder } from './js/groups.js';
+import { watchKinds, kindPickHTML, bindKindPick, pickedKind, kindsDlg } from './js/kinds.js';
 {
 const COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#9DB8FF', '#FFB86B', '#C7B2FF'];
 const SEC_COLORS = ['#FFD23F', '#7FE0E8', '#9BE07A', '#FF9FB0', '#C7B2FF', '#FFB86B'];
@@ -273,6 +274,7 @@ function watchParts() {
 // 함께 쓰는 선생님(teacher): 자기가 만든 반·패들렛만 (주인 owner 칸을 붙여 저장하고, 자기 것만 불러옴)
 //  주 선생님(admin): 예전 그대로 owner 없는 것들
 const isMate = () => S.role === 'teacher';
+const kOwner = () => isMate() ? S.uid : ''; // 분류 목록 주인 (주 선생님은 '')
 const ownQ = () => isMate() ? [where('owner', '==', S.uid)] : [];
 const keepMine = (list) => list.filter((d) => isMate() ? d.owner === S.uid : !d.owner);
 const ownIt = (path, data) => isMate() && /^(classes|boards|parts|rooms)\/[^/]+$/.test(path) ? Object.assign({}, data, { owner: S.uid }) : data;
@@ -303,6 +305,7 @@ async function connect() {
     return;
   }
   S.role = r; S.uid = u.uid;
+  watchKinds(kOwner(), () => { if (S.view === 'home') draw(); }); // 🏷 선생님이 정한 교실 분류
   const db = FDB;
   S.db = db; S.mode = 'db';
   const timer = setTimeout(() => { S.slow = true; draw(); }, 10000);
@@ -519,11 +522,13 @@ function drawHome(ready) {
     h += '<section class="welcome pf"><div class="moa" role="img" aria-label="햄스터 모아"></div><div style="flex:1;min-width:220px"><h2>첫 모아보드를 만들어 보세요</h2><p>모아보드는 교실마다 모아 둬요. 먼저 교실을 하나 만들고, 그 안에 빈 모아보드를 만들거나 패들렛에서 내보낸 CSV(또는 엑셀) 파일을 넣으면 여기에 저장되어 다음에 열어도 그대로 있어요.</p><div class="row"><button class="btn blue" data-act="newclass">＋ 교실 만들기</button><button class="btn" data-act="newpad">＋ 모아보드 만들기</button></div></div></section>';
     $('main').className = ''; $('main').innerHTML = h; return;
   }
-  const counts = { '전체': cs.length, '정규반': cs.filter((c) => c.kind === '정규반').length, '특강반': cs.filter((c) => c.kind === '특강반').length };
-  h += '<section class="dk-wrap"><div class="dk-h"><h1>교실별 모아보드<small>' + cs.length + ' / ' + MAX_CLASSES + '</small></h1><div class="dk-tools"><div class="dk-chips" role="group" aria-label="반 종류로 거르기">' + ['전체', '정규반', '특강반'].map((f) => '<button class="dk-chip" data-act="filter" data-v="' + f + '" aria-pressed="' + (S.filter === f) + '">' + f + ' ' + counts[f] + '</button>').join('') + '</div>' +
+  const kinds = kindOrder(cs);
+  if (S.filter !== '전체' && !kinds.includes(S.filter)) S.filter = '전체';
+  const counts = { '전체': cs.length }; kinds.forEach((k) => { counts[k] = cs.filter((c) => kindOf(c) === k).length; });
+  h += '<section class="dk-wrap"><div class="dk-h"><h1>교실별 모아보드<small>' + cs.length + ' / ' + MAX_CLASSES + '</small></h1><div class="dk-tools"><div class="dk-chips" role="group" aria-label="분류로 거르기">' + ['전체'].concat(kinds).map((f) => '<button class="dk-chip" data-act="filter" data-v="' + esc(f) + '" aria-pressed="' + (S.filter === f) + '">' + esc(f) + ' ' + counts[f] + '</button>').join('') + '<button class="dk-chip" data-act="kinds" title="분류 더하기 · 이름 바꾸기 · 순서 · 지우기">🏷 분류 정하기</button></div>' +
     '<label class="dk-find" for="q"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B7085" stroke-width="2.6" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/></svg><input id="q" type="search" autocomplete="off" placeholder="교실 찾기" aria-label="교실 이름으로 찾기" value="' + esc(S.q) + '"></label></div></div>';
   h += '<div id="grid" class="dk-secs">' + gridHTML(cs, full) + '</div>';
-  h += '<p class="dk-note">＋ 모아보드 만들기로 만든 모아보드는 📦 과제 보관함에 모아 둬요(학생에게 안 보여요). 수업에 쓸 때 ⋮ → 🚀 교실로 복사해서 보내기로 고른 교실에만 복사해요. 정규 교실·특강 교실로 나뉘고, 교실 ⋮ → 📁 묶음 바꾸기로 그 안에서 한 번 더 나눌 수 있어요. 교실을 누르면 그 반에 저장된 모아보드가 열려요. 패들렛 → 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 파일은 교실 안의 ⚙ 설정 → \'패들렛에서 가져오기\'로 넣어요.</p></section>';
+  h += '<p class="dk-note">＋ 만들기에서 📋 모아보드나 🧩 샌드박스를 골라 교실에 바로 만들어요. 다른 교실에서도 쓰려면 ⋮ → 🚀 교실로 보내기로 복사해요. 교실은 🏷 분류 정하기에서 정한 분류(예: 정규반·특강반·월요일반)로 나뉘고, 교실 ⋮ → 📁 묶음 바꾸기로 그 안에서 한 번 더 나눌 수 있어요. 교실을 누르면 그 반에 저장된 모아보드가 열려요. 패들렛 → 공유 → 내보내기 → CSV(또는 엑셀)로 저장한 파일은 교실 안의 ⚙ 설정 → \'패들렛에서 가져오기\'로 넣어요.</p></section>';
   $('main').className = ''; $('main').innerHTML = h;
 }
 const stamp = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
@@ -559,25 +564,24 @@ async function doRestore(b, cid) {
 }
 function gridHTML(cs, full) {
   const q = S.q.trim();
-  const list = cs.filter((c) => (S.filter === '전체' || c.kind === S.filter) && (!q || (c.name || '').includes(q)));
+  const list = cs.filter((c) => (S.filter === '전체' || kindOf(c) === S.filter) && (!q || (c.name || '').includes(q)));
   const lb = boardsOf('lib');
   const pads = (bs) => bs.length ? '<span class="dk-pads">' + bs.slice(-3).reverse().map((b) => '<span>' + (isSandbox(b) ? '🧩 ' : '') + esc(b.title) + '</span>').join('') + '</span>' : '';
   const menu = (items) => '<span class="dk-mw"><button type="button" class="dk-dots" aria-expanded="false" aria-label="메뉴" title="메뉴">⋮</button><span class="dk-menu" hidden>' + items + '</span></span>';
   // 첫 카드: 패들렛처럼 점선 '＋ 클래스 만들기'
-  let first = '<article class="dk-card dk-add"><button class="dk-th" type="button" data-act="newpad" aria-label="모아보드 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>모아보드 만들기</b><small>보관함에 만들어 두고, 필요할 때 교실로 복사해요</small></div></div></article>';
-  if (S.filter === '전체' && !q) first += '<article class="dk-card" style="--c:#B7E06A"><button class="dk-th" type="button" data-act="open" data-id="lib" aria-label="과제 보관함 열기"><span class="dk-tag">보관함</span><span class="dk-big em" aria-hidden="true">📦</span>' + pads(lb) + '</button>' +
-    '<div class="dk-row"><div class="dk-tx"><b>과제 보관함</b><small>나만 보는 모아보드 ' + lb.length + '개 · 필요할 때 교실로 복사</small></div>' + menu('<button type="button" data-act="open" data-id="lib">📂 보관함 열기</button>') + '</div></article>';
-  // 🧩 샌드박스 만들기 바로가기 (과제 보관함 옆) — 그리기·메모지·모둠 활동 판, 만든 뒤 🚀 교실로 보내기
-  first += '<article class="dk-card" style="--c:#C9B6FF"><button class="dk-th" type="button" data-act="newsb" aria-label="샌드박스 만들기"><span class="dk-tag">새로 만들기</span><span class="dk-big em" aria-hidden="true">🧩</span></button>' +
-    '<div class="dk-row"><div class="dk-tx"><b>샌드박스 만들기</b><small>그리기·메모지·모둠 활동 판 · 만든 뒤 교실로 보내요</small></div></div></article>';
+  // 첫 카드: '＋ 만들기' 하나로 (📋 모아보드 · 🧩 샌드박스를 골라 교실에 바로) — 과제 보관함은 없앰(2026-11-27 선생님 요청)
+  let first = '<article class="dk-card dk-add"><button class="dk-th" type="button" data-act="newany" aria-label="모아보드·샌드박스 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>만들기</b><small>📋 모아보드 · 🧩 샌드박스 — 고른 교실에 바로 만들어요</small></div></div></article>';
+  // 예전 과제 보관함에 남은 모아보드가 있으면 그것만 보이게 (교실로 보내거나 지울 수 있게)
+  if (lb.length && S.filter === '전체' && !q) first += '<article class="dk-card" style="--c:#B7E06A"><button class="dk-th" type="button" data-act="open" data-id="lib" aria-label="예전 과제 보관함 열기"><span class="dk-tag">예전 보관함</span><span class="dk-big em" aria-hidden="true">📦</span>' + pads(lb) + '</button>' +
+    '<div class="dk-row"><div class="dk-tx"><b>예전 과제 보관함</b><small>남은 모아보드 ' + lb.length + '개 · ⋮ → 🚀 교실로 보내거나 지워요</small></div>' + menu('<button type="button" data-act="open" data-id="lib">📂 보관함 열기</button>') + '</div></article>';
   const card = (c) => {
     const bs = boardsOf(c.id), posts = bs.reduce((n, b) => n + (b.postCount || 0), 0), last = bs[bs.length - 1];
-    return '<article class="dk-card" style="--c:' + esc(c.color) + '"><button class="dk-th" type="button" data-act="open" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 모아보드 열기"><span class="dk-tag">' + esc(c.kind) + '</span>' + (bs.length ? pads(bs) : '<span class="dk-big em" aria-hidden="true">🗒️</span>') + '</button>' +
+    return '<article class="dk-card" style="--c:' + esc(c.color) + '"><button class="dk-th" type="button" data-act="open" data-id="' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 모아보드 열기"><span class="dk-tag">' + esc(kindOf(c)) + '</span>' + (bs.length ? pads(bs) : '<span class="dk-big em" aria-hidden="true">🗒️</span>') + '</button>' +
       '<div class="dk-row"><div class="dk-tx"><b>' + esc(c.name) + '</b><small>모아보드 ' + bs.length + '개 · 글 ' + posts + '개 · ' + (last ? '최근 ' + md(last.date) : '새로 만든 교실') + '</small></div>' +
       '<a class="dk-ic" href="teacher.html#live-' + encodeURIComponent(c.id) + '" title="' + esc(c.name) + ' 교실(진행판)로 가기" aria-label="' + esc(c.name) + ' 교실(진행판)로 가기">🏫</a>' +
       menu('<button type="button" data-act="open" data-id="' + esc(c.id) + '">📂 모아보드 열기</button><button type="button" data-act="grpclass" data-id="' + esc(c.id) + '">📁 묶음 바꾸기</button><button type="button" data-act="editclass" data-id="' + esc(c.id) + '">✏️ 이름·색 고치기</button><button type="button" data-act="dupclass" data-id="' + esc(c.id) + '">📄 교실 복제</button><button type="button" class="del" data-act="delclass" data-id="' + esc(c.id) + '">🗑 이 교실 버리기</button>') + '</div></article>';
   };
-  // 정규 교실 → 특강 교실, 그 안에서 묶음(📁)별로. 첫 칸에는 ＋ 만들기와 과제 보관함
+  // 선생님이 정한 분류 순서대로, 그 안에서 묶음(📁)별로. 첫 칸에는 ＋ 만들기
   let h = sectionsHTML(classSections(list), card, first, 'p:');
   if (!list.length) h += '<p class="dk-note">찾는 교실이 없어요. 이름을 다시 확인해 주세요.</p>';
   return h;
@@ -662,15 +666,16 @@ function confirmDlg(title, text, okLabel, fn) {
 }
 function classDlg(c) {
   const isNew = !c;
-  const d = c || { name: '', kind: '정규반', color: COLORS[S.classes.length % COLORS.length], room: newRoom() };
-  pending = { id: c ? c.id : null, color: d.color, kind: d.kind, room: d.room };
+  const d = c || { name: '', kind: kindOrder(S.classes)[0], color: COLORS[S.classes.length % COLORS.length], room: newRoom() };
+  pending = { id: c ? c.id : null, color: d.color, kind: c ? kindOf(c) : d.kind, room: d.room };
   openDlg(dlgTop(isNew ? '새 교실' : '교실 고치기') +
     '<label for="cn">반 이름</label><input id="cn" class="field" maxlength="24" autocomplete="off" value="' + esc(d.name) + '" placeholder="예: 4학년 캔바반">' +
-    '<label>반 종류</label><div class="seg" role="group" aria-label="반 종류">' + ['정규반', '특강반'].map((k) => '<button type="button" class="chip" data-act="kind" data-v="' + k + '" aria-pressed="' + (d.kind === k) + '">' + k + '</button>').join('') + '</div>' +
+    '<label>분류</label>' + kindPickHTML(pending.kind, S.classes, 'chip') +
     grpField('cgp', d.grp, grpNames(S.classes)) +
     '<label>색</label><div class="sw" role="group" aria-label="반 색">' + COLORS.map((col) => '<button type="button" data-act="color" data-v="' + col + '" style="background:' + col + '" aria-label="색 ' + col + '" aria-pressed="' + (d.color === col) + '"></button>').join('') + '</div>' +
     '<p>방번호 <b>' + esc(d.room) + '</b> (모아팡 반 입장 때 쓰는 5자리)</p>' +
     '<div class="row"><button type="submit" class="btn blue" data-form="class">' + (isNew ? '만들기 ▶' : '저장하기 ▶') + '</button>' + (isNew ? '' : '<button type="button" class="btn red" data-act="delclass" data-id="' + esc(c.id) + '">🗑 이 교실 버리기</button>') + '</div>', '#cn');
+  bindKindPick((k) => { pending.kind = k; });
 }
 // 📁 묶음 바꾸기 (클래스·패들렛 같이 씀). 비우면 '묶음 없음'
 function grpDlg(title, note, value, names, fn) {
@@ -718,7 +723,7 @@ function dupBoardDlg(b) {
   const mode = (v, t, on) => '<label style="display:flex;gap:8px;align-items:center"><input type="radio" name="dm" value="' + v + '"' + (on ? ' checked' : '') + ' style="width:20px;height:20px"> ' + t + '</label>';
   openDlg(dlgTop('📄 모아보드 복제 — ' + esc(b.title)) +
     '<label for="bn">새 모아보드 이름</label><input id="bn" class="field" maxlength="60" autocomplete="off" value="' + esc((b.title + ' 사본').slice(0, 60)) + '">' +
-    '<label for="bc">넣을 교실</label><select id="bc" class="field">' + groups + '<optgroup label="그 밖에"><option value="lib"' + (cur === 'lib' ? ' selected' : '') + '>📦 과제 보관함</option></optgroup></select>' +
+    '<label for="bc">넣을 교실</label><select id="bc" class="field">' + groups + (cur === 'lib' ? '<optgroup label="그 밖에"><option value="lib" selected>📦 예전 과제 보관함</option></optgroup>' : '') + '</select>' +
     '<label>복제할 글</label><div style="display:flex;flex-direction:column;gap:6px">' + mode('mine', '선생님 글만 (가져온 글 포함, 학생 글은 빼고)', true) + mode('all', '모든 글 (학생 글도)', false) + mode('none', '글 없이 칸·형식만', false) + '</div>' +
     '<p style="font-size:13px;color:#4B4F6B">칸·형식·묶음·사진·파일·캔버스 자리는 따라가요. 댓글·이모티콘은 복사하지 않아요. 새 모아보드는 학생에게 아직 안 보여요(👀 학생에게 보이기로 켜요).</p>' +
     '<div class="row"><button type="submit" class="btn blue" data-form="dupboard">📄 복제하기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#bn');
@@ -875,7 +880,10 @@ async function saveClass() {
   const p = pending, old = p.id ? S.classes.find((x) => x.id === p.id) : null;
   if (!old && S.classes.length >= MAX_CLASSES) { closeDlg(); toast('교실은 20개까지 만들 수 있어요.', true); return; }
   const id = p.id || uid('c');
-  const data = { name, kind: p.kind, color: p.color, room: p.room, grp: cleanGrp($('cgp') ? $('cgp').value : (old && old.grp)), created: old ? old.created : new Date().toISOString() };
+  let kind;
+  try { kind = await pickedKind(kOwner(), p.kind, S.classes); } catch (e) { toast(errText(e), true); return; }
+  if (!kind) { const ki = $('kNew'); if (ki) { ki.focus(); ki.setAttribute('aria-invalid', 'true'); } return; }
+  const data = { name, kind, color: p.color, room: p.room, grp: cleanGrp($('cgp') ? $('cgp').value : (old && old.grp)), created: old ? old.created : new Date().toISOString() };
   closeDlg();
   try {
     await put('classes/' + id, Object.assign(data, old ? {} : { map: 'classroom' }));
@@ -885,30 +893,25 @@ async function saveClass() {
     toast(old ? '\'' + name + '\'을 고쳤어요.' : '\'' + name + '\'을 만들었어요. 눌러서 모아보드를 만들어 보세요.');
   } catch (e) { toast(S.saveErr || errText(e), true); }
 }
-// ＋ 패들렛 만들기 (내 패들렛 첫 화면): 넣을 교실을 고르고 이름을 쓰면 빈 패들렛을 바로 만들어 엶
-function newPadDlg() {
-  const cs = classes(); // 새 모아보드는 언제나 보관함(나만 보는 곳)에 먼저 — 교실에는 필요할 때 복사해서 보냄
-  const opt = (c) => '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>';
-  const groups = classSections(cs).map((sec) => sec.groups.map((g) => '<optgroup label="' + esc('교실에 바로 넣기 · ' + sec.label + (g.name ? ' · 📁 ' + g.name : '')) + '">' + g.list.map(opt).join('') + '</optgroup>').join('')).join('');
-  pending = null;
-  openDlg(dlgTop('＋ 새 모아보드') +
-    '<label for="pn">모아보드 이름</label><input id="pn" class="field" maxlength="60" autocomplete="off" placeholder="예: 3차시 캔바 발표">' +
-    '<label for="pc">둘 곳</label><select id="pc" class="field"><option value="lib" selected>📦 과제 보관함 — 나만 보며 정리해 두기 (교실에 안 보내요)</option>' + groups + (S.classes.length < MAX_CLASSES ? '<optgroup label="그 밖에"><option value="__new">＋ 새 교실 만들기…</option></optgroup>' : '') + '</select>' +
-    '<p style="font-size:13px;color:#4B4F6B;margin:0">보관함에 둔 모아보드는 학생에게 안 보여요. 필요할 때 ⋮ → 🚀 교실로 복사해서 보내기로 고른 교실에만 보내요.</p>' +
-    '<div class="row"><button type="submit" class="btn blue" data-form="newpad">만들기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#pn');
-}
-// 🧩 샌드박스 만들기: 이름과 둘 곳(보관함 또는 교실)을 정하면 만들고 바로 크게 엶 → 다 만들면 🚀 교실로 보내기
-function newSbDlg(cur) {
-  const cs = classes();
+// ＋ 만들기 (하나로 합침): 📋 모아보드 / 🧩 샌드박스를 고르고, 넣을 교실과 이름을 정하면 바로 만들어 엶
+//   과제 보관함은 없앰(2026-11-27 선생님 요청) — 언제나 교실에 바로 만들고, 다른 교실에는 ⋮ → 🚀 교실로 보내기로 복사
+const NTYPE = {
+  pad: { icon: '📋', name: '모아보드', ph: '예: 3차시 캔바 발표', note: '글·사진·링크·파일을 칸에 모으는 판이에요. 패들렛에서 내보낸 파일도 넣을 수 있어요.' },
+  sb: { icon: '🧩', name: '샌드박스', ph: '예: 책 소개 모둠 활동', note: '카드(쪽)마다 그리기·글자·메모지·도형·사진·스티커를 올리는 판이에요. 템플릿으로 시작하고, 👥 모둠을 만들면 모둠마다 카드가 생겨요.' }
+};
+function newAnyDlg(type, cur) {
+  const cs = classes(), ty = NTYPE[type] ? type : 'pad';
+  if (!cs.some((c) => c.id === cur)) cur = (cs.find((c) => c.id === S.lastCid) || cs[0] || {}).id;
   const opt = (c) => '<option value="' + esc(c.id) + '"' + (c.id === cur ? ' selected' : '') + '>' + esc(c.name) + '</option>';
-  const groups = classSections(cs).map((sec) => sec.groups.map((g) => '<optgroup label="' + esc('교실에 바로 넣기 · ' + sec.label + (g.name ? ' · 📁 ' + g.name : '')) + '">' + g.list.map(opt).join('') + '</optgroup>').join('')).join('');
+  const groups = classSections(cs).map((sec) => sec.groups.map((g) => '<optgroup label="' + esc(sec.label + (g.name ? ' · 📁 ' + g.name : '')) + '">' + g.list.map(opt).join('') + '</optgroup>').join('')).join('');
   pending = null;
-  openDlg(dlgTop('🧩 새 샌드박스') +
-    '<p style="margin:0;font-size:14px;color:#4B4F6B">패들렛 샌드박스처럼 카드(쪽)마다 그리기·글자·메모지·도형·사진·스티커를 올리는 판이에요. 템플릿으로 시작하고, 👥 모둠을 만들면 모둠마다 카드가 생겨요.</p>' +
-    '<label for="sn">샌드박스 이름</label><input id="sn" class="field" maxlength="60" autocomplete="off" placeholder="예: 책 소개 모둠 활동">' +
-    '<label for="sc">둘 곳</label><select id="sc" class="field"><option value="lib"' + (cur === 'lib' || !cs.some((c) => c.id === cur) ? ' selected' : '') + '>📦 과제 보관함 — 만들어 두고 나중에 교실로 보내기</option>' + groups + (S.classes.length < MAX_CLASSES ? '<optgroup label="그 밖에"><option value="__new">＋ 새 교실 만들기…</option></optgroup>' : '') + '</select>' +
-    '<p style="font-size:13px;color:#4B4F6B;margin:0">만들면 샌드박스가 크게 열려요. 다 만든 뒤 위의 🚀 교실로 보내기를 누르면 고른 교실에 복사돼요.</p>' +
-    '<div class="row"><button type="submit" class="btn blue" data-form="newsb">만들기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#sn');
+  openDlg(dlgTop('＋ 새로 만들기') +
+    '<label>무엇을 만들까요?</label><div class="seg" role="group" aria-label="만들 것">' + Object.keys(NTYPE).map((k) => '<button type="button" class="chip" data-act="ntype" data-v="' + k + '" aria-pressed="' + (k === ty) + '">' + NTYPE[k].icon + ' ' + NTYPE[k].name + '</button>').join('') + '</div>' +
+    '<input type="hidden" id="nt" value="' + ty + '"><p id="ntN" style="margin:0;font-size:14px;color:#4B4F6B">' + esc(NTYPE[ty].note) + '</p>' +
+    '<label for="pn" id="pnL">' + NTYPE[ty].name + ' 이름</label><input id="pn" class="field" maxlength="60" autocomplete="off" placeholder="' + esc(NTYPE[ty].ph) + '">' +
+    '<label for="pc">넣을 교실</label><select id="pc" class="field">' + groups + (S.classes.length < MAX_CLASSES ? '<optgroup label="그 밖에"><option value="__new"' + (cs.length ? '' : ' selected') + '>＋ 새 교실 만들기…</option></optgroup>' : '') + '</select>' +
+    '<p style="font-size:13px;color:#4B4F6B;margin:0">고른 교실에 바로 만들어요. 다른 교실에서도 쓰려면 만든 뒤 ⋮ → 🚀 교실로 보내기로 복사해요.</p>' +
+    '<div class="row"><button type="submit" class="btn blue" data-form="newany">만들기 ▶</button><button type="button" class="btn" data-act="close">그만두기</button></div>', '#pn');
 }
 async function createSandbox(cid, title) {
   const meta = sandboxMeta({ cid, title: title || '새 샌드박스 ' + (boardsOf(cid).filter(isSandbox).length + 1), from: '직접 만듦' });
@@ -960,7 +963,7 @@ function openClass(id) { S.view = 'board'; S.cid = id; S.lastCid = id; S.bid = n
 function openTrash() { S.view = 'trash'; S.cid = null; S.bid = null; S.msg = ''; watchParts(); if (location.hash !== '#trash') history.replaceState(null, '', '#trash'); draw(); window.scrollTo(0, 0); }
 function goHome() { S.view = 'home'; S.cid = null; S.bid = null; S.msg = ''; watchParts(); if (location.hash && location.hash !== '#home') history.replaceState(null, '', '#home'); draw(); }
 function route() {
-  if (location.hash === '#newsb') { history.replaceState(null, '', '#home'); if (S.view !== 'home') goHome(); else draw(); newSbDlg('lib'); return; }
+  if (location.hash === '#newsb' || location.hash === '#new') { const ty = location.hash === '#newsb' ? 'sb' : 'pad'; history.replaceState(null, '', '#home'); if (S.view !== 'home') goHome(); else draw(); newAnyDlg(ty, S.lastCid); return; }
   const m = /^#class-([A-Za-z0-9]+)$/.exec(location.hash);
   if (m && (m[1] === 'lib' || S.classes.find((c) => c.id === m[1]))) { if (S.cid !== m[1]) openClass(m[1]); }
   else if (location.hash === '#trash') { if (S.view !== 'trash') openTrash(); else draw(); }
@@ -992,10 +995,15 @@ document.addEventListener('click', (e) => {
   else if (a === 'filter') { S.filter = t.dataset.v; draw(); }
   else if (a === 'open') openClass(id);
   else if (a === 'newclass') { if (S.classes.length < MAX_CLASSES) classDlg(null); else toast('교실은 20개까지 만들 수 있어요.', true); }
-  else if (a === 'newpad') newPadDlg();
-  else if (a === 'newsb') newSbDlg(S.view === 'board' && S.cid ? S.cid : 'lib');
+  else if (a === 'newpad' || a === 'newsb' || a === 'newany') newAnyDlg(a === 'newsb' ? 'sb' : 'pad', S.view === 'board' && S.cid ? S.cid : S.lastCid);
+  else if (a === 'ntype') {
+    const ty = NTYPE[t.dataset.v] ? t.dataset.v : 'pad'; $('nt').value = ty;
+    t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t)));
+    $('ntN').textContent = NTYPE[ty].note; $('pnL').textContent = NTYPE[ty].name + ' 이름'; $('pn').placeholder = NTYPE[ty].ph;
+  }
+  else if (a === 'kinds') kindsDlg({ owner: kOwner(), classes: S.classes, trash: S.tclasses, openDlg, closeDlg, toast, errText, titleId: 'dlgt', onDone: draw });
   else if (a === 'editclass') classDlg(S.classes.find((c) => c.id === id));
-  else if (a === 'grpclass') { const c = S.classes.find((x) => x.id === id); if (c) grpDlg('📁 묶음 바꾸기 — ' + c.name, (c.kind || '정규반') + ' 안에서 같은 묶음끼리 모아 보여요. 비워 두면 \'묶음 없음\'으로 가요.', c.grp, grpNames(S.classes), (v) => put('classes/' + c.id, { grp: v })); }
+  else if (a === 'grpclass') { const c = S.classes.find((x) => x.id === id); if (c) grpDlg('📁 묶음 바꾸기 — ' + c.name, kindOf(c) + ' 안에서 같은 묶음끼리 모아 보여요. 비워 두면 \'묶음 없음\'으로 가요.', c.grp, grpNames(S.classes), (v) => put('classes/' + c.id, { grp: v })); }
   else if (a === 'grpboard') { const b = id ? S.boards.find((x) => x.id === id) : curBoard(), c = curClass(); if (b && c) grpDlg('📁 묶음 바꾸기 — ' + b.title, '이 반 모아보드 고르기(▾)에서 같은 묶음끼리 모아 보여요. 예: 1학기, 캔바 단원. 비워 두면 \'묶음 없음\'으로 가요.', b.grp, grpNames(boardsOf(c.id)), (v) => saveBoard(b, { grp: v })); }
   else if (a === 'kind' || a === 'color') { pending[a] = t.dataset.v; t.parentNode.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === t))); }
   else if (a === 'delclass') {
@@ -1068,8 +1076,7 @@ document.addEventListener('submit', async (e) => {
       history.replaceState(null, '', '#class-' + cid); draw(); toast('\'' + title + '\'을 만들었어요.');
     } catch (err) { toast(S.saveErr || errText(err), true); }
   }
-  else if (f === 'newpad') { const cid = $('pc').value, title = $('pn').value.trim(); closeDlg(); if (cid === '__new') classDlg(null); else createPad(cid, title); }
-  else if (f === 'newsb') { const cid = $('sc').value, title = $('sn').value.trim(); closeDlg(); if (cid === '__new') classDlg(null); else createSandbox(cid, title); }
+  else if (f === 'newany') { const cid = $('pc').value, title = $('pn').value.trim(), ty = $('nt').value; closeDlg(); if (!cid || cid === '__new') classDlg(null); else if (ty === 'sb') createSandbox(cid, title); else createPad(cid, title); }
   else if (f === 'grp') { const v = cleanGrp($('gv').value), fn = pending; closeDlg(); try { await fn(v); toast(v ? '\'' + v + '\' 묶음으로 옮겼어요.' : '묶음에서 뺐어요.'); } catch (err) { toast(S.saveErr || '저장하지 못했어요.', true); } }
   else if (f === 'text') { const v = $('tv').value.trim(); if (!v) { $('tv').focus(); return; } const fn = pending; closeDlg(); try { await fn(v); toast('저장했어요.'); } catch (err) { toast(S.saveErr || '저장하지 못했어요.', true); } }
   else if (f === 'confirm') { const fn = pending; closeDlg(); fn(); }

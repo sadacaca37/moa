@@ -129,8 +129,7 @@ details summary{cursor:pointer;font:400 17px 'Jua',sans-serif}
     <a class="btn sm" href="padlet.html">📋 내 모아보드</a>
     <a class="btn sm" href="#quiz" data-nav="quiz">📚 퀴즈 보관함</a>
     <a class="btn sm" href="games.html">🎮 미니 게임</a>
-    <a class="btn sm" href="padlet.html#class-lib" title="모아보드를 나만 보며 정리해 두고, 필요할 때 교실로 복사해 보내는 곳">📦 과제 보관함</a>
-    <a class="btn sm" href="padlet.html#newsb" title="패들렛 샌드박스처럼 그리기·메모지·모둠 활동 판 만들기 → 교실로 보내기">🧩 샌드박스 만들기</a>
+    <a class="btn sm" href="padlet.html#new" title="📋 모아보드나 🧩 샌드박스를 골라 교실에 바로 만들기">＋ 모아보드·샌드박스 만들기</a>
     <a class="btn sm" href="sms.html" id="navSms" hidden title="타자팡 출석부 · 부모님 출석 문자 · 안내장">📱 출석·문자</a>
     <a class="btn sm" href="#home" data-nav="home" id="navHome">🏠 첫 화면 꾸미기</a>
     <a class="btn sm" href="#team" data-nav="team" id="navTeam" hidden>👥 선생님 관리</a>
@@ -156,7 +155,8 @@ import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
 import { aiQuiz, aiReason, AGES, CATS } from './js/ai.js';
 import { trashBoard, inTrash, TRASH_DAYS, trashClass, purgeExpiredClasses } from './js/trash.js';
 import { duplicateClass } from './js/padcopy.js';
-import { classSections, sectionsHTML, grpField, grpNames, cleanGrp, toggleFold } from './js/groups.js';
+import { classSections, sectionsHTML, grpField, grpNames, cleanGrp, toggleFold, kindOf, kindOrder } from './js/groups.js';
+import { watchKinds, kindPickHTML, bindKindPick, pickedKind, kindsDlg } from './js/kinds.js';
 const $ = (id) => document.getElementById(id);
 const A = window.MoaAvatar;
 endPreview(); // 학생 화면 미리보기에서 돌아오면 미리보기를 끔
@@ -288,7 +288,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 function drawClasses() {
   const cs = classes, full = cs.length >= MAX;
   // 패들렛 대시보드처럼: 첫 카드 '＋ 새 교실', 반 카드는 그림 칸(방번호·접속·진행판) + 이름 + ⋮ 메뉴(복제·버리기 등)
-  const card = (c) => '<article class="dk-card" style="--c:' + esc(c.color || '#FFD23F') + '"><a class="dk-th" href="#live-' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 진행판 열기"><span class="dk-tag">' + esc(c.kind || '정규반') + '</span><span class="dk-tag r"><i aria-hidden="true"></i>접속 ' + (counts[c.id] || 0) + '명</span><span class="dk-big" aria-label="방번호 ' + esc(c.room || '-') + '">' + esc(c.room || '-') + '</span><span class="dk-go">진행판 ▶</span></a>' +
+  const card = (c) => '<article class="dk-card" style="--c:' + esc(c.color || '#FFD23F') + '"><a class="dk-th" href="#live-' + esc(c.id) + '" aria-label="' + esc(c.name) + ' 진행판 열기"><span class="dk-tag">' + esc(kindOf(c)) + '</span><span class="dk-tag r"><i aria-hidden="true"></i>접속 ' + (counts[c.id] || 0) + '명</span><span class="dk-big" aria-label="방번호 ' + esc(c.room || '-') + '">' + esc(c.room || '-') + '</span><span class="dk-go">진행판 ▶</span></a>' +
     '<div class="dk-row"><div class="dk-tx"><b>' + esc(c.name) + '</b><small>방번호 ' + esc(c.room || '-') + ' · 맵 ' + esc(mapName(c.map || 'classroom')) + (c.qz && (c.qz.ox || c.qz.mc) ? ' · 📚 ' + esc([c.qz.ox, c.qz.mc].filter(Boolean).map((q) => q.name).join(', ')) : '') + '</small></div>' +
     '<a class="dk-ic" href="padlet.html#class-' + encodeURIComponent(c.id) + '" title="' + esc(c.name) + ' 모아보드로 가기" aria-label="' + esc(c.name) + ' 모아보드로 가기">📋</a>' +
     '<span class="dk-mw"><button type="button" class="dk-dots" aria-expanded="false" aria-label="' + esc(c.name) + ' 메뉴" title="메뉴">⋮</button><span class="dk-menu" hidden>' +
@@ -296,7 +296,7 @@ function drawClasses() {
   const nT = tclasses.length;
   // 휴지통은 ⚙ 설정 안에만 (화면에 휴지통 그림을 늘어놓지 않음)
   const tools = '<div class="dk-tools"><span class="dk-mw"><button type="button" class="dk-dots dk-set" aria-expanded="false" aria-haspopup="true" title="설정">⚙ 설정</button><span class="dk-menu" hidden>' +
-    '<button type="button" id="newC2"' + (full ? ' disabled' : '') + '>＋ 새 교실 만들기</button><a href="padlet.html">📋 내 모아보드</a><a href="padlet.html#trash" title="지운 교실·모아보드 (' + TRASH_DAYS + '일 안에 되살리기)">🗑 휴지통' + (nT ? '<b class="dk-n">' + nT + '</b>' : '') + '</a></span></span></div>';
+    '<button type="button" id="newC2"' + (full ? ' disabled' : '') + '>＋ 새 교실 만들기</button><button type="button" id="kindsBtn">🏷 분류 정하기</button><a href="padlet.html">📋 내 모아보드</a><a href="padlet.html#trash" title="지운 교실·모아보드 (' + TRASH_DAYS + '일 안에 되살리기)">🗑 휴지통' + (nT ? '<b class="dk-n">' + nT + '</b>' : '') + '</a></span></span></div>';
   $('view').innerHTML = '<section class="dk-wrap"><div class="dk-h"><h1>교실<small>' + cs.length + ' / ' + MAX + '</small></h1>' + tools + '</div>' +
     // 정규 교실 → 특강 교실, 그 안에서 선생님이 정한 묶음(📁)으로 한 번 더 나눔. 머리를 누르면 접고 펴기
     '<div id="cGrid" class="dk-secs">' + sectionsHTML(classSections(cs), card, '<article class="dk-card dk-add"><button class="dk-th" type="button" id="newC"' + (full ? ' disabled' : '') + ' aria-label="새 교실 만들기">＋</button><div class="dk-row"><div class="dk-tx"><b>새 교실 만들기</b><small>' + (full ? '20개가 다 찼어요' : cs.length + ' / ' + MAX + '개') + '</small></div></div></article>', 't:') + '</div>' +
@@ -313,26 +313,29 @@ async function freeRoom() {
 }
 async function classDlg(c) {
   const isNew = !c;
-  const d = c ? Object.assign({}, c) : { name: '', kind: '정규반', color: COLORS[classes.length % COLORS.length], map: 'classroom', room: await freeRoom() };
+  const d = c ? Object.assign({}, c, { kind: kindOf(c) }) : { name: '', kind: kindOrder(classes)[0], color: COLORS[classes.length % COLORS.length], map: 'classroom', room: await freeRoom() };
   openDlg(dlgTop(isNew ? '새 교실' : '교실 고치기') +
     '<label class="lb">반 이름<input class="field" id="cn" maxlength="24" value="' + esc(d.name) + '" placeholder="예: 4학년 캔바반"></label>' +
-    '<div class="lb">반 종류<div class="seg" id="ck">' + ['정규반', '특강반'].map((k) => '<button type="button" class="btn sm" data-v="' + k + '" aria-pressed="' + (d.kind === k) + '">' + k + '</button>').join('') + '</div></div>' +
+    '<div class="lb">분류' + kindPickHTML(d.kind, classes, 'btn sm') + '</div>' +
     '<div class="lb">색<div class="seg" id="cc">' + COLORS.map((x) => '<button type="button" class="btn sm" data-v="' + x + '" aria-pressed="' + (d.color === x) + '" style="background:' + x + ';width:44px" aria-label="색 ' + x + '"></button>').join('') + '</div></div>' +
     grpField('cg', d.grp, grpNames(classes)) +
     '<label class="lb">처음 들어갈 맵<select class="field" id="cm">' + MAPS.map(([id, n]) => '<option value="' + id + '"' + (d.map === id ? ' selected' : '') + '>' + n + '</option>').join('') + '</select></label>' +
     '<p class="note" style="color:var(--ink)">방번호 <b id="crT">' + esc(d.room) + '</b> <button type="button" class="btn sm" id="newRoom">새 번호로 바꾸기</button></p>' +
     '<div class="row"><button type="button" class="btn blue" id="cSave">' + (isNew ? '만들기 ▶' : '저장하기 ▶') + '</button>' + (isNew ? '' : '<button type="button" class="btn red" id="cDel">🗑 이 교실 버리기</button>') + '</div>', '#cn');
   const pick = (box, key) => $(box).addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (!b) return; d[key] = b.dataset.v; $(box).querySelectorAll('[data-v]').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); });
-  pick('ck', 'kind'); pick('cc', 'color');
+  bindKindPick((k) => { d.kind = k; }); pick('cc', 'color');
   $('newRoom').addEventListener('click', async () => { d.room = await freeRoom(); $('crT').textContent = d.room; });
   $('cSave').addEventListener('click', async () => {
     const name = $('cn').value.trim(); if (!name) { $('cn').focus(); return; }
     if (isNew && classes.length >= MAX) { toast('교실은 20개까지 만들 수 있어요.', true); return; }
     const id = c ? c.id : uid('c'), map = $('cm').value, grp = cleanGrp($('cg').value);
+    let kind;
+    try { kind = await pickedKind(myOwner(), d.kind, classes); } catch (err) { toast(errText(err), true); return; }
+    if (!kind) { $('kNew').focus(); toast('새 분류 이름을 써 주세요.', true); return; }
     try {
       // 함께 쓰는 선생님의 반에는 주인(owner)을 적는다 (주 선생님 반은 예전 그대로 owner 없음)
       const mine = isAdmin() ? {} : { owner: user.uid };
-      await setDoc(doc(fs, 'classes', id), Object.assign({ name, kind: d.kind, color: d.color, room: d.room, map, grp, created: c ? (c.created || new Date().toISOString()) : new Date().toISOString() }, mine), { merge: true });
+      await setDoc(doc(fs, 'classes', id), Object.assign({ name, kind, color: d.color, room: d.room, map, grp, created: c ? (c.created || new Date().toISOString()) : new Date().toISOString() }, mine), { merge: true });
       if (!isAdmin()) await set(ref(rt, 'owners/' + id), user.uid); // 실시간 교실(진행판)을 이 선생님만 다루게
       // 고치기에서 맵을 바꾸면 지금 열려 있는 교실(진행판)의 맵도 같이 바꿈 (예전에는 진행판에 옛 맵이 남았음)
       if (c && c.map !== map) { try { const sv = await rget(ref(rt, 'live/' + id + '/state')); if (sv.exists()) await update(ref(rt, 'live/' + id + '/state'), { map }); } catch (e) { /* 진행판을 아직 안 열었으면 넘어감 */ } }
@@ -345,7 +348,7 @@ async function classDlg(c) {
 }
 // 📁 묶음 바꾸기: 같은 종류(정규·특강) 안에서 한 번 더 나눠 보기 (예: 월요일반, 동광초)
 function grpDlg(c) {
-  openDlg(dlgTop('📁 묶음 바꾸기 — ' + c.name) + '<p class="note">' + esc(c.kind || '정규반') + ' 안에서 같은 묶음끼리 모아 보여요. 비워 두면 \'묶음 없음\'으로 가요.</p>' + grpField('gg', c.grp, grpNames(classes)) +
+  openDlg(dlgTop('📁 묶음 바꾸기 — ' + c.name) + '<p class="note">' + esc(kindOf(c)) + ' 안에서 같은 묶음끼리 모아 보여요. 비워 두면 \'묶음 없음\'으로 가요.</p>' + grpField('gg', c.grp, grpNames(classes)) +
     '<div class="row"><button type="button" class="btn blue" id="gSave">저장하기 ▶</button><button type="button" class="btn" data-x>그만두기</button></div>', '#gg');
   const save = async () => {
     const grp = cleanGrp($('gg').value);
@@ -1224,6 +1227,7 @@ document.addEventListener('click', (e) => {
   const cd = e.target.closest('[data-cdel]'); if (cd) { const c = classes.find((x) => x.id === cd.dataset.cdel); if (c) confirmDlg('교실 버리기', TRASH_NOTE(c), '🗑 휴지통으로', () => deleteClass(c)); return; }
   const cu = e.target.closest('[data-cdup]'); if (cu) { const c = classes.find((x) => x.id === cu.dataset.cdup); if (c) dupDlg(c); return; }
   if (e.target.closest('#newC,#newC2')) { if (classes.length < MAX) classDlg(null).catch((err) => toast(errText(err), true)); }
+  if (e.target.closest('#kindsBtn')) kindsDlg({ owner: myOwner(), classes, trash: tclasses, openDlg, closeDlg, toast, errText, titleId: 'dlgT', onDone: () => { if (view === 'classes') drawClasses(); } });
 });
 
 let started = false;
@@ -1248,6 +1252,7 @@ function start(u) {
     else if (view === 'live' && L) { const c = classes.find((x) => x.id === L.cid); if (!c) route(); else refreshList('clsL', c.links || [], () => (classes.find((x) => x.id === c.id) || {}).links || [], (list) => setDoc(doc(fs, 'classes', c.id), { links: list }, { merge: true }));  paintQuiz(); paintPads(); }
     else if (!view) route();
   }, (err) => { $('view').innerHTML = '<p class="pf pad">' + esc(errText(err)) + '</p>'; });
+  watchKinds(myOwner(), () => { if (view === 'classes') drawClasses(); }); // 🏷 선생님이 정한 교실 분류
   onSnapshot(doc(fs, 'banks', bankId(myOwner(), 'lib')), (s) => { LIB.sets = s.exists() ? s.data().sets || [] : []; LIB.ok = true; if (view === 'quiz') drawQuizLib(); }, () => { LIB.ok = true; });
   onSnapshot(homeRef(), (s) => {
     home = s.exists() ? s.data() : {};

@@ -1,8 +1,18 @@
 /* 교실(클래스)·패들렛 나눠 보기
-   - 종류: 정규 교실 / 특강 교실 (반 종류 kind)
+   - 분류(반 종류 kind): 선생님이 직접 정함 (처음에는 정규반·특강반). 순서·이름은 js/kinds.js 가 불러와 setKindOrder 로 알려 줌
    - 그 안에서 선생님이 정한 묶음(grp: 예 '월요일반', '동광초', '1학기')으로 한 번 더 나눔
    - 머리를 누르면 접고 펴기 (이 컴퓨터에 기억) */
 export const KINDS = [['정규반', '정규 교실'], ['특강반', '특강 교실']];
+export const DEF_KINDS = KINDS.map((k) => k[0]);
+export const cleanKind = (s) => String(s || '').replace(/[\u0000-\u001f]/g, '').replace(/\s+/g, ' ').trim().slice(0, 12);
+/** 교실의 분류 (적혀 있지 않으면 예전처럼 정규반) */
+export const kindOf = (c) => cleanKind(c && c.kind) || '정규반';
+let ORDER = DEF_KINDS.slice();
+/** 선생님이 정한 분류 순서 (빈 목록이면 처음 값) */
+export function setKindOrder(list) { const l = [...new Set((list || []).map(cleanKind).filter(Boolean))]; ORDER = l.length ? l : DEF_KINDS.slice(); }
+/** 정한 분류 + 교실에 적혀 있는데 목록에 없는 분류(뒤에) */
+export function kindOrder(cs) { const extra = [...new Set((cs || []).map(kindOf))].filter((k) => !ORDER.includes(k)).sort((a, b) => a.localeCompare(b, 'ko')); return ORDER.concat(extra); }
+const LABEL = Object.fromEntries(KINDS);
 export const cleanGrp = (s) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 20);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -15,7 +25,7 @@ export function groupBy(list, getGrp) {
 }
 /** 반 목록 → 종류별 칸 [{ kind, label, list, groups }] (빈 종류는 뺌) */
 export function classSections(cs, labels) {
-  return KINDS.map(([k, label]) => ({ kind: k, label: (labels && labels[k]) || label, list: cs.filter((c) => (c.kind === '특강반' ? '특강반' : '정규반') === k) }))
+  return kindOrder(cs).map((k) => ({ kind: k, label: (labels && labels[k]) || LABEL[k] || k, list: cs.filter((c) => kindOf(c) === k) }))
     .filter((s) => s.list.length).map((s) => Object.assign(s, { groups: groupBy(s.list, (c) => c.grp) }));
 }
 /** 이미 쓰고 있는 묶음 이름들 */
