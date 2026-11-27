@@ -336,7 +336,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
     <div class="tabp" id="tp-ai" role="tabpanel" hidden>
       <div class="aigrid">
         <label>나이 (학년)<select id="aiAge"><option>초등 1~2학년 (8~9살)</option><option selected>초등 3~4학년 (10~11살)</option><option>초등 5~6학년 (12~13살)</option><option>중학생 (14~16살)</option><option>고등학생 (17~19살)</option><option>어른</option></select></label>
-        <label>분야 (카테고리)<select id="aiCat"><option>컴퓨터·코딩</option><option>인공지능</option><option>디지털 안전·예절</option><option>과학</option><option>수학</option><option>우리말·낱말</option><option>사회·우리나라</option><option>역사</option><option>세계·지리</option><option>영어 낱말</option><option>음악·미술</option><option>체육·건강</option><option>동물·식물</option><option>생활 상식</option><option>여러 분야 섞어서</option></select></label>
+        <label>분야 (카테고리)<select id="aiCat"><option>컴퓨터·코딩</option><option>인공지능</option><option>디지털 안전·예절</option><option>과학</option><option>수학</option><option>우리말·낱말</option><option>사회·우리나라</option><option>역사</option><option>세계·지리</option><option>영어 낱말</option><option>음악·미술</option><option>체육·건강</option><option>동물·식물</option><option>생활 상식</option><option>넌센스 퀴즈</option><option>웃긴 퀴즈</option><option>여러 분야 섞어서</option></select></label>
         <label>난이도<select id="aiLv"><option>쉬움</option><option selected>보통</option><option>어려움</option></select></label>
         <label>문제 수<select id="aiN"><option>5</option><option selected>10</option><option>15</option><option>20</option></select></label>
       </div>
@@ -358,7 +358,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 import { fs, rt, whenAuth, ensureUser, isTeacher, teacherRole, bankId, doc, getDoc, setDoc, ref, set, update, rget, rnow, getSession, onValue, onChildAdded, onChildChanged, onChildRemoved, onDisconnect, PREVIEW } from './js/fb.js';
 import { readXlsx, readCSV, makeXlsx, downloadBlob } from './js/xlsx.js';
 import { QUIZ, OXT as DEF_OX, defWhy } from './js/questions.js'; // 기본 문제 (선생님 화면과 같은 것)
-import { aiJSON, aiReason } from './js/ai.js';
+import { aiJSON, aiReason, catRules, factRule } from './js/ai.js';
 import { emoHTML, emoOnly, emoTok, emoImg, drawEmoBubble, openEmoPicker, EMO_N } from './js/emo.js';
 {
 'use strict';
@@ -1918,11 +1918,11 @@ async function aiMake() {
   const prompt = `너는 한국 학교 방과후 수업에서 쓰는 어린이 퀴즈를 만드는 선생님 도우미야.
 아래 조건으로 "${C.name}" 문제를 ${n}개 만들어 줘.
 - 대상: ${pickT('#aiAge')}
-- 분야: ${pickT('#aiCat')}${topic ? `\n- 주제·차시: ${topic}` : ''}
+- 분야: ${pickT('#aiCat')}${catRules(pickT('#aiCat'))}${topic ? `\n- 주제·차시: ${topic}` : ''}
 - 난이도: ${pickT('#aiLv')} (대상 나이에 맞춰서)
 규칙:
 - 대상 학년이 아는 쉬운 우리말로 짧게 써요.
-- 사실이 확실한 내용만 내요. 답이 두 개일 수 있거나 헷갈리는 문제는 빼요.
+- ${factRule(pickT('#aiCat'))} 답이 두 개일 수 있거나 헷갈리는 문제는 빼요.
 - 무섭거나 슬프거나 어른용인 내용, 누군가를 놀리는 내용은 넣지 않아요.
 - 서로 겹치지 않게 골고루 내요.${have ? `\n- 이미 있는 문제와 겹치지 않게 해요: ${have}` : ''}
 다른 말 없이 JSON 배열 하나로만 답해요. 형식: ${C.fmt}`;
